@@ -96,3 +96,25 @@ test('items that reflow because the list changed width do not glide; a real move
     HTMLElement.prototype.getBoundingClientRect = real
   }
 })
+
+test('scrolling or restoring the page never animates the cards back to the old viewport', () => {
+  const real = HTMLElement.prototype.getBoundingClientRect
+  let top = 700
+  let offset = 100
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    return { left: 0, top: top + (this.dataset.key ? offset : 0), width: 800 } as DOMRect
+  }
+  try {
+    const { container, rerender } = render(<AnimatedList items={items('a')} />)
+    const card = () => container.querySelector('[data-key="a"]') as HTMLElement
+    top = -980
+    rerender(<AnimatedList items={items('a')} />)
+    expect(card().style.transform).toBe('')
+    // A real reorder still animates at the restored scroll position.
+    offset = 300
+    rerender(<AnimatedList items={items('a')} />)
+    expect(card().style.transform).toBe('translate(0px, -200px)')
+  } finally {
+    HTMLElement.prototype.getBoundingClientRect = real
+  }
+})

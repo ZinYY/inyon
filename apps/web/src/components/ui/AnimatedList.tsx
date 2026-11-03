@@ -22,7 +22,7 @@ export function AnimatedList({ items, className, enter = 'animate-slide-up' }: {
   /** keys in the order they were shown last time, so one that leaves keeps its place while it fades */
   const order = useRef<string[]>([])
   /** where each item was last time, by key */
-  const rects = useRef<Map<string, DOMRect>>(new Map())
+  const rects = useRef<Map<string, { left: number; top: number }>>(new Map())
   /** the list's own width last time: when it changes (the window settling at launch, a tablet turning) items reflow, they didn't move */
   const width = useRef<number | undefined>(undefined)
   /** the content each item had last time, so a leaving one fades out looking as it did */
@@ -70,13 +70,17 @@ export function AnimatedList({ items, className, enter = 'animate-slide-up' }: {
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    const w = el.getBoundingClientRect().width
+    const origin = el.getBoundingClientRect()
+    const w = origin.width
     const resized = width.current !== undefined && Math.abs(w - width.current) > 0.5
     width.current = w
-    const next = new Map<string, DOMRect>()
+    const next = new Map<string, { left: number; top: number }>()
     for (const child of Array.from(el.children) as HTMLElement[]) {
       const key = child.dataset.key!
-      const r = child.getBoundingClientRect()
+      const viewport = child.getBoundingClientRect()
+      // Scrolling (including a restored position) moves the list and all its children
+      // together. Only movement inside this list should animate.
+      const r = { left: viewport.left - origin.left, top: viewport.top - origin.top }
       next.set(key, r)
       const was = rects.current.get(key)
       if (!was || resized || child.dataset.leaving) continue
