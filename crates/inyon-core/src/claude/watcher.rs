@@ -443,10 +443,10 @@ impl ChatWatcher {
         if agent.as_ref().and_then(|a| a.session_id.as_deref()).is_some_and(|s| !s.is_empty() && Some(s) != cached.session_id.as_deref()) {
             return;
         }
-        // a Claude chat saved before long conversations opened on their last stretch doesn't say where
-        // its first message is in the file; reading it afresh is quick now, scrolling up from it isn't
+        // Without the first message's file offset, a tail-numbered cache cannot be joined to
+        // earlier pages reliably. This also happens when a Codex prefix crosses the cache cut.
         let at = cached.at.clone();
-        let outdated = at.as_ref().is_some_and(|a| !a.codex && a.agent != Some(AgentKind::Copilot) && a.older.is_none()) || at.as_ref().and_then(|a| a.reader) != Some(READER);
+        let outdated = at.as_ref().is_some_and(|a| a.agent != Some(AgentKind::Copilot) && a.older.is_none()) || at.as_ref().and_then(|a| a.reader) != Some(READER);
         let path_ok = agent.as_ref().and_then(|a| a.transcript_path.as_deref()).is_none_or(|p| p.is_empty() || Some(p) == cached.transcript.as_deref());
         if let (Some(at), false) = (&at, outdated) {
             if let Some(transcript) = cached.transcript.clone().filter(|t| !t.is_empty() && !cached.items.is_empty() && path_ok) {

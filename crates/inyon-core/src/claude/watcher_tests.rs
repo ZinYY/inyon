@@ -96,6 +96,13 @@ fn cached_codex_segments_keep_their_earlier_pages_after_restart_without_duplicat
         w.more(&sub, w.items()[0].seq()).await;
         assert_eq!(w.items().len(), 361);
         assert!(!w.older_in_file());
+        // If the cache cut falls among restored items without known file positions,
+        // rebuild it on reopening instead of treating its artificial seq as a file index.
+        w.save();
+        assert!(load_chat("history-cache-test:%9").unwrap().at.unwrap().older.is_none());
+        w.restart();
+        w.load_cached();
+        assert!(w.st.borrow().reader.is_none());
         watchers().stop("history-cache-test:%9");
     });
 }
