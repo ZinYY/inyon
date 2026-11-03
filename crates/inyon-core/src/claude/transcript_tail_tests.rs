@@ -79,6 +79,28 @@ mod with_sh {
         assert_eq!(r.offset, size(&file));
     }
 
+    #[test]
+    fn long_text_records_and_following_replies_survive_remote_filter() {
+        let d = dir();
+        let file = d.path("long.jsonl");
+        let text = "中文🙂".repeat(100_000);
+        let one = user(1, &text, false);
+        std::fs::write(&file, one.clone() + &user(2, "latest reply", false)).unwrap();
+        let mut reader = TranscriptReader::new(0);
+        let entries: Vec<Value> = lines(&tail_command(file.to_str().unwrap(), 0, true, false))
+            .iter().filter_map(|l| reader.line(l).and_then(|r| r.entry)).collect();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(text_of(&entries[0]), text);
+        assert_eq!(text_of(&entries[1]), "latest reply");
+        assert_eq!(reader.offset, size(&file));
+        let mut resumed = TranscriptReader::new(one.len() as u64);
+        let entries: Vec<Value> = lines(&range_command(file.to_str().unwrap(), one.len() as u64, size(&file), true))
+            .iter().filter_map(|l| resumed.line(l).and_then(|r| r.entry)).collect();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(text_of(&entries[0]), "latest reply");
+        assert_eq!(resumed.offset, size(&file));
+    }
+
     /// reading on from an offset gives exactly the lines after it
     #[test]
     fn reading_on_from_an_offset_gives_exactly_the_lines_after_it() {

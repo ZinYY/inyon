@@ -866,3 +866,15 @@ fn a_window_that_moved_its_conversation_to_the_background_follows_that_session()
         assert_eq!(a.mapped_by, Some(MappedBy::Process));
     });
 }
+
+#[test]
+fn codex_idle_requires_three_continuous_seconds_and_does_not_delay_questions() {
+    let mut state = (42, None);
+    assert!(matches!(codex_state(&mut state, 42, Shown::Idle, true, 100), Shown::Working));
+    assert!(matches!(codex_state(&mut state, 42, Shown::Idle, true, 3099), Shown::Working));
+    assert!(matches!(codex_state(&mut state, 42, Shown::Working, true, 3100), Shown::Working));
+    assert!(matches!(codex_state(&mut state, 42, Shown::Idle, true, 3200), Shown::Working));
+    assert!(matches!(codex_state(&mut state, 42, Shown::Idle, true, 6200), Shown::Idle));
+    assert!(matches!(codex_state(&mut state, 42, Shown::Waiting, true, 6201), Shown::Waiting));
+    assert!(matches!(codex_state(&mut state, 43, Shown::Idle, true, 6202), Shown::Idle));
+}

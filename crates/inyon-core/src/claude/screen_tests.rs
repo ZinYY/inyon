@@ -618,6 +618,15 @@ mod quiet_foreground_work {
         assert!(!parse_screen(&lines, Some(100), AgentKind::Codex).working);
     }
 
+    #[test]
+    fn codex_hollow_and_braille_spinner_frames_are_working() {
+        let lines = screen_fixture("codex", "working-tip");
+        for dot in ["◦", "○", "●", "⠋"] {
+            let frame: Vec<String> = lines.iter().map(|l| l.replacen("• Working", &format!("{dot} Working"), 1)).collect();
+            assert!(parse_screen(&frame, Some(100), AgentKind::Codex).working, "{dot}");
+        }
+    }
+
     /// Claude spinner survives long wrapped tool hints
     #[test]
     fn claude_spinner_survives_long_wrapped_tool_hints() {

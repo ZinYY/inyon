@@ -1,0 +1,80 @@
+name: Private Linux Hub
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+          components: rustfmt
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update -qq && sudo apt-get install -y musl-tools python3
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+        working-directory: apps/web
+      - run: bun run --cwd apps/web build
+        env:
+          VITE_INYON_PHONE_CORE: none
+      - run: cargo test -p inyon-core -p inyon-backends -p inyon-cli -p inyon-hub
+      - run: cargo build --release --locked -p inyon-cli --target x86_64-unknown-linux-musl
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          INYON_BUILD_COMMIT: ${{ github.sha }}
+      - run: |
+          mkdir -p out
+          cp target/x86_64-unknown-linux-musl/release/inyon out/inyon-linux-x64
+          gzip -k out/inyon-linux-x64
+          node -p 'require("./package.json").version' > out/version.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-hub
+          path: out/
+  mac-probe:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import re, pathlib, subprocess
+          source = pathlib.Path('crates/inyon-core/src/tmux/tmux.rs').read_text()
+          probe = re.search(r'pub const PROBE: &str = r#"(.*?)"#;', source, re.S).group(1)
+          subprocess.run(['/bin/sh', '-n'], input=probe.encode(), check=True)
+          PY
+  publish:
+    needs: [build, mac-probe]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-hub
+          path: out
+      - run: sudo apt-get update -qq && sudo apt-get install -y minisign
+      - name: Sign and publish
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/release.key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key"
+          cd out
+          sha256sum inyon-linux-x64 inyon-linux-x64.gz version.txt > SHA256SUMS
+          minisign -S -s "$key" -m SHA256SUMS
+          version="$(cat version.txt)"
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Fix remote transcript truncation, macOS probe parsing and Codex state flicker. Signed Linux x64 hub build.' --latest inyon-linux-x64 inyon-linux-x64.gz SHA256SUMS SHA256SUMS.minisig version.txt

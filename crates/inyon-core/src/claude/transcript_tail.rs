@@ -16,24 +16,17 @@ pub fn utf8_length(s: &str) -> usize {
     s.len()
 }
 
-/// Prints each line's size in the file (a line of \x1e and the bytes, newline included) before
-/// the line, so the count doesn't depend on how the other end decodes text. In lines that carry
-/// base64 (images), the image data (1024+ base64 characters right after `"data":"`, or after
-/// `;base64,` in a data URL) becomes an ellipsis. Only there: text next to an image can hold long
-/// runs of the same characters, and it is part of the message. Written for any POSIX awk (gawk,
-/// mawk, busybox, macOS).
-const SLIM: &str = r#"BEGIN { r = "[A-Za-z0-9+/=]"; for (i = 0; i < 10; i++) r = r r; r = "(\"data\":\"|;base64,)" r "[A-Za-z0-9+/=]*" }
-{
-  n = length($0); s = $0; o = ""; cut = 0
-  if (n > 1024 && index(s, "base64")) while (match(s, r)) {
-    # both prefixes are 8 characters; keep them, drop the data
-    o = o substr(s, 1, RSTART + 7) "…"; s = substr(s, RSTART + RLENGTH); cut = 1
-  }
-  printf "\036%d\n", n + 1
-  if (cut) print o s
-  else print
-  fflush()
-}"#;
+/// Read complete lines as bytes: mawk's interactive mode on Ubuntu can truncate a long
+/// JSON record at 4096 bytes and silently stop. Preserve the original byte count before
+/// slimming images, and flush each record so a quiet live stream never buffers a reply.
+const SLIM: &str = r#"import re, sys
+image = re.compile(rb'("data":"|;base64,)[A-Za-z0-9+/=]{1024,}')
+for line in sys.stdin.buffer:
+    size = len(line)
+    slim = image.sub(lambda m: m.group(1) + '…'.encode('utf-8'), line) if b'base64' in line else line
+    sys.stdout.buffer.write(b'\x1e%d\n' % size + slim)
+    sys.stdout.buffer.flush()
+"#;
 
 /// Follows `path` from byte `from`; `slim` drops image data on the far side (for remote
 /// machines). With `follow` off it reads to the end and exits.
@@ -46,7 +39,7 @@ pub fn tail_command(path: &str, from: u64, slim: bool, follow: bool) -> String {
     if !slim {
         return format!("exec {tail}");
     }
-    // mawk holds back piped input until its buffer fills unless it's told the input is live
+    // The filter flushes complete records even when the transcript goes quiet.
     let run = slimmed(&tail, true);
     if follow {
         until_stdin_closes(&run)
@@ -60,10 +53,9 @@ fn slimmed(source: &str, slim: bool) -> String {
     if !slim {
         return source.to_owned();
     }
-    format!(
-        r#"if command -v awk >/dev/null 2>&1; then a=awk; case "$(awk -W version </dev/null 2>&1 | head -n 1)" in *mawk*) a="awk -W interactive";; esac; {source} | LC_ALL=C $a {}; else {source}; fi"#,
-        shq(SLIM)
-    )
+    // No Python: send the original bytes. Image compression is optional; correct
+    // transcripts and byte offsets are not. This also avoids changing system awk.
+    format!("if command -v python3 >/dev/null 2>&1; then {source} | python3 -u -c {}; else {source}; fi", shq(SLIM))
 }
 
 /// Bytes `from` up to `to` of the file: an earlier part of a long conversation, read on demand.

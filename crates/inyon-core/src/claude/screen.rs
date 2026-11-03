@@ -1232,7 +1232,7 @@ macro_rules! CX_FOOTER {
 /// "• Working (1m 16s • esc to interrupt) · 1 background terminal running": the verb, the time so far, the rest
 macro_rules! CX_WORKING {
     () => {
-        re!(r"^•\s+(.+?)\s+\(((?:\d+h ?)?(?:\d+m ?)?(?:\d+s)?)[^•)]*•\s*esc to interrupt\)(.*)$")
+        re!(r"^[•◦●○◉∙⋅⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+(.+?)\s+\(((?:\d+h ?)?(?:\d+m ?)?(?:\d+s)?)[^•)]*•\s*esc to interrupt\)(.*)$")
     };
 }
 macro_rules! CX_NAV {

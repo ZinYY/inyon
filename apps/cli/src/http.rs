@@ -46,7 +46,43 @@ const MAX_BODY: u64 = 1024 * 1024 * 1024;
 /// What a Content-Length may reserve up front; a bigger body grows into it as it arrives.
 const MAX_RESERVE: u64 = 64 * 1024 * 1024;
 
+/// Private forks use the already authenticated gh CLI. Only URLs within the explicitly
+/// configured repository are handled here; credentials never go to release asset hosts.
+fn github_path<'a>(url: &'a str, repo: &str) -> Option<&'a str> {
+    if repo.split('/').count() != 2 || repo.split('/').any(|p| p.is_empty() || p == "." || p == ".." || !p.bytes().all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))) { return None; }
+    url.strip_prefix(&format!("https://github.com/{repo}/releases/"))
+}
+
+fn github_release(url: &str) -> Option<Result<Response, String>> {
+    let repo = crate::paths::env_var("INYON_GITHUB_REPO")?;
+    let path = github_path(url, &repo)?;
+    Some((|| {
+        let (endpoint, asset) = if path == "latest" {
+            (format!("repos/{repo}/releases/latest"), None)
+        } else if let Some(name) = path.strip_prefix("latest/download/") {
+            (format!("repos/{repo}/releases/latest"), Some(name))
+        } else if let Some((tag, name)) = path.strip_prefix("download/").and_then(|s| s.split_once('/')) {
+            (format!("repos/{repo}/releases/tags/{tag}"), Some(name))
+        } else { return Err("Unsupported private release URL".into()); };
+        let run = |args: &[&str]| -> Result<Vec<u8>, String> {
+            let out = std::process::Command::new("gh").args(args).output().map_err(|e| format!("Private releases require gh: {e}"))?;
+            if !out.status.success() { return Err("Could not download the private release; check gh auth status and the proxy.".into()); }
+            Ok(out.stdout)
+        };
+        let release: serde_json::Value = serde_json::from_slice(&run(&["api", &endpoint])?).map_err(|e| e.to_string())?;
+        let tag = release["tag_name"].as_str().ok_or("Release has no tag")?;
+        let Some(name) = asset else {
+            return Ok(Response { status: 302, location: Some(format!("https://github.com/{repo}/releases/tag/{tag}")), body: vec![] });
+        };
+        let id = release["assets"].as_array().and_then(|a| a.iter().find(|a| a["name"].as_str() == Some(name))).and_then(|a| a["id"].as_u64());
+        let Some(id) = id else { return Ok(Response { status: 404, location: None, body: vec![] }); };
+        let body = run(&["api", &format!("repos/{repo}/releases/assets/{id}"), "-H", "Accept: application/octet-stream"])?;
+        Ok(Response { status: 200, location: None, body })
+    })())
+}
+
 fn fetch(url: &str, follow: bool, insecure: bool, progress: Option<&dyn Fn(u64, Option<u64>)>) -> Result<Response, String> {
+    if let Some(result) = github_release(url) { return result; }
     let mut res = agent(url, follow, insecure).get(url).call().map_err(|e| e.to_string())?;
     let status = res.status().as_u16();
     let location = res.headers().get("location").and_then(|v| v.to_str().ok()).map(String::from);
@@ -177,5 +213,18 @@ mod tests {
             assert_eq!(server.join().unwrap().trim_end(), format!("{method} /api/companion HTTP/1.1"));
         }
         assert!(super::hub_call("PUT", "http://127.0.0.1:9/", "t", None, true).is_err());
+    }
+}
+
+#[cfg(test)]
+mod private_release_tests {
+    use super::*;
+    #[test]
+    fn private_credentials_are_scoped_to_the_exact_configured_repository() {
+        assert_eq!(github_path("https://github.com/ZinYY/inyon/releases/latest", "ZinYY/inyon"), Some("latest"));
+        for url in ["http://github.com/ZinYY/inyon/releases/latest", "https://github.com/other/inyon/releases/latest", "https://github.com.evil/ZinYY/inyon/releases/latest"] {
+            assert!(github_path(url, "ZinYY/inyon").is_none());
+        }
+        assert!(github_path("https://github.com/../inyon/releases/latest", "../inyon").is_none());
     }
 }

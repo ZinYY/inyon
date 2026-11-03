@@ -934,6 +934,13 @@ impl update::Host for RealHost<'_> {
 /// Gets the newest version and restarts what runs in the background with it. With --background
 /// (how the app asks for it) the update runs on its own, since the restart ends the process that asked.
 pub fn update_command(sys: &Sys, background: bool, json: bool) -> Outcome {
+    // Explicit per-user update settings also apply to a plain `inyon update` over SSH.
+    // Never evaluate this file as shell code or import unrelated environment variables.
+    for (key, value) in paths::read_env_file(&paths::node_dir().parent().unwrap_or(std::path::Path::new(".")).join("update.env")) {
+        if matches!(key.as_str(), "INYON_DOWNLOAD" | "INYON_SIGNING_KEY" | "INYON_GITHUB_REPO" | "https_proxy" | "http_proxy" | "all_proxy" | "NO_PROXY" | "no_proxy") && std::env::var_os(&key).is_none() {
+            std::env::set_var(key, value);
+        }
+    }
     update::set_status("running");
     if background {
         let r = service::detach_update(sys, &sys.program);

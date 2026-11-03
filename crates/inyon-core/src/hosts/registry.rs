@@ -445,6 +445,7 @@ pub struct Registry {
 thread_local! {
     static REGISTRY: Rc<Registry> = Rc::new(Registry::new());
     /// Turns that go on while the screen reads idle (see turns.rs).
+    static CODEX_IDLE: RefCell<HashMap<String, (i64, Option<u64>)>> = RefCell::new(HashMap::new());
     static TURNS: RefCell<Turns> = RefCell::new(Turns::new());
 }
 
@@ -1942,6 +1943,15 @@ fn was_active(pr: &mut ProbeResult, pane: &str, at: f64) {
     }
 }
 
+/// Work appears immediately; an idle screen must persist for three seconds. A new
+/// working frame resets the grace period. Questions and replacement processes never wait.
+fn codex_state(state: &mut (i64, Option<u64>), pid: i64, shown: Shown, was_working: bool, now: u64) -> Shown {
+    if state.0 != pid { *state = (pid, None); return shown; }
+    if !matches!(shown, Shown::Idle) || !was_working { state.1 = None; return shown; }
+    let since = *state.1.get_or_insert(now);
+    if now.saturating_sub(since) < 3000 { Shown::Working } else { Shown::Idle }
+}
+
 /// The pane's last hook event, if it came from the agent running there now.
 fn live_hook(pr: &ProbeResult, pane: &str) -> Option<HookPaneState> {
     let hook = pr.hook_panes.get(pane)?;
@@ -1991,6 +2001,12 @@ fn apply_screen(p: &mut PaneInfo, mut sc: ScreenState, host: &Host, lines: &[Str
     // the agents whose hooks say when a turn starts and ends
     info.state = if matches!(info.kind, AgentKind::Claude | AgentKind::Copilot | AgentKind::Gemini | AgentKind::Antigravity) {
         shown_state(TURNS.with(|t| t.borrow_mut().state(&turn_key(&host_id, &p.id), shown, &lines.join("\n"), hook, now_ms())))
+    } else if info.kind == AgentKind::Codex {
+        CODEX_IDLE.with(|states| {
+            let mut states = states.borrow_mut();
+            let state = states.entry(turn_key(&host_id, &p.id)).or_insert((info.pid, None));
+            shown_state(codex_state(state, info.pid, shown, same_proc && was.is_some_and(|w| w.state == AgentState::Working), now_ms()))
+        })
     } else {
         shown_state(shown)
     };

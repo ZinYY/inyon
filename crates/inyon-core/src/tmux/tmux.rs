@@ -283,7 +283,7 @@ fn num(s: &str) -> f64 {
 /// What `probe()` makes of the probe script's output. `stderr` and `code` only go into the error
 /// when the script didn't run to its end.
 pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Result<ProbeResult, String> {
-    if !stdout.contains("@@END") {
+    if !stdout.lines().any(|line| line == "@@END") {
         let text = if !stderr.is_empty() {
             stderr.to_owned()
         } else if !stdout.is_empty() {
@@ -820,9 +820,9 @@ echo "@@AGY"
 agy_ids=""
 for p in $(pgrep -x agy 2>/dev/null); do
   if [ -d /proc/$p/fd ]; then
-    l=$(for fd in /proc/$p/fd/*; do l=$(readlink "$fd" 2>/dev/null); case "$l" in */antigravity-cli/presence/*.lock) echo "${fd##*/} $p $l";; esac; done | sort -n | tail -n 1)
+    l=$(for fd in /proc/$p/fd/*; do l=$(readlink "$fd" 2>/dev/null); case "$l" in (*/antigravity-cli/presence/*.lock) echo "${fd##*/} $p $l";; esac; done | sort -n | tail -n 1)
   else
-    l=$(lsof -p $p 2>/dev/null | awk -v p=$p '/antigravity-cli/presence/.*.lock/ {print 0, p, $NF}' | tail -n 1)
+    l=$(lsof -p $p 2>/dev/null | awk -v p=$p '/antigravity-cli\/presence\/.*\.lock/ {print 0, p, $NF}' | tail -n 1)
   fi
   [ -n "$l" ] && echo "$l" && agy_ids="$agy_ids $(basename "${l##* }" .lock)"
 done
@@ -1080,6 +1080,21 @@ mod tests {
         let proc = CodexProc { pid: 4242, cwd: cwds.get(&4242).cloned(), started_at: 1000.0, ..Default::default() };
         let rows = vec![CodexRollout { path: "/s/rollout-a.jsonl".into(), id: Some("a".into()), cwd: Some("/home/u/wt/review".into()), created: 1010.0, mtime: 2000.0 }];
         assert_eq!(pick_codex_rollout(&rows, &proc, std::slice::from_ref(&proc), &HashMap::new()), Some("/s/rollout-a.jsonl".into()));
+    }
+
+    #[test]
+    fn truncated_probe_with_end_marker_in_process_arguments_is_rejected() {
+        assert!(parse_probe("@@HOST mac\n@@PS\n123 sh echo \"@@END\"\n", "syntax error", 2, 0.0).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_parses_in_system_shell_including_macos_bash_32() {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let mut child = Command::new("/bin/sh").arg("-n").stdin(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(PROBE.as_bytes()).unwrap();
+        assert!(child.wait().unwrap().success());
     }
 
     #[test]
