@@ -109,7 +109,7 @@ fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenRep
     let input = lines.iter().rposition(|l| prompt.is_match(l))?;
     let end = (0..input).rev().find(|&i| {
         re!(r"^[•◦●○\u{2800}-\u{28ff}]\s.*(?:esc to interrupt|ctrl\+c to interrupt)").is_match(&lines[i])
-    }).unwrap_or(input);
+    })?;
     let echo = (0..end).rev().find(|&i| prompt.is_match(&lines[i]));
     let start = echo.map_or(0, |i| i + 1);
     let mark = (start..end).rev().find(|&i| lines[i].starts_with("• "));

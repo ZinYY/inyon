@@ -2265,6 +2265,7 @@ impl ChatWatcher {
         let mut st = self.st.borrow_mut();
         rt::clear(&mut st.screen_live_expiry);
         let read = screen_reply(lines, kind, width);
+        let no_reply = read.is_none();
         let before = st.screen_live.take();
         let next = read.and_then(|r| {
             // With no marker in view, only continue text we already identified as a reply.
@@ -2278,6 +2279,14 @@ impl ChatWatcher {
             let text = unrecorded(&text, &recent_replies(&st.items));
             let id = before.as_ref().map_or_else(|| format!("screen:{}", now_ms()), |b| b.id.clone());
             (!text.is_empty()).then_some(LiveItem { id, kind: LiveKind::Text, text, turn_id: None })
+        }).or_else(|| {
+            // A blinking spinner or a tool replacing the text must not erase an unrecorded reply.
+            if kind == AgentKind::Codex && no_reply {
+                before.as_ref().and_then(|b| {
+                    let text = unrecorded(&b.text, &recent_replies(&st.items));
+                    (!text.is_empty()).then_some(LiveItem { text, ..b.clone() })
+                })
+            } else { None }
         });
         let changed = next.as_ref().map(|n| &n.text) != before.as_ref().map(|b| &b.text);
         st.screen_live = next;
