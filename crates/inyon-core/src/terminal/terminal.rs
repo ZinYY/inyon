@@ -48,8 +48,8 @@ pub fn open_terminal(host_id: &str, pane_id: &str, cols: u16, rows: u16, on_data
     if registry().get(host_id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows")) {
         let native = !crate::tmux::herdr::enabled(&host)
             && crate::hosts::node_link::info(host_id).and_then(|n| n.version)
-                .is_some_and(|v| v == inyon_protocol::versions::VERSION)
-            && inyon_protocol::versions::MANAGED_NODE_RELEASES;
+                .is_some_and(|v| v == inyon_protocol::VERSION)
+            && inyon_protocol::MANAGED_NODE_RELEASES;
         if native { return super::psmux::open(host, &found.session.name, pane_id, cols, rows, on_data); }
         let (h, p) = (host_id.to_owned(), pane_id.to_owned());
         let sub: OnOutput = Box::new(move |f: Rc<dyn Fn()>| {

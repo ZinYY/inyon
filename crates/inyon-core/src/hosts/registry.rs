@@ -1226,7 +1226,7 @@ impl Registry {
             let cached = if stale {
                 let path = match proc.kind {
                     AgentKind::Claude => {
-                        find_transcript(host, home, &TranscriptProc { cwd: proc.cwd.as_deref(), started_at: proc.started_at, resume: proc.resume.as_deref() }).await?
+                        find_transcript(host, home, &TranscriptProc { pid: proc.pid as u32, cwd: proc.cwd.as_deref(), started_at: proc.started_at, resume: proc.resume.as_deref() }).await?
                     }
                     AgentKind::Codex => {
                         let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume: proc.resume.clone(), title: Some(p.title.clone()) };

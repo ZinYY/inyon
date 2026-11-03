@@ -703,6 +703,7 @@ pub fn claude_slug(cwd: &str) -> String {
 /// A Claude process as `guessTranscript` sees it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TranscriptProc<'a> {
+    pub pid: u32,
     pub cwd: Option<&'a str>,
     pub started_at: f64,
     pub resume: Option<&'a str>,
@@ -969,8 +970,45 @@ pub async fn send_keys(host: &Host, pane: &str, keys: &[&str]) -> HubResult<()> 
     Ok(())
 }
 
+/// Claude Code publishes its exact session under the owning PID. Prefer that over the
+/// newest file in a shared project directory, which can belong to another window.
+fn process_transcript(record: &str, home: &str, proc: &TranscriptProc<'_>) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(record).ok()?;
+    if v.get("pid")?.as_u64()? != proc.pid as u64 { return None; }
+    let started = v.get("startedAt")?.as_f64()? / 1000.0;
+    // Reject stale PID records; the presence file can be created shortly after process start.
+    if started < proc.started_at - 5.0 || started > proc.started_at + 60.0 { return None; }
+    let id = v.get("sessionId")?.as_str()?;
+    if !re!(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$").is_match(id) { return None; }
+    let cwd = v.get("cwd")?.as_str()?;
+    if let Some(expected) = proc.cwd {
+        let norm = |s: &str| s.replace('\\', "/").trim_end_matches('/').to_owned();
+        let (a, b) = (norm(cwd), norm(expected));
+        if if a.as_bytes().get(1) == Some(&b':') { !a.eq_ignore_ascii_case(&b) } else { a != b } { return None; }
+    }
+    Some(format!("{home}/.claude/projects/{}/{}.jsonl", claude_slug(cwd), id))
+}
+
+#[cfg(test)]
+#[test]
+fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
+    let p = TranscriptProc { pid: 3380, cwd: Some("C:/Users/me/project"), started_at: 1000.0, resume: None };
+    let a = "9186c50f-d812-4c7d-a875-44f1d834ddd7";
+    let record = serde_json::json!({"pid":3380,"sessionId":a,"cwd":"C:\\Users\\me\\project","startedAt":1000123});
+    assert_eq!(process_transcript(&record.to_string(), "C:/Users/me", &p), Some(format!("C:/Users/me/.claude/projects/C--Users-me-project/{a}.jsonl")));
+    let other = TranscriptProc { pid: 8472, ..p.clone() };
+    assert!(process_transcript(&record.to_string(), "C:/Users/me", &other).is_none());
+    let stale = TranscriptProc { started_at: 1500.0, ..p.clone() };
+    assert!(process_transcript(&record.to_string(), "C:/Users/me", &stale).is_none());
+    let elsewhere = TranscriptProc { cwd: Some("C:/another"), ..p };
+    assert!(process_transcript(&record.to_string(), "C:/Users/me", &elsewhere).is_none());
+}
+
 /// `guessTranscript(host, home, proc)`
 pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<Option<String>> {
+    let record = format!("{home}/.claude/sessions/{}.json", proc.pid);
+    let r = host.run(&format!("cat {} 2>/dev/null", shq(&record))).await?;
+    if let Some(path) = process_transcript(&r.stdout, home, proc) { return Ok(Some(path)); }
     let Some((dir, cmd)) = guess_transcript_command(home, proc) else { return Ok(None) };
     let r = host.run(&cmd).await?;
     Ok(guess_transcript(&r.stdout, &dir, proc))
@@ -1285,7 +1323,7 @@ mod tests {
 
     #[test]
     fn a_transcript_is_guessed_from_the_resume_id_or_the_newest_file() {
-        let p = TranscriptProc { cwd: Some("/p"), started_at: 100.0, resume: None };
+        let p = TranscriptProc { pid: 1, cwd: Some("/p"), started_at: 100.0, resume: None };
         let (dir, _) = guess_transcript_command("/h", &p).unwrap();
         assert_eq!(dir, "/h/.claude/projects/-p");
         assert_eq!(guess_transcript("200 new.jsonl\n50 old.jsonl\n", &dir, &p), Some("/h/.claude/projects/-p/new.jsonl".into()));
