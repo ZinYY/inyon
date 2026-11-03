@@ -119,8 +119,8 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
       )
     }
     host_.addEventListener('paste', onPaste, true)
-    // a finger drag scrolls tmux's history, as the mouse wheel does
-    const untouch = touchScroll(host_, () => term.rows)
+    // Finger drags scroll local history or the remote program, according to its mouse mode.
+    const untouch = touchScroll(host_, term)
     term.onData((d) => {
       send(modify(d))
     })

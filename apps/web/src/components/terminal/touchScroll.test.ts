@@ -1,8 +1,9 @@
 import { afterEach, expect, test } from 'bun:test'
 import { touchScroll } from './touchScroll.ts'
+import type { IModes } from '@xterm/xterm'
 
 // a terminal 400px tall with 20 rows: 20px a row, so one wheel step every 40px of finger travel
-function setup() {
+function setup(mouseTrackingMode: IModes['mouseTrackingMode'] = 'vt200') {
   const host = document.createElement('div')
   Object.defineProperty(host, 'clientHeight', { value: 400 })
   const screen = document.createElement('div')
@@ -14,8 +15,17 @@ function setup() {
   // what the terminal's own touch handling would see
   const reached: string[] = []
   screen.addEventListener('touchmove', () => reached.push('move'))
-  const stop = touchScroll(host, () => 20)
-  return { host, screen, wheels, reached, stop }
+  const terminal = {
+    rows: 20,
+    modes: { mouseTrackingMode },
+    buffer: { active: { type: 'normal' as 'normal' | 'alternate', viewportY: 100, baseY: 100 } },
+    scrollLines(lines: number) {
+      const b = this.buffer.active
+      b.viewportY = Math.max(0, Math.min(b.baseY, b.viewportY + lines))
+    },
+  }
+  const stop = touchScroll(host, terminal)
+  return { host, screen, wheels, reached, terminal, stop }
 }
 
 const touch = (el: HTMLElement, type: string, x: number, y: number) => {
@@ -69,4 +79,51 @@ test('after it stops listening, drags do nothing', () => {
   touch(screen, 'touchstart', 100, 100)
   touch(screen, 'touchmove', 100, 300)
   expect(wheels).toEqual([])
+})
+
+test('PSmux normal-buffer history moves both ways without sending wheel reports or input', () => {
+  const { screen, wheels, reached, terminal, stop } = setup('none')
+  touch(screen, 'touchstart', 100, 100)
+  touch(screen, 'touchmove', 100, 190)
+  expect(terminal.buffer.active.viewportY).toBe(96)
+  touch(screen, 'touchmove', 100, 200)
+  expect(terminal.buffer.active.viewportY).toBe(95)
+  touch(screen, 'touchmove', 100, 140)
+  expect(terminal.buffer.active.viewportY).toBe(98)
+  expect(wheels).toEqual([])
+  expect(reached).toEqual([])
+  stop()
+})
+
+test('an empty normal buffer never turns a drag into command-history arrow keys', () => {
+  const { screen, wheels, terminal, stop } = setup('none')
+  terminal.buffer.active.baseY = terminal.buffer.active.viewportY = 0
+  touch(screen, 'touchstart', 100, 100)
+  touch(screen, 'touchmove', 100, 300)
+  expect(terminal.buffer.active.viewportY).toBe(0)
+  expect(wheels).toEqual([])
+  stop()
+})
+
+test('switching into a mouse-aware or alternate-screen program routes subsequent drags to it', () => {
+  const { screen, wheels, terminal, stop } = setup('none')
+  const drag = () => {
+    touch(screen, 'touchstart', 100, 100)
+    touch(screen, 'touchmove', 100, 180)
+  }
+  drag()
+  expect(terminal.buffer.active.viewportY).toBe(96)
+  terminal.modes.mouseTrackingMode = 'vt200'
+  drag()
+  expect(wheels).toEqual([-1, -1])
+  expect(terminal.buffer.active.viewportY).toBe(96)
+  terminal.modes.mouseTrackingMode = 'none'
+  terminal.buffer.active.type = 'alternate'
+  drag()
+  expect(wheels).toEqual([-1, -1, -1, -1])
+  terminal.buffer.active.type = 'normal'
+  drag()
+  expect(terminal.buffer.active.viewportY).toBe(92)
+  expect(wheels).toHaveLength(4)
+  stop()
 })

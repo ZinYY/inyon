@@ -126,8 +126,8 @@ function open(el: HTMLElement, fontSize: number, onData: (d: string) => void, on
   term.attachCustomKeyEventHandler((e) => !(e.type === 'keydown' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'v'))
   term.onData(onData)
 
-  // a finger drag scrolls tmux's history, as the wheel does
-  const untouch = touchScroll(el, () => term.rows)
+  // Finger drags scroll local history or the remote program, according to its mouse mode.
+  const untouch = touchScroll(el, term)
   // the phone's keyboard: where it covers the page without resizing it (iOS), the rows under it
   // go, so the line being typed stays in sight
   const vv = window.visualViewport

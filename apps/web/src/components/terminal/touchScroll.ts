@@ -1,18 +1,23 @@
 /**
  * Phones: a finger dragged up or down the terminal scrolls it the way a mouse wheel does. The
- * terminal is a tmux view, and tmux keeps the history: a wheel event puts the pane in copy mode
- * and scrolls it there (see the hub's terminal.ts). A touch drag never becomes a wheel event by
- * itself, so this turns the drag into wheel steps, one per few lines of travel, and lets a flick
- * carry on for a moment. Taps and sideways drags are left alone, so tapping still brings up the
- * keyboard and long-press still selects.
+ * tmux view takes wheel reports; PSmux also keeps history in xterm's normal buffer. Scroll that
+ * buffer directly when no program has requested the mouse. Synthetic wheel events do not reliably
+ * scroll the viewport on touch devices. Full-screen programs and tmux still get wheel events.
+ * Taps and sideways drags are left alone; a flick keeps scrolling for a moment.
  */
+import type { IBuffer, IModes, Terminal } from '@xterm/xterm'
+
+type ScrollTerminal = Pick<Terminal, 'rows' | 'scrollLines'> & {
+  readonly modes: Pick<IModes, 'mouseTrackingMode'>
+  readonly buffer: { readonly active: Pick<IBuffer, 'type'> }
+}
 
 /** Finger travel, in rows, for one wheel step (tmux scrolls a few lines per step). */
 const ROWS_PER_STEP = 2
 /** Travel before a touch counts as a drag rather than a tap. */
 const SLOP = 8
 
-export function touchScroll(host: HTMLElement, rows: () => number) {
+export function touchScroll(host: HTMLElement, term: ScrollTerminal) {
   let startX = 0
   let startY = 0
   let lastY = 0
@@ -23,7 +28,7 @@ export function touchScroll(host: HTMLElement, rows: () => number) {
   let fling = 0
 
   const target = () => host.querySelector<HTMLElement>('.xterm-screen') ?? host
-  const stepPx = () => Math.max(8, (host.clientHeight / Math.max(1, rows())) * ROWS_PER_STEP)
+  const localHistory = () => term.modes.mouseTrackingMode === 'none' && term.buffer.active.type === 'normal'
 
   /** One wheel step: down (newer) for a positive direction, up into the history for a negative one. */
   const wheel = (dir: 1 | -1, x: number, y: number) => {
@@ -33,10 +38,14 @@ export function touchScroll(host: HTMLElement, rows: () => number) {
   /** Turns pixels of travel into whole steps, keeping the remainder for the next move. */
   const travel = (px: number, x: number, y: number) => {
     carried += px
-    const step = stepPx()
+    // Read the mode on every move: an agent can enter or leave its full-screen UI without
+    // reopening the terminal. Local history follows the finger one row at a time.
+    const local = localHistory()
+    const step = Math.max(8, (host.clientHeight / Math.max(1, term.rows)) * (local ? 1 : ROWS_PER_STEP))
     while (Math.abs(carried) >= step) {
       const dir = carried > 0 ? 1 : -1
-      wheel(dir, x, y)
+      if (local) term.scrollLines(dir)
+      else wheel(dir, x, y)
       carried -= dir * step
     }
   }
