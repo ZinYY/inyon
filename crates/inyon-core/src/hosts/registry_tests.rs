@@ -921,6 +921,12 @@ fn codex_new_invalidates_the_startup_resume_hint_before_the_new_thread_has_a_tit
         let pr = probe();
         registry().annotate_agents(&b.rt, &pr).await.unwrap();
         assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().transcript_path.is_none());
+        // Reconnecting a hub to this already-cleared TUI has no prior cwd cache.
+        b.rt.borrow_mut().codex_cleared.clear();
+        b.rt.borrow_mut().cwd_map.clear();
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(b.rt.borrow().codex_cleared.contains(&7));
         // The first new prompt is running, but the title/index entry has not arrived yet.
         b.draw("› Explain overfitting briefly\n  GPT-6-Astra · Context 2% used\n? for shortcuts");
         let pr = probe();

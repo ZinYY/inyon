@@ -1235,7 +1235,9 @@ impl Registry {
             let mut r = rt.borrow_mut();
             if empty_codex {
                 r.empty_codex.insert(p.id.clone());
-                if r.cwd_map.get(&pid).is_some_and(|m| m.path.is_some()) { r.codex_cleared.insert(pid); }
+                // A hub restart may have no cached mapping yet. The blank screen still
+                // supersedes a resume id left in this process's startup arguments.
+                r.codex_cleared.insert(pid);
                 r.cwd_map.remove(&pid);
                 r.status_cache.remove(&pid);
             } else {
