@@ -1516,6 +1516,7 @@ fn laptop(machine: Rc<Machine>) {
         installed: vec![],
         signed_in: vec![],
         agy_conversations: Default::default(),
+        codex_threads: Default::default(),
         agy_status: Default::default(),
         agy_titles: Default::default(),
         agy_integration: None,

@@ -36,6 +36,7 @@ fn put(id: &str, connected: bool) {
             installed: vec![],
             signed_in: vec![],
             agy_conversations: IndexMap::new(),
+            codex_threads: Default::default(),
             agy_status: IndexMap::new(),
             agy_titles: IndexMap::new(),
             agy_integration: None,
