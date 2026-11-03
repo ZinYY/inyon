@@ -269,7 +269,7 @@ export function Home() {
                     <div className="mb-2 flex h-6 items-center gap-2 text-[13px] font-medium text-fg-2">
                       <Pin className="size-3.5 text-fg-3" /> Pinned
                     </div>
-                    <AnimatedList className={GRID} items={sorted.pinned.map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={hosts.length > 1} /> }))} />
+                    <AnimatedList enter="" className={GRID} items={sorted.pinned.map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={hosts.length > 1} /> }))} />
                   </div>
                 )}
                 {!shownAny ? (
@@ -295,6 +295,7 @@ export function Home() {
                             <div className="expand" data-open={open}>
                               <div inert={!open}>
                                 <AnimatedList
+                                  enter=""
                                   className="grid grid-cols-1 gap-3 pt-2 pb-3 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] sm:gap-4"
                                   items={g.sessions.flatMap((sg) => sg.panes).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={false} /> }))}
                                 />
@@ -305,7 +306,7 @@ export function Home() {
                       })}
                     </div>
                   ) : (
-                    <AnimatedList className={GRID} items={groups.flatMap((g) => g.sessions.flatMap((sg) => sg.panes)).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} /> }))} />
+                    <AnimatedList enter="" className={GRID} items={groups.flatMap((g) => g.sessions.flatMap((sg) => sg.panes)).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} /> }))} />
                   )
                 )}
                 {sorted.folded.length > 0 && (
@@ -317,7 +318,7 @@ export function Home() {
                     </button>
                     <div className="expand" data-open={parkedOpen}>
                       <div inert={!parkedOpen}>
-                        <AnimatedList className={clsx(GRID, 'pt-2 pb-3')} items={sorted.folded.map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={hosts.length > 1} /> }))} />
+                        <AnimatedList enter="" className={clsx(GRID, 'pt-2 pb-3')} items={sorted.folded.map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={hosts.length > 1} /> }))} />
                       </div>
                     </div>
                   </div>

@@ -288,8 +288,8 @@ export function AppShell() {
     <div className="flex h-dvh overflow-hidden">
       <Sidebar onNew={() => setNewOpen(true)} onSearch={() => setSearch(true)} />
       <main className="flex min-w-0 flex-1 flex-col">
-        {/* each page settles in: a short fade and an 8px rise */}
-        <div key={pageKey(loc.pathname)} className="animate-page flex min-h-0 flex-1 flex-col">
+        {/* Overview returns directly to its saved position without an entrance animation. */}
+        <div key={pageKey(loc.pathname)} className={clsx('flex min-h-0 flex-1 flex-col', loc.pathname !== '/' && 'animate-page')}>
           <Suspense fallback={<Waiting label="Opening" shape="lines" className="mx-auto w-full max-w-[760px] p-5" />}>
             <Outlet />
           </Suspense>
