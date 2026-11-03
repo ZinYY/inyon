@@ -452,6 +452,47 @@ fn live_of(phone: &Phone) -> Option<Vec<inyon_protocol::LiveItem>> {
 }
 
 #[test]
+fn codex_screen_text_grows_before_the_record_and_exact_deltas_take_priority() {
+    run(|| async {
+        let frame = |text: &str| format!("› Explain streaming\n\n• {text}\n\n• Working (2s • esc to interrupt)\n\n› Ask Codex to do anything");
+        let screen = Rc::new(RefCell::new(frame("第一部分正在生成")));
+        let s = screen.clone();
+        let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %7\n{}", s.borrow())) } else { ok("") });
+        machine("codex-screen-live", "local", json!([{ "id":"%7", "width":120, "agent":{"kind":"codex","pid":7,"state":"working"} }])).borrow_mut().hold_polls();
+        let w = watchers().get("codex-screen-live", "%7");
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        w.poll_screen().await;
+        wait(100).await;
+        let first = live_of(&phone).unwrap();
+        assert_eq!(first[0].text, "第一部分正在生成");
+        assert!(w.items().is_empty(), "not waiting for a completed transcript record");
+        *screen.borrow_mut() = frame("第一部分正在生成，第二部分也出现了。");
+        // An open working chat polls soon enough to show incremental output automatically.
+        wait(600).await;
+        let next = live_of(&phone).unwrap();
+        assert_eq!(next[0].id, first[0].id);
+        assert_eq!(next[0].text, "第一部分正在生成，第二部分也出现了。");
+        w.on_live_line(r#"{"m":"item/agentMessage/delta","p":{"itemId":"exact","delta":"Exact daemon text"}}"#);
+        wait(100).await;
+        let exact = live_of(&phone).unwrap();
+        assert_eq!(exact.len(), 1);
+        assert_eq!(exact[0].text, "Exact daemon text");
+        w.st.borrow_mut().live.clear();
+        let base = Base::new("u", "t");
+        w.st.borrow_mut().items.push(with_seq(base.with_uuid("done").assistant("m", None, inyon_protocol::AssistantBlock::Text { text: next[0].text.clone() }), 1));
+        w.settle_screen_live();
+        w.live_soon();
+        wait(100).await;
+        assert_eq!(live_of(&phone), Some(vec![]));
+        w.poll_screen().await;
+        wait(100).await;
+        assert_eq!(live_of(&phone), Some(vec![]));
+        watchers().stop("codex-screen-live:%7");
+    });
+}
+
+#[test]
 fn a_reply_claude_writes_shows_live_until_its_record_lands_and_doesnt_come_back() {
     run(|| async {
         let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");

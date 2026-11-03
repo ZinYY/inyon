@@ -52,6 +52,7 @@ const PAGE: usize = 160;
 const KEEP: usize = 4000;
 /// fallback screen poll; tmux control mode triggers re-reads as soon as the pane changes
 const SCREEN_MS: u64 = 2000;
+const LIVE_SCREEN_MS: u64 = 500;
 /// while the phone app is in the background nobody sees the screen: read it rarely
 const QUIET_SCREEN_MS: u64 = 20_000;
 const IDLE_SHUTDOWN_MS: u64 = 120_000;
@@ -2266,6 +2267,10 @@ impl ChatWatcher {
         let read = screen_reply(lines, kind, width);
         let before = st.screen_live.take();
         let next = read.and_then(|r| {
+            // With no marker in view, only continue text we already identified as a reply.
+            if kind == AgentKind::Codex && !r.whole && before.is_none() {
+                return None;
+            }
             let text = match &before {
                 Some(b) if !r.whole => carry_on(&b.text, &r.text),
                 _ => r.text,
@@ -2577,13 +2582,13 @@ impl ChatWatcher {
 
     /// Schedules the next screen read at the current pace.
     pub fn next_screen(&self) {
-        let stopped = {
+        let (stopped, streaming) = {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.screen_timer);
-            st.stopped
+            (st.stopped, st.screen.working && st.agent.is_some_and(reads_reply))
         };
         if !stopped {
-            let t = self.later(if hidden() { QUIET_SCREEN_MS } else { SCREEN_MS }, |w| w.kick_screen());
+            let t = self.later(if hidden() { QUIET_SCREEN_MS } else if streaming { LIVE_SCREEN_MS } else { SCREEN_MS }, |w| w.kick_screen());
             self.st.borrow_mut().screen_timer = Some(t);
         }
     }
@@ -2680,7 +2685,10 @@ fn last40<'a, T: Clone + 'a>(it: impl Iterator<Item = &'a T>) -> Vec<T> {
 /// What's being written now: Codex's live items, then the reply read off the screen.
 fn live_items(st: &State) -> Vec<LiveItem> {
     let mut items = st.live.list();
-    items.extend(st.screen_live.clone());
+    // Prefer exact daemon deltas when available; screen text is Codex's fallback.
+    if st.agent != Some(AgentKind::Codex) || !items.iter().any(|i| matches!(i.kind, LiveKind::Text | LiveKind::Plan) && !i.text.is_empty()) {
+        items.extend(st.screen_live.clone());
+    }
     items
 }
 

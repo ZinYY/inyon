@@ -70,8 +70,39 @@ fn antigravity_scrolled_past_its_prompt_carries_on() {
 }
 
 #[test]
-fn other_agents_are_not_read() {
+fn codex_settings_are_not_read_as_a_reply() {
     assert_eq!(screen_reply(&screen_fixture("codex", "reasoning"), AgentKind::Codex, None), None);
+}
+
+#[test]
+fn codex_streams_partial_text_without_a_daemon_and_keeps_markdown() {
+    let first = screen("› Explain the change\n\n\x1b[2m• \x1b[0mThe reply is arriv\n\n◦ Working (2s • esc to interrupt)\n  └ Tip: shortcuts\n\n› Ask Codex to do anything\n  GPT-6");
+    let read = screen_reply(&first, AgentKind::Codex, Some(120)).unwrap();
+    assert_eq!(read.text, "The reply is arriv");
+    assert!(read.whole);
+    let next = screen("› Explain the change\n\n• The reply is arriving now.\n\n  1. First step\n  2. Second step\n\n• Working (3s • esc to interrupt)\n\n› Ask Codex to do anything");
+    assert_eq!(screen_reply(&next, AgentKind::Codex, Some(120)).unwrap().text, "The reply is arriving now.\n\n1. First step\n2. Second step");
+    // A long response may scroll its bullet away; the watcher only accepts this if it saw the start.
+    let scrolled = screen("  The reply is arriving now.\n  It continues here.\n\n• Working (4s • esc to interrupt)\n\n›");
+    let read = screen_reply(&scrolled, AgentKind::Codex, Some(120)).unwrap();
+    assert!(!read.whole);
+    assert_eq!(read.text, "The reply is arriving now.\nIt continues here.");
+}
+
+#[test]
+fn codex_tools_prompts_and_status_are_never_streamed_as_assistant_text() {
+    for body in [
+        "• Earlier reply\n\n• Ran echo secret\n  └ secret",
+        "\x1b[2m•\x1b[0m \x1b[1mExplored\x1b[0m",
+        "• Updated Plan\n  └ next step",
+        "• Queued follow-up inputs\n  ↳ later",
+        "› A long prompt\n  with wrapped text",
+    ] {
+        let s = screen(&format!("{body}\n\n• Working (2s • esc to interrupt)\n\n› Ask Codex to do anything"));
+        assert_eq!(screen_reply(&s, AgentKind::Codex, Some(120)), None, "{body}");
+    }
+    assert_eq!(reply("codex", "working-empty", AgentKind::Codex), None);
+    assert_eq!(reply("codex", "working-tip", AgentKind::Codex), None);
 }
 
 #[test]

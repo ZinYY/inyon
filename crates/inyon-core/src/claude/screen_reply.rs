@@ -22,7 +22,7 @@ pub struct ScreenReply {
 
 /// The agents whose replies are read this way.
 pub fn reads_reply(kind: AgentKind) -> bool {
-    matches!(kind, AgentKind::Claude | AgentKind::Copilot | AgentKind::Antigravity)
+    matches!(kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Copilot | AgentKind::Antigravity)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -33,6 +33,9 @@ enum Block {
 
 /// The reply being written on a captured screen, or None when the screen shows none.
 pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32>) -> Option<ScreenReply> {
+    if kind == AgentKind::Codex {
+        return codex_reply(captured, pane_width);
+    }
     if !reads_reply(kind) {
         return None;
     }
@@ -96,6 +99,42 @@ pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32
     }
     // its start is on screen: right after your prompt, or after something it ran
     Some(ScreenReply { text: paragraphs.join("\n\n"), whole: echo.is_some() || from > 0 })
+}
+
+/// Older/standalone Codex TUIs have no app-server socket. Their unrecorded reply is
+/// nevertheless visible on screen, with a dim bullet; tool headings are bold.
+fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenReply> {
+    let lines: Vec<String> = captured.iter().map(|l| unstyle(l).text.trim_end().to_owned()).collect();
+    let prompt = re!(r"^›(?:\s|$)");
+    let input = lines.iter().rposition(|l| prompt.is_match(l))?;
+    let end = (0..input).rev().find(|&i| {
+        re!(r"^[•◦●○\u{2800}-\u{28ff}]\s.*(?:esc to interrupt|ctrl\+c to interrupt)").is_match(&lines[i])
+    }).unwrap_or(input);
+    let echo = (0..end).rev().find(|&i| prompt.is_match(&lines[i]));
+    let start = echo.map_or(0, |i| i + 1);
+    let mark = (start..end).rev().find(|&i| lines[i].starts_with("• "));
+    let from = mark.unwrap_or(start);
+    let rows = &lines[from..end];
+    if rows.iter().any(|r| re!(r"^\s*[└├│⎿↳]").is_match(r)) {
+        return None;
+    }
+    if let Some(i) = mark {
+        let text = lines[i].strip_prefix("• ")?;
+        // Inspect the style of the heading after the bullet, which itself may be dim/bold.
+        let raw = captured[i].split_once('•').map_or("", |(_, rest)| rest);
+        let tool = re!(r"^(Ran|Running|Explored|Exploring|Searched|Searching|Edited|Editing|Added|Deleted|Called|Calling|Updated Plan|Updated plan|Viewed|Opened|Spawned|Waiting for)\b").is_match(text)
+            && (starts_bold(raw) || !captured[i].contains('\x1b'));
+        if tool || re!(r"^(Queued follow-up inputs|Model changed|Context compacted|Conversation interrupted)\b").is_match(text) {
+            return None;
+        }
+    } else if echo.is_some() {
+        // Wrapped prompt text, with no assistant marker yet.
+        return None;
+    }
+    let width = pane_width.unwrap_or(80) as usize;
+    let rows: Vec<String> = rows.iter().map(|r| r.strip_prefix("• ").map_or_else(|| r.clone(), |s| format!("  {s}"))).collect();
+    let text = paragraph(&rows.iter().map(String::as_str).collect::<Vec<_>>(), width);
+    (!text.is_empty()).then_some(ScreenReply { text, whole: mark.is_some() })
 }
 
 /// A captured row as text. Claude Code and Copilot blink the dot of a tool while it runs: with it
