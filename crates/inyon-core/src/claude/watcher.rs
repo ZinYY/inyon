@@ -18,7 +18,7 @@ use inyon_protocol::{
 };
 use serde_json::Value;
 
-use super::chat_cache::{load_chat, save_chat, CachedChat, ChatAt, KEEP as CACHE_KEEP, READER};
+use super::chat_cache::{load_chat, remove_chat, save_chat, CachedChat, ChatAt, KEEP as CACHE_KEEP, READER};
 use super::delivery::{has_paste_preview, input_contains, SendLedger};
 use super::drafts::{get_draft, mirror_to_terminal, set_draft, squash, Draft, DraftSource};
 use super::driving::{is_driving, start_driving};
@@ -206,6 +206,8 @@ struct State {
     /// Earlier Codex segments may precede a cached/trimmed first item. Resolve them again
     /// at the file boundary; the raw held history is intentionally not stored on disk.
     history_pending: bool,
+    /// A user-requested rebuild reads the whole source before returning to normal tailing.
+    full_read: bool,
     ready: bool,
     /// Reading a backlog (what was said while nobody watched): updates are held back and one reset
     /// brings the result, so the chat doesn't replay hours of messages and passing states (a goal
@@ -281,7 +283,7 @@ struct Initial {
 }
 
 impl ChatWatcher {
-    fn new(host_id: &str, pane_id: &str, parked: Option<Parked>) -> Rc<ChatWatcher> {
+    fn new(host_id: &str, pane_id: &str, parked: Option<Parked>, full_read: bool) -> Rc<ChatWatcher> {
         let key = chat_key(host_id, pane_id);
         let w = Rc::new_cyclic(|me| ChatWatcher {
             key,
@@ -310,6 +312,7 @@ impl ChatWatcher {
                 codex: false,
                 held_history: None,
                 history_pending: false,
+                full_read,
                 ready: false,
                 behind: None,
                 goal_unsure: false,
@@ -351,9 +354,11 @@ impl ChatWatcher {
                 opencode_poll: None,
             }),
         });
-        match parked {
-            Some(p) => w.unpark(p),
-            None => w.load_cached(),
+        if !full_read {
+            match parked {
+                Some(p) => w.unpark(p),
+                None => w.load_cached(),
+            }
         }
         w.sync();
         w.kick_screen();
@@ -953,6 +958,9 @@ impl ChatWatcher {
         };
         let msg = {
             let st = self.st.borrow();
+            if st.stopped {
+                return;
+            }
             let end = idx.unwrap_or(st.items.len());
             let start = end.saturating_sub(PAGE);
             ServerMsg::ChatMore { key: self.key.clone(), items: st.items[start..end].to_vec(), has_more: start > 0 || older_in_file(&st) }
@@ -1847,7 +1855,7 @@ impl ChatWatcher {
         let doc = path.starts_with("opencode://") || is_ocdb(Some(&path)) || path.contains("/.gemini/tmp/") || path.contains("/.gemini/antigravity-cli/brain/");
         let proc = proc_of(registry().pane_agent(&self.host_id, &self.pane_id).as_ref());
         // the same file again after a dropped connection: carry on from the byte where it stopped
-        let (mut again, gen) = {
+        let (mut again, gen, full_read) = {
             let mut st = self.st.borrow_mut();
             let again = !doc && st.transcript.as_deref() == Some(path.as_str()) && st.ready && st.reader.is_some();
             if let Some(t) = st.tail.take() {
@@ -1857,7 +1865,7 @@ impl ChatWatcher {
             st.transcript = Some(path.clone());
             st.proc = proc;
             st.generation += 1;
-            (again, st.generation)
+            (again, st.generation, std::mem::take(&mut st.full_read))
         };
         if !again {
             self.restart();
@@ -1936,7 +1944,7 @@ impl ChatWatcher {
             }
             if agent != Some(AgentKind::Copilot) {
                 self.st.borrow_mut().older_from = Some(0);
-                if size > TAIL_BYTES {
+                if size > TAIL_BYTES && !full_read {
                     // a long conversation: only its last stretch, shown as soon as it's in, while what's
                     // known about it as a whole (title, goal, tasks) is read alongside
                     let from = size - TAIL_BYTES;
@@ -2754,9 +2762,41 @@ impl WatchersRef {
             return w;
         }
         let p = self.with(|w| w.parked.borrow_mut().shift_remove(&key)).filter(|p| now_ms().saturating_sub(p.at) < PARK_MS);
-        let w = ChatWatcher::new(host_id, pane_id, p);
+        let w = ChatWatcher::new(host_id, pane_id, p, false);
         self.with(|ws| ws.map.borrow_mut().insert(key, w.clone()));
         w
+    }
+
+    /// Replace the reader, transferring every subscriber. No command is sent to the agent.
+    pub fn reload(&self, host_id: &str, pane_id: &str) -> HubResult<()> {
+        let found = registry().find_pane(host_id, pane_id).ok_or_else(|| HubError::http(404, "Pane not found"))?;
+        if registry().get(host_id).is_none_or(|rt| rt.borrow().state.status != HostStatus::Online) {
+            return Err(HubError::http(409, "The machine must be online to reload its chat"));
+        }
+        if found.pane.agent.as_ref().and_then(|a| a.transcript_path.as_deref()).is_none_or(str::is_empty) {
+            return Err(HubError::http(409, "This pane has no readable conversation record yet"));
+        }
+        let key = chat_key(host_id, pane_id);
+        let old = self.with(|ws| ws.map.borrow_mut().shift_remove(&key));
+        let subs = if let Some(old) = old {
+            let subs = std::mem::take(&mut old.st.borrow_mut().subs);
+            let info = old.st.borrow().info.clone();
+            old.stop();
+            for sub in &subs {
+                sub.send(&ServerMsg::ChatReset { key: key.clone(), info: Box::new(info.clone()), items: vec![], has_more: false });
+                sub.send(&ServerMsg::ChatProgress { key: key.clone(), done: 0, total: 1 });
+            }
+            subs
+        } else { vec![] };
+        self.with(|ws| ws.parked.borrow_mut().shift_remove(&key));
+        remove_chat(&key);
+        let fresh = ChatWatcher::new(host_id, pane_id, None, true);
+        self.with(|ws| ws.map.borrow_mut().insert(key, fresh.clone()));
+        for sub in subs {
+            fresh.subscribe(sub);
+        }
+        fresh.idle_later();
+        Ok(())
     }
 
     /// Reads open chats' screens rarely while the app is in the background, and at once on return.

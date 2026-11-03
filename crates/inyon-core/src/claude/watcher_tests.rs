@@ -40,6 +40,54 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts() {
+    run(|| async {
+        let fake = Fake::install(|_, _, _| ok(""));
+        machine("reload-test", "local", json!([{ "id": "%9", "agent": { "kind": "claude", "pid": 7, "state": "working", "transcriptPath":"/tmp/existing-conversation.jsonl" } }])).borrow_mut().hold_polls();
+        let old = watchers().get("reload-test", "%9");
+        {
+            let mut st = old.st.borrow_mut();
+            st.transcript = Some("/tmp/existing-conversation.jsonl".into());
+            st.reader = Some(TranscriptReader::new(100));
+            st.items = said();
+            st.older_from = Some(0);
+            st.ready = true;
+        }
+        let phone = Rc::new(Phone::default());
+        let sub: Sub = phone.clone();
+        old.subscribe(sub.clone());
+        old.save();
+        set_draft("reload-test:%9", draft("unsent work", now_ms() as f64, None));
+        assert!(load_chat("reload-test:%9").is_some());
+        watchers().reload("reload-test", "%9").unwrap();
+        let fresh = watchers().get("reload-test", "%9");
+        assert!(!Rc::ptr_eq(&old, &fresh));
+        assert!(old.st.borrow().stopped);
+        assert_eq!(fresh.subscribers(), 1);
+        assert!(fresh.st.borrow().full_read);
+        assert!(load_chat("reload-test:%9").is_none());
+        assert_eq!(get_draft("reload-test:%9").unwrap().text, "unsent work");
+        phone.got.borrow_mut().clear();
+        old.more(&sub, 10).await;
+        assert!(phone.got.borrow().is_empty(), "a retired reader must not republish stale pages");
+        assert!(fake.cmds().iter().all(|c| !c.contains("send-keys") && !c.contains("paste-buffer") && !c.contains("kill-pane")));
+        watchers().stop("reload-test:%9");
+    });
+}
+
+#[test]
+fn manual_reload_rejects_an_unreadable_pane_without_discarding_its_cached_chat() {
+    run(|| async {
+        let (_fake, old) = draft_box();
+        old.st.borrow_mut().items = said();
+        assert!(watchers().reload("draft-test", "%9").is_err());
+        assert!(Rc::ptr_eq(&old, &watchers().get("draft-test", "%9")));
+        assert_eq!(texts(&old), ["Hello", "Hi Abhash, what are you working on today?"]);
+        watchers().stop(KEY);
+    });
+}
+
+#[test]
 fn cached_codex_segments_keep_their_earlier_pages_after_restart_without_duplicate_items() {
     run(|| async {
         let path = "/home/test/.codex/sessions/current.jsonl";

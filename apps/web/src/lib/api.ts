@@ -393,6 +393,7 @@ export const api = {
     request<{ name: string }>('PUT', `${h(host)}/sessions/${encodeURIComponent(session.replace(/^\$/, ''))}/name`, { name }),
   reconnect: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/reconnect`),
   restart: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/restart`),
+  reloadChat: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/chat/reload`, undefined, 30_000),
   exit: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/exit`),
   /** the agent exits, then its tmux pane closes (and its window or session, if that was the last) */
   end: (host: string, pane: string) => request<{ closed: 'pane' | 'window' | 'session' }>('POST', `${panePath(host, pane)}/end`),

@@ -59,6 +59,10 @@ export function useSession(host: string, pane: string) {
 
   const actions = {
     send,
+    reloadChat: () => run('Could not reload chat', async () => {
+      await api.reloadChat(host, pane)
+      toast({ title: 'Reloading full chat', body: 'Reading the original conversation records again. Your agent keeps running.', tone: 'info' })
+    }),
     setModel: selectModel,
     setEffort: (level: string) => selectedModel?.variants?.[level]
       ? setting(`/model ${selectedModel.variants[level]}`, 'Could not change effort')

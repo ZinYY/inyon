@@ -130,6 +130,7 @@ export function ControlsSheet({ s, open, onClose }: { s: SessionModel; open: boo
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(64px,1fr))] gap-2">
             {[
+              def.chat && { label: 'Reload full chat', icon: RotateCw, on: () => (onClose(), actions.reloadChat()) },
               def.set.compact && { label: 'Compact', icon: Shrink, on: actions.compact },
               (agent === 'claude' || agent === 'antigravity' || agent === 'codex' || agent === 'opencode') && { label: agent === 'opencode' ? 'Undo' : 'Rewind', icon: RotateCcw, on: actions.rewind },
               agent === 'opencode' && { label: 'Redo', icon: RotateCw, on: actions.redo },

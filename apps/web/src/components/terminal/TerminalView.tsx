@@ -22,6 +22,7 @@ import { startingNote } from '../../lib/starting.ts'
 import { touchScroll } from './touchScroll.ts'
 import { attachWebgl } from './webgl.ts'
 import { contextMenu } from '../ui/ContextMenu.tsx'
+import { modifiedInput, type Modifiers } from './modifiers.ts'
 
 /**
  * WebGL draws each glyph once and keeps it: a glyph drawn before the symbols face loaded stays a
@@ -46,7 +47,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
   const termRef = useRef<Terminal | null>(null)
   const refit = useRef<() => void>(() => {})
   const idRef = useRef('')
-  const mods = useRef({ ctrl: false, alt: false })
+  const mods = useRef<Modifiers>({ ctrl: false, alt: false, shift: false })
   const [, force] = useState(0)
   const [exited, setExited] = useState<string | null>(null)
   const [generation, setGeneration] = useState(0)
@@ -54,6 +55,14 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
   const theme = useStore((s) => s.settings.theme)
   const connected = useStore((s) => s.connected)
   const setSettings = useStore((s) => s.setSettings)
+  const modify = (data: string) => {
+    const next = modifiedInput(data, mods.current)
+    if (next.mods !== mods.current) {
+      mods.current = next.mods
+      force((n) => n + 1)
+    }
+    return next.data
+  }
 
   useEffect(() => {
     if (!el.current || !connected) return
@@ -113,21 +122,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
     // a finger drag scrolls tmux's history, as the mouse wheel does
     const untouch = touchScroll(host_, () => term.rows)
     term.onData((d) => {
-      // apply sticky Ctrl/Alt from the touch key bar
-      const m = mods.current
-      if ((m.ctrl || m.alt) && d.length === 1) {
-        let out = d
-        if (m.ctrl) {
-          const c = d.toUpperCase().charCodeAt(0)
-          if (c >= 64 && c <= 95) out = String.fromCharCode(c - 64)
-        }
-        if (m.alt) out = `\x1b${out}`
-        mods.current = { ctrl: false, alt: false }
-        force((n) => n + 1)
-        send(out)
-        return
-      }
-      send(d)
+      send(modify(d))
     })
 
     const off = socket.on((m) => {
@@ -172,7 +167,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
   }, [fontSize, theme, agent])
 
   const key = (d: string) => {
-    socket.send({ t: 'term.in', id: idRef.current, d })
+    socket.send({ t: 'term.in', id: idRef.current, d: modify(d) })
     termRef.current?.focus()
   }
   const copySelection = async () => {
@@ -191,7 +186,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
     }
     termRef.current?.focus()
   }
-  const toggle = (m: 'ctrl' | 'alt') => {
+  const toggle = (m: keyof Modifiers) => {
     mods.current = { ...mods.current, [m]: !mods.current[m] }
     force((n) => n + 1)
     termRef.current?.focus()
@@ -248,6 +243,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
           <KeyBtn onClick={() => key('\t')}>tab</KeyBtn>
           <KeyBtn active={mods.current.ctrl} onClick={() => toggle('ctrl')}>ctrl</KeyBtn>
           <KeyBtn active={mods.current.alt} onClick={() => toggle('alt')}>alt</KeyBtn>
+          <KeyBtn active={mods.current.shift} label="Shift" onClick={() => toggle('shift')}>shift</KeyBtn>
           <KeyBtn onClick={() => key('\x1b[A')} label="Up"><ArrowUp className="size-4" /></KeyBtn>
           <KeyBtn onClick={() => key('\x1b[B')} label="Down"><ArrowDown className="size-4" /></KeyBtn>
           <KeyBtn onClick={() => key('\x1b[D')} label="Left"><ArrowLeft className="size-4" /></KeyBtn>
@@ -276,6 +272,7 @@ function KeyBtn({ children, onClick, active, label }: { children: React.ReactNod
     <button
       type="button"
       aria-label={label}
+      aria-pressed={active}
       title={label}
       // keep focus (and the phone keyboard) on the terminal
       onMouseDown={(e) => e.preventDefault()}

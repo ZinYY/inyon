@@ -5,6 +5,15 @@ import { currentModelId, openCodeStatus, useSession } from './useSession.ts'
 import { useStore } from '../../lib/store.ts'
 import { agentPane, host } from '../../test/fixtures.ts'
 import { flush } from '../../test/render.tsx'
+import { api } from '../../test/fakes.ts'
+
+test('reloading chat rebuilds the reader without sending an agent command', async () => {
+  const { result } = renderHook(() => useSession('box', '%1'))
+  await result.current.actions.reloadChat()
+  expect(api.reloadChat).toHaveBeenCalledWith('box', '%1')
+  expect(api.send).not.toHaveBeenCalled()
+  expect(api.restart).not.toHaveBeenCalled()
+})
 
 test("OpenCode's footer decides the model and variant; its record keeps the numbers; the footer's fill in", () => {
   const record: AgentStatus = { model: 'opencode/big-pickle', modelId: 'opencode/big-pickle', contextUsed: 15844, costUsd: 0.5, updatedAt: 10 }

@@ -850,6 +850,17 @@ impl Registry {
         }
     }
 
+    /// Refresh a single machine before rebuilding one of its chat readers.
+    pub async fn refresh_one(&self, id: &str, ms: u64) {
+        let Some(rt) = self.get(id) else { return };
+        self.refresh(id, 0);
+        let until = now_ms() + ms;
+        sleep(50).await;
+        while now_ms() < until && { let r = rt.borrow(); !r.stopped && (r.polling || r.poll_again) } {
+            sleep(100).await;
+        }
+    }
+
     async fn poll(&self, rt: Rt) {
         let (stopped, host) = {
             let r = rt.borrow();

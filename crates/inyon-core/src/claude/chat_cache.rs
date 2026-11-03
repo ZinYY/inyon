@@ -60,6 +60,11 @@ pub fn load_chat(key: &str) -> Option<CachedChat> {
     kv::get(&store_key(key))
 }
 
+/// Drops only Inyon's derived copy; the agent's transcript and terminal are untouched.
+pub fn remove_chat(key: &str) {
+    kv::del(&store_key(key));
+}
+
 /// Saves the chat, its last [`KEEP`] items, stamped now.
 pub fn save_chat(key: &str, mut chat: CachedChat) {
     if chat.items.len() > KEEP {

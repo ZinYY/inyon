@@ -708,6 +708,16 @@ pub fn add(routes: &mut Routes) {
     // a session's latest messages, condensed (`inyon read`)
     guarded(
         routes,
+        "/api/hosts/:id/panes/:pane/chat/reload",
+        vec![(M::POST, h(|r| async move {
+            let host = id(&r);
+            registry().refresh_one(&host, 6000).await;
+            inyon_core::claude::watcher::watchers().reload(&host, &pane(&r))?;
+            Ok(ok())
+        }))],
+    );
+    guarded(
+        routes,
         "/api/hosts/:id/panes/:pane/history",
         vec![(M::GET, h(|r| async move { Ok(json_of(&companion::history(&id(&r), &pane(&r), history_limit(&r.q("limit"))).await?)) }))],
     );

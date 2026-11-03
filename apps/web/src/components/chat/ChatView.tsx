@@ -357,7 +357,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                   </Empty>
                   {scheduledList}
                 </>
-              ) : !chat?.loaded ? (
+              ) : !chat?.loaded || (!rows.length && chat.catchingUp !== undefined) ? (
                 <Waiting shape="lines" className="pt-4" label={chat?.catchingUp !== undefined ? `Loading the conversation · ${Math.round(chat.catchingUp * 100)}%` : 'Loading the conversation'} />
               ) : !running && !rows.length ? (
                 <>

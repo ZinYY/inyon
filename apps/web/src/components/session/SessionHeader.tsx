@@ -202,6 +202,7 @@ export function SessionHeader({
             width={240}
             items={[
               { key: 'controls', label: 'Session controls…', icon: <Shield className="size-4" />, onSelect: () => openSheet('controls') },
+              def.chat && { key: 'reload-chat', label: 'Reload full chat', hint: 'Read the original records again', icon: <RotateCw className="size-4" />, onSelect: actions.reloadChat },
               def.set.rc && !info?.rc && { key: 'rc', label: 'Turn on Remote Control', icon: <RadioTower className="size-4" />, onSelect: () => actions.rc(true) },
               def.set.compact && { key: 'compact', label: 'Compact context', icon: <Shrink className="size-4" />, onSelect: actions.compact },
               (agent === 'claude' || agent === 'antigravity' || agent === 'codex' || agent === 'opencode') && { key: 'rewind', label: agent === 'opencode' ? 'Undo last message…' : 'Rewind…', icon: <RotateCcw className="size-4" />, onSelect: actions.rewind },
@@ -215,7 +216,7 @@ export function SessionHeader({
               def.set.clear && { key: 'clear', label: 'Clear conversation', icon: <Trash2 className="size-4" />, danger: true, onSelect: actions.clear },
               { key: 'exit', label: 'Exit to shell', icon: <LogOut className="size-4" />, onSelect: actions.exit },
               { key: 'end', label: 'End session…', icon: <CircleX className="size-4" />, danger: true, onSelect: () => actions.end(() => nav('/')) },
-            ].filter((it: any) => it && (!s.screen?.prompt || it.key === 'conversations' || it.key === 'rename' || it.key === 'copy' || it.key === 'end')) as any}
+            ].filter((it: any) => it && (!s.screen?.prompt || it.key === 'reload-chat' || it.key === 'conversations' || it.key === 'rename' || it.key === 'copy' || it.key === 'end')) as any}
             trigger={({ toggle, ref: r }) => (
               <button ref={r} type="button" onClick={toggle} aria-label="More" className="hidden size-8 shrink-0 items-center justify-center rounded-full text-fg-2 hover:bg-hover md:flex">
                 <MoreHorizontal className="size-4" />
