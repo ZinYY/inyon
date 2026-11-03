@@ -101,6 +101,23 @@ mod with_sh {
         assert_eq!(resumed.offset, size(&file));
     }
 
+    #[test]
+    fn a_broken_python3_alias_uses_python_or_preserves_the_raw_transcript() {
+        let d = dir();
+        let file = d.path("windows-alias.jsonl");
+        let text = "中文🙂".repeat(2000);
+        std::fs::write(&file, user(1, &text, true) + &user(2, "latest reply", false)).unwrap();
+        for fallback in ["python() { command python3 \"$@\"; }", "python() { return 127; }"] {
+            let command = format!("python3() {{ return 49; }}; {fallback}; {}", tail_command(file.to_str().unwrap(), 0, true, false));
+            let mut reader = TranscriptReader::new(0);
+            let entries: Vec<Value> = lines(&command).iter().filter_map(|line| reader.line(line).and_then(|r| r.entry)).collect();
+            assert_eq!(entries.len(), 2);
+            assert_eq!(text_of(&entries[0]), text);
+            assert_eq!(text_of(&entries[1]), "latest reply");
+            assert_eq!(reader.offset, size(&file));
+        }
+    }
+
     /// reading on from an offset gives exactly the lines after it
     #[test]
     fn reading_on_from_an_offset_gives_exactly_the_lines_after_it() {

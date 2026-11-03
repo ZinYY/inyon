@@ -53,9 +53,13 @@ fn slimmed(source: &str, slim: bool) -> String {
     if !slim {
         return source.to_owned();
     }
-    // No Python: send the original bytes. Image compression is optional; correct
-    // transcripts and byte offsets are not. This also avoids changing system awk.
-    format!("if command -v python3 >/dev/null 2>&1; then {source} | python3 -u -c {}; else {source}; fi", shq(SLIM))
+    // Windows may have a python3.exe Store alias even though only python.exe works.
+    // Check the interpreter before starting the pipeline, so a broken alias cannot
+    // consume a transcript without returning any records. Without Python, send raw bytes.
+    format!(
+        "_inyon_python=; for _inyon_candidate in python3 python; do if \"$_inyon_candidate\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then _inyon_python=$_inyon_candidate; break; fi; done; if [ -n \"$_inyon_python\" ]; then {source} | \"$_inyon_python\" -u -c {}; else {source}; fi",
+        shq(SLIM)
+    )
 }
 
 /// Bytes `from` up to `to` of the file: an earlier part of a long conversation, read on demand.
