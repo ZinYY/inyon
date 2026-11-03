@@ -65,7 +65,10 @@ fn github_release(url: &str) -> Option<Result<Response, String>> {
             (format!("repos/{repo}/releases/tags/{tag}"), Some(name))
         } else { return Err("Unsupported private release URL".into()); };
         let run = |args: &[&str]| -> Result<Vec<u8>, String> {
-            let out = std::process::Command::new("gh").args(args).output().map_err(|e| format!("Private releases require gh: {e}"))?;
+            let mut command = std::process::Command::new("gh");
+            command.args(args);
+            crate::sys::quiet(&mut command);
+            let out = command.output().map_err(|e| format!("Private releases require gh: {e}"))?;
             if !out.status.success() { return Err("Could not download the private release; check gh auth status and the proxy.".into()); }
             Ok(out.stdout)
         };
