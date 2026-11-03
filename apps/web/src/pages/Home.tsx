@@ -110,7 +110,7 @@ export function Home() {
   // (with the state it had when tapped, so its text doesn't change under the spinner)
   const [turning, setTurning] = useState<ReadonlyMap<string, string>>(() => new Map())
   const needsIntegration = hosts.filter(
-    (h) => turning.has(h.config.id) || (h.status === 'online' && (h.integration === 'missing' || h.integration === 'removed' || h.integration === 'outdated') && h.agents.includes('claude')),
+    (h) => h.config.sshMode !== 'windows-herdr' && (turning.has(h.config.id) || (h.status === 'online' && (h.integration === 'missing' || h.integration === 'removed' || h.integration === 'outdated') && h.agents.includes('claude'))),
   )
   const panesTotal = hosts.reduce((n, h) => n + h.sessions.reduce((m, s) => m + s.windows.reduce((k, w) => k + w.panes.length, 0), 0), 0)
 

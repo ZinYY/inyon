@@ -70,6 +70,19 @@ describe('MachineSheet (hub) keeps what you type while live data flows', () => {
     await flush()
     expect(api.updateHost.mock.calls[0]).toEqual(['m1', { name: 'Build', target: 'deploy@work', port: 2222, identityFile: '~/.ssh/work' }])
   })
+
+  test('Windows Herdr mode survives editing and can be switched back', async () => {
+    const user = userEvent.setup()
+    await render(<MachineSheet open onClose={noop} edit={{ ...work, sshMode: 'windows-herdr' }} />)
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('windows-herdr')
+    await user.click(screen.getByText('Save'))
+    await flush()
+    expect(api.updateHost.mock.calls[0][1].sshMode).toBe('windows-herdr')
+    await user.selectOptions(screen.getByRole('combobox'), '')
+    await user.click(screen.getByText('Save'))
+    await flush()
+    expect(api.updateHost.mock.calls[1][1].sshMode).toBeNull()
+  })
 })
 
 describe('PairMachine', () => {

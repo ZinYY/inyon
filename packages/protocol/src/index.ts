@@ -16,6 +16,8 @@ export interface HostConfig {
   target?: string
   port?: number
   identityFile?: string
+  /** Hub SSH transport: omitted for POSIX, "windows-herdr" for native Windows Herdr panes. */
+  sshMode?: string
   /** ssh from the phone app: the server's host key fingerprint, confirmed when it was added */
   hostKey?: string
   /**

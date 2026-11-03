@@ -27,6 +27,9 @@ export function IntegrationNote({ host, agent = 'claude' }: { host: HostState; a
       setBusy(false)
     }
   }
+  if (host.config.sshMode === 'windows-herdr') return (
+    <p className="text-[12.5px] leading-relaxed text-fg-2">Herdr supplies session matching and terminal access. Live account limits and status-line cost are not available through this connection.</p>
+  )
   return (
     <div className="flex items-start gap-3 rounded-3xl border border-line bg-elev shadow-card p-3.5">
       <Plug className="mt-0.5 size-4 shrink-0 text-warn" />

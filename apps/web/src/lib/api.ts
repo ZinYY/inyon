@@ -344,7 +344,7 @@ export const api = {
   changePassword: (current: string, next: string) => request<{ ok: boolean }>('POST', '/api/password', { current, next }),
   login: (password: string) => request<{ ok: boolean }>('POST', '/api/login', { password }),
   logout: () => request('POST', '/api/logout').catch(() => {}),
-  addHost: (b: { name: string; target: string; port?: number; identityFile?: string }) => request<{ id: string }>('POST', '/api/hosts', b),
+  addHost: (b: { name: string; target: string; port?: number; identityFile?: string; sshMode?: string }) => request<{ id: string }>('POST', '/api/hosts', b),
   // the phone app: servers it SSHes into itself
   addServer: (b: ServerForm) => request<{ id: string }>('POST', '/api/hosts', b),
   editServer: (id: string, b: Partial<ServerForm>) => request('PATCH', h(id), b),

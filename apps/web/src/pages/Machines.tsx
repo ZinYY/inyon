@@ -504,6 +504,11 @@ function IntegrationCard({ host }: { host: HostState }) {
       setBusy(false)
     }
   }
+  if (host.config.sshMode === 'windows-herdr') return (
+    <div className="max-w-2xl rounded-3xl border border-line bg-elev p-5 text-[13px] leading-relaxed text-fg-2">
+      Herdr supplies the running sessions, exact Claude conversation identities and terminal access. Manage agent integrations in Herdr. Live account limits and status-line cost are not available through this connection.
+    </div>
+  )
   return (
     <div className="max-w-2xl space-y-4">
       <div className="rounded-3xl border border-line bg-elev shadow-card p-5">

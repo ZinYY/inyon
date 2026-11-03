@@ -81,7 +81,7 @@ impl ProcessBackend {
         }
         let mut v = vec!["ssh".to_owned()];
         v.extend(self.ssh_args(c, tty));
-        v.push(format!("sh -c {}", shq(cmd)));
+        v.push(if crate::windows_herdr::enabled(c) { crate::windows_herdr::command() } else { format!("sh -c {}", shq(cmd)) });
         v
     }
 
@@ -172,7 +172,10 @@ async fn read_all(r: Option<impl AsyncReadExt + Unpin>) -> Vec<u8> {
 }
 
 impl HostBackend for ProcessBackend {
-    fn exec(&self, config: &HostConfig, cmd: &str, opts: ExecOptions) -> LocalBoxFuture<'static, HubResult<ExecResult>> {
+    fn exec(&self, config: &HostConfig, cmd: &str, mut opts: ExecOptions) -> LocalBoxFuture<'static, HubResult<ExecResult>> {
+        if crate::windows_herdr::enabled(config) {
+            opts.input = Some(crate::windows_herdr::input(cmd, opts.input.take()));
+        }
         let mut c = self.command(&self.argv(config, cmd, false));
         c.stdin(if opts.input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
         let spawned = c.spawn();
@@ -218,9 +221,10 @@ impl HostBackend for ProcessBackend {
 
     fn stream(&self, config: &HostConfig, cmd: &str, mut on_line: OnLine, keep_stdin: bool) -> StreamHandle {
         let exited = Deferred::new();
+        let bootstrap = crate::windows_herdr::enabled(config).then(|| crate::windows_herdr::input(cmd, None));
         // control-mode tmux exits when stdin closes, so it gets a pipe we never write to
         let mut c = self.command(&self.argv(config, cmd, false));
-        c.stdin(if keep_stdin { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::null());
+        c.stdin(if keep_stdin || bootstrap.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::null());
         let mut child = match c.spawn() {
             Ok(ch) => ch,
             Err(_) => {
@@ -235,7 +239,11 @@ impl HostBackend for ProcessBackend {
         let done = exited.clone();
         // `exited` is the process's own end, whether or not something it started still holds the output
         tokio::task::spawn_local(async move {
-            let _stdin = stdin;
+            let mut stdin = stdin;
+            if let (Some(data), Some(pipe)) = (bootstrap, stdin.as_mut()) {
+                let _ = pipe.write_all(&data).await;
+            }
+            let _stdin = if keep_stdin { stdin } else { None };
             let status = tokio::select! {
                 s = child.wait() => s,
                 _ = stopped => {
@@ -287,6 +295,9 @@ impl HostBackend for ProcessBackend {
     }
 
     fn pty(&self, config: &HostConfig, cmd: &str, cols: u16, rows: u16, on_data: OnData) -> HubResult<PtyHandle> {
+        if crate::windows_herdr::enabled(config) {
+            return Err(HubError::plain("Windows Herdr panes use the mirrored terminal view"));
+        }
         crate::pty::open(&self.argv(config, cmd, true), &self.env, cols, rows, on_data)
     }
 

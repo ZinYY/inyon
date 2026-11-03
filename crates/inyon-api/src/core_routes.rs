@@ -52,7 +52,13 @@ pub fn validate_host(b: &Map<String, Value>) -> HubResult<HostConfig> {
             return Err(http(400, "Key path has unexpected characters"));
         }
     }
-    Ok(HostConfig { name, kind: HostKind::Ssh, target: Some(target), port: port.map(|p| p as u16), identity_file, ..empty_config() })
+    let ssh_mode = match b.get("sshMode") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) if s.is_empty() => None,
+        Some(Value::String(s)) if s == "windows-herdr" => Some(s.clone()),
+        _ => return Err(http(400, "Unknown SSH terminal type")),
+    };
+    Ok(HostConfig { name, kind: HostKind::Ssh, target: Some(target), port: port.map(|p| p as u16), identity_file, ssh_mode, ..empty_config() })
 }
 
 /// A machine with nothing set, to fill in.
@@ -64,6 +70,7 @@ pub fn empty_config() -> HostConfig {
         target: None,
         port: None,
         identity_file: None,
+        ssh_mode: None,
         host_key: None,
         auth: None,
         via: None,
@@ -393,7 +400,7 @@ pub fn add(routes: &mut Routes) {
                         }
                         let next = validate_host(&merged)?;
                         // a new address or key: the connection kept open to the old one goes
-                        if next.target != cur.target || next.port != cur.port || next.identity_file != cur.identity_file {
+                        if next.target != cur.target || next.port != cur.port || next.identity_file != cur.identity_file || next.ssh_mode != cur.ssh_mode {
                             if let Some(rt) = registry().get(&id) {
                                 let host = rt.borrow().host.clone();
                                 host.close().await?;
@@ -405,6 +412,7 @@ pub fn add(routes: &mut Routes) {
                             c.target = next.target;
                             c.port = next.port;
                             c.identity_file = next.identity_file;
+                            c.ssh_mode = next.ssh_mode;
                         })?;
                     }
                     Ok(ok())
@@ -1095,6 +1103,9 @@ mod tests {
         assert_eq!(validate_host(&obj(json!({ "name": "x", "target": "a@b", "identityFile": "~/k;rm" }))).unwrap_err().message, "Key path has unexpected characters");
         let ok = validate_host(&obj(json!({ "name": " Box ", "target": "me@box", "port": "2222", "identityFile": " " }))).unwrap();
         assert_eq!((ok.name.as_str(), ok.target.as_deref(), ok.port, ok.identity_file), ("Box", Some("me@box"), Some(2222), None));
+        let native = validate_host(&obj(json!({"name":"Windows", "target":"work-windows", "sshMode":"windows-herdr"}))).unwrap();
+        assert_eq!(native.ssh_mode.as_deref(), Some("windows-herdr"));
+        assert!(validate_host(&obj(json!({"name":"Windows", "target":"work-windows", "sshMode":"unknown"}))).is_err());
     }
 
     #[test]

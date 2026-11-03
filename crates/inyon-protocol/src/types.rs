@@ -41,6 +41,8 @@ pub struct HostConfig {
     pub target: Option<String>,
     pub port: Option<u16>,
     pub identity_file: Option<String>,
+    /// Hub SSH transport: omitted for POSIX, "windows-herdr" for native Windows Herdr panes.
+    pub ssh_mode: Option<String>,
     /// ssh from the phone app: the server's host key fingerprint, confirmed when it was added
     pub host_key: Option<String>,
     /// ssh from the phone app: how it signs in (the secret itself stays in the phone's keystore)

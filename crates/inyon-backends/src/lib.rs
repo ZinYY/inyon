@@ -29,6 +29,7 @@ pub mod fs_store;
 pub mod limits;
 pub mod process;
 pub mod pty;
+mod windows_herdr;
 pub mod runtime;
 
 pub use runtime::{core_here, core_thread, CoreHandle};

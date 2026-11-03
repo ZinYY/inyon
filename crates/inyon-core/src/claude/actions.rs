@@ -47,6 +47,14 @@ fn agent_pane(host_id: &str, pane_id: &str) -> HubResult<(Host, FoundPane)> {
     Ok((registry().host(host_id)?, found))
 }
 
+/// Refuse before typing or stopping anything: this connection mirrors existing Herdr panes.
+fn require_tmux_management(host_id: &str) -> HubResult<()> {
+    if registry().host(host_id)?.config().ssh_mode.as_deref() == Some("windows-herdr") {
+        return Err(http(409, "Manage session creation, restart and closing in Herdr. This connection supports existing chats and terminal input."));
+    }
+    Ok(())
+}
+
 /// The pane's screen as it is now, read off a fresh capture.
 pub async fn current_screen(host_id: &str, pane_id: &str) -> HubResult<ScreenState> {
     let host = registry().host(host_id)?;
@@ -1474,6 +1482,7 @@ pub fn agent_kind(name: &str) -> Option<AgentKind> {
 
 /// Starts (or resumes) an agent in a pane that is sitting at a shell prompt.
 pub async fn start_agent(host_id: &str, pane_id: &str, agent: Option<&Value>, resume: Option<&Value>) -> HubResult<()> {
+    require_tmux_management(host_id)?;
     // both end up typed into a shell
     let kind = match agent {
         None | Some(Value::Null) => Some(AgentKind::Claude),
@@ -1494,6 +1503,7 @@ pub async fn start_agent(host_id: &str, pane_id: &str, agent: Option<&Value>, re
 /// Types the command that starts the agent (resuming `resume`, if given) at the pane's shell
 /// prompt. The caller has checked the agent and the id, and that the pane is at its shell.
 pub async fn type_start(host_id: &str, pane_id: &str, agent: AgentKind, resume: Option<&str>) -> HubResult<()> {
+    require_tmux_management(host_id)?;
     let (host, _) = agent_pane(host_id, pane_id)?;
     let def = agent.def();
     let cmd = match resume.filter(|r| !r.is_empty()) {
@@ -1733,6 +1743,7 @@ fn background_of(s: &ScreenState) -> Option<&str> {
 /// Exits the agent and reopens the same conversation in the same pane, e.g. so it picks up
 /// settings that changed under it. Refuses while it's busy, since a restart would cut that off.
 pub async fn restart_agent(host_id: &str, pane_id: &str) -> HubResult<()> {
+    require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
     let Some(a) = found.pane.agent.clone().filter(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Antigravity)) else {
         return Err(http(400, "Only Claude Code, Codex and Antigravity sessions can be resumed"));
@@ -1916,6 +1927,7 @@ impl Exiting<'_> {
 /// command). Stops a running turn first and backs out of any dialog, then asks the agent to exit;
 /// Ctrl+C is the fallback when that doesn't work.
 pub async fn exit_agent(host_id: &str, pane_id: &str, end: bool) -> HubResult<()> {
+    require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
     let Some(a) = found.pane.agent.clone() else { return Err(http(409, "No agent is running in this pane")) };
     let p = shq(pane_id);
@@ -2020,6 +2032,7 @@ pub struct EndSession {
 /// a dialog backed out of), then its tmux pane is killed. Only that pane: its window goes too only
 /// when it was the last pane there, and the tmux session only when that was its last window.
 pub async fn end_session(host_id: &str, pane_id: &str) -> HubResult<EndSession> {
+    require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
     let closed = closes(&found);
     if found.pane.agent.is_some() {
@@ -2093,6 +2106,7 @@ pub async fn shell_ready(host: &Host, pane_id: &str, ms: u64) -> HubResult<()> {
 
 /// New tmux window (in an existing or new session) at `cwd`, optionally starting an agent.
 pub async fn launch(host_id: &str, opts: &LaunchOpts) -> HubResult<String> {
+    require_tmux_management(host_id)?;
     let host = registry().host(host_id)?;
     // before anything is created: an unknown agent would fail after the window exists
     let custom = match opts.custom.as_deref().filter(|c| !c.is_empty()) {
@@ -2183,6 +2197,7 @@ pub async fn launch(host_id: &str, opts: &LaunchOpts) -> HubResult<String> {
 /// with the same flags: both carry on from here separately. Claude Code, Codex and OpenCode fork
 /// a conversation themselves; this only starts them that way.
 pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String> {
+    require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
     let Some(a) = found.pane.agent.clone().filter(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Opencode)) else {
         return Err(http(400, "Only Claude Code, Codex and OpenCode conversations can be forked"));

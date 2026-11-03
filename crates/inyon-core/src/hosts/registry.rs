@@ -1261,7 +1261,7 @@ impl Registry {
             // noticed; not the "waiting for your input" notice a minute after it went quiet
             let said = live_hook(&pr.borrow(), &p.id);
             if let Some(said) = said {
-                if Some(&said.data).at("hook_event_name").str() != Some("Notification") {
+                if !matches!(Some(&said.data).at("hook_event_name").str(), Some("Notification" | "HerdrSessionIdentity")) {
                     was_active(&mut pr.borrow_mut(), &p.id, said.ts);
                 }
             }
@@ -1660,6 +1660,9 @@ impl Registry {
     async fn heal_integration(&self, rt: &Rt, pr: &Rc<RefCell<ProbeResult>>) -> HubResult<()> {
         let host = rt.borrow().host.clone();
         let cfg = host.config();
+        if cfg.ssh_mode.as_deref() == Some("windows-herdr") {
+            return Ok(());
+        }
         let (integration, agy, installed, hooked) = {
             let p = pr.borrow();
             (p.integration, p.agy_integration, p.installed.clone(), p.hooked.clone())

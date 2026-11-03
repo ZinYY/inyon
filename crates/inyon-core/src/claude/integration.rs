@@ -349,6 +349,9 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
 }
 
 pub async fn install_integration(host: &Host) -> HubResult<()> {
+    if host.config().ssh_mode.as_deref() == Some("windows-herdr") {
+        return Err(HubError::plain("Herdr supplies session matching. The tmux status-line integration is not supported on this connection."));
+    }
     write_file(host, ".inyon/hook.sh", HOOK_SCRIPT, "700").await?;
     write_file(host, ".inyon/statusline.sh", STATUS_SCRIPT, "700").await?;
     // ~/.inyon holds your prompts (events.jsonl, panes/): earlier versions left it readable by others

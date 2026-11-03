@@ -117,6 +117,7 @@ function HubMachineSheet({ open, onClose, edit }: MachineSheetProps) {
   const [target, setTarget] = useState('')
   const [port, setPort] = useState('')
   const [key, setKey] = useState('')
+  const [sshMode, setSshMode] = useState('')
   const [busy, setBusy] = useState(false)
 
   useOpened(open, edit?.id, () => {
@@ -125,6 +126,7 @@ function HubMachineSheet({ open, onClose, edit }: MachineSheetProps) {
     setTarget(edit?.target ?? '')
     setPort(edit?.port ? String(edit.port) : '')
     setKey(edit?.identityFile ?? '')
+    setSshMode(edit?.sshMode ?? '')
   })
 
   const local = edit?.kind === 'local' || edit?.kind === 'node'
@@ -132,7 +134,7 @@ function HubMachineSheet({ open, onClose, edit }: MachineSheetProps) {
     e.preventDefault()
     setBusy(true)
     try {
-      const body = local ? { name } : { name, target, port: port ? Number(port) : undefined, identityFile: key || undefined }
+      const body = local ? { name } : { name, target, port: port ? Number(port) : undefined, identityFile: key || undefined, ...(sshMode || edit?.sshMode ? { sshMode: sshMode || null } : {}) }
       if (edit) await api.updateHost(edit.id, body)
       else await api.addHost(body as any)
       toast({ title: edit ? 'Machine updated' : 'Machine added', body: local ? undefined : 'Connecting over SSH…', tone: 'success' })
@@ -167,7 +169,7 @@ function HubMachineSheet({ open, onClose, edit }: MachineSheetProps) {
       <form id="machine-form" onSubmit={submit} className="space-y-4">
         {!edit && (
           <p className="text-[13px] leading-relaxed text-fg-2">
-            The hub signs in with its own SSH keys and config. Nothing is installed on the machine. Use this when the hub can already reach it: same network, a VPN, or a jump host set up in the hub's <code className="font-mono text-[12px]">~/.ssh/config</code>.
+            The hub signs in with its own SSH keys and config. Use this when the hub can already reach it: same network, a VPN, or a jump host set up in the hub's <code className="font-mono text-[12px]">~/.ssh/config</code>.
           </p>
         )}
         <Field label="Name">
@@ -177,6 +179,12 @@ function HubMachineSheet({ open, onClose, edit }: MachineSheetProps) {
           <>
             <Field label="SSH destination" hint="user@host, or a Host alias from ~/.ssh/config on the hub machine. The hub uses its own SSH keys, agent and config.">
               <input className={clsx(inputClass, 'font-mono text-[13.5px]')} value={target} onChange={(e) => setTarget(e.target.value)} placeholder="deploy@work-server" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+            </Field>
+            <Field label="Terminal type" hint={sshMode === 'windows-herdr' ? 'Connects to existing Herdr panes. Python 3 and the Windows bridge dependencies must be installed.' : undefined}>
+              <select className={inputClass} value={sshMode} onChange={(e) => setSshMode(e.target.value)}>
+                <option value="">Linux / macOS (tmux)</option>
+                <option value="windows-herdr">Windows / Herdr</option>
+              </select>
             </Field>
             <div className="grid grid-cols-[100px_1fr] gap-3">
               <Field label="Port">
