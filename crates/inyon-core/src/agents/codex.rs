@@ -51,16 +51,11 @@ fn newest<'a>(rows: impl Iterator<Item = &'a CodexRollout>) -> Option<&'a CodexR
 
 /// Codex keeps one rollout file per thread under ~/.codex/sessions/YYYY/MM/DD/, all written by
 /// its shared app-server daemon, so no process holds "its" file open. The thread is found by, in
-/// order: the id it was resumed with; the thread name Codex put in the terminal title; else
-/// creation time. A thread belongs to the newest Codex process in that folder that had started
+/// order: the current thread name Codex put in the terminal title; its startup resume id; else
+/// creation time. The current title wins because /new and /resume can switch threads in-place. A thread belongs to the newest Codex process in that folder that had started
 /// when the thread was made, so two sessions in one folder don't both claim the latest file, while
 /// /new in the older one still lands on its own new thread once nothing newer was started.
 pub fn pick_codex_rollout(rows: &[CodexRollout], proc: &CodexProc, others: &[CodexProc], names: &HashMap<String, String>) -> Option<String> {
-    if let Some(resume) = proc.resume.as_deref().filter(|r| !r.is_empty()) {
-        if let Some(hit) = newest(rows.iter().filter(|r| r.id.as_deref() == Some(resume) || r.path.contains(resume))) {
-            return Some(hit.path.clone());
-        }
-    }
     let cwd = proc.cwd.as_deref().filter(|c| !c.is_empty());
     let since = proc.started_at - 5.0;
     let here: Vec<&CodexRollout> = rows.iter().filter(|r| cwd.is_none() || r.cwd.as_deref() == cwd).collect();
@@ -78,6 +73,11 @@ pub fn pick_codex_rollout(rows: &[CodexRollout], proc: &CodexProc, others: &[Cod
         let fresh: Vec<&CodexRollout> = named.iter().copied().filter(|r| r.created >= since).collect();
         if !fresh.is_empty() && fresh.iter().all(|r| r.id == fresh[0].id) {
             return newest(fresh.into_iter()).map(|r| r.path.clone());
+        }
+    }
+    if let Some(resume) = proc.resume.as_deref().filter(|r| !r.is_empty()) {
+        if let Some(hit) = newest(rows.iter().filter(|r| r.id.as_deref() == Some(resume) || r.path.contains(resume))) {
+            return Some(hit.path.clone());
         }
     }
     let rivals: Vec<&CodexProc> = others.iter().filter(|o| o.pid != proc.pid && o.cwd == proc.cwd && o.started_at > proc.started_at).collect();
@@ -1053,8 +1053,8 @@ pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, other
     // Look up only its exact indexed id, never guess the newest unrelated old chat.
     let name = proc.title.as_deref().map(|t| codex_title(t, proc.cwd.as_deref())).unwrap_or_default();
     let named: Vec<&String> = names.iter().filter(|(_, n)| !name.is_empty() && **n == name).map(|(id, _)| id).collect();
-    let wanted = proc.resume.as_deref().filter(|id| !id.is_empty())
-        .or_else(|| (named.len() == 1).then(|| named[0].as_str()));
+    let wanted = (named.len() == 1).then(|| named[0].as_str())
+        .or_else(|| proc.resume.as_deref().filter(|id| !id.is_empty()));
     if let Some(id) = wanted.filter(|id| re!(r"^[0-9a-f-]{36}$").is_match(id) && !rows.iter().any(|r| r.id.as_deref() == Some(*id))) {
         let command = format!(
             r#"find {} \( -name {} -o -name {} \) 2>/dev/null | while read -r f; do printf '%s\t%s\t%s\n' "$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")" "$f" "$(head -c 4000 "$f" | head -n 1)"; done"#,

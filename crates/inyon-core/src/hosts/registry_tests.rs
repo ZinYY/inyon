@@ -900,3 +900,32 @@ fn codex_idle_requires_three_continuous_seconds_and_does_not_delay_questions() {
     assert!(matches!(codex_state(&mut state, 42, Shown::Waiting, true, 6201), Shown::Waiting));
     assert!(matches!(codex_state(&mut state, 43, Shown::Idle, true, 6202), Shown::Idle));
 }
+
+#[test]
+fn codex_new_invalidates_the_startup_resume_hint_before_the_new_thread_has_a_title() {
+    run(|| async {
+        let b = ModeBox::new();
+        let now = now_ms() as f64 / 1000.0;
+        let old = "01a18d9e-fba4-74a2-a098-a77dc8107ce4";
+        b.rt.borrow_mut().cwd_map.insert(7, Mapped { path: Some(format!("/s/rollout-{old}.jsonl")), by: MappedBy::Resume, at: now_ms(), title: "Old thread | w".into() });
+        let probe = || {
+            let mut p = mode_probe(now);
+            p.home = "/home/u".into();
+            let proc = p.agent_procs.get_mut("%9").unwrap();
+            proc.kind = AgentKind::Codex;
+            proc.resume = Some(old.into());
+            p.sessions[0].windows[0].panes[0].title = "w".into();
+            Rc::new(RefCell::new(p))
+        };
+        b.draw("› Ask Codex to do anything\n  GPT-6-Astra · Context 0% used\n? for shortcuts");
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().transcript_path.is_none());
+        // The first new prompt is running, but the title/index entry has not arrived yet.
+        b.draw("› Explain overfitting briefly\n  GPT-6-Astra · Context 2% used\n? for shortcuts");
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().transcript_path.is_none());
+        assert!(!b._fake.cmds().iter().any(|cmd| cmd.contains(old)), "the old startup thread must not be looked up again after /new");
+    });
+}

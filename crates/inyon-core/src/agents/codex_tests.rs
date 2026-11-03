@@ -396,6 +396,9 @@ fn an_idle_resumed_thread_is_found_even_when_its_file_has_not_changed_since_befo
         let h = host("idle-resume", "local");
         let want = Some(root.path(&rel).to_string_lossy().into_owned());
         assert_eq!(find_codex_rollout(&h, &root.s(), &proc, &[]).await.unwrap(), want);
+        // /resume in the same TUI overrides the id still present in its startup command.
+        let switched = CodexProc { resume: Some("01a18d9e-0000-7000-a000-000000000000".into()), ..proc.clone() };
+        assert_eq!(find_codex_rollout(&h, &root.s(), &switched, &[]).await.unwrap(), want);
         // A newer unrelated thread in the same folder must not win over the exact title.
         root.write(".codex/sessions/new/rollout-new.jsonl", &(stringify(&json!({"timestamp":date::to_iso(now_ms() as f64).unwrap(),"payload":{"id":"other","cwd":"/work"}})) + "\n"));
         assert_eq!(find_codex_rollout(&h, &root.s(), &proc, &[]).await.unwrap(), want);
@@ -875,4 +878,18 @@ fn only_a_nameless_zero_context_footer_confirms_a_blank_codex_thread() {
     let mut output = vec!["Quoted output: Context 0% used".into()];
     output.extend((0..10).map(|_| "more conversation output".into()));
     assert!(!codex_empty_conversation(&output, "work", Some("/work")));
+}
+
+#[test]
+fn current_codex_title_wins_over_a_startup_resume_flag_after_an_in_process_switch() {
+    let proc = CodexProc { pid: 1, cwd: Some("/work".into()), started_at: 1000.0, resume: Some("old".into()), title: Some("Explain overfitting | work".into()) };
+    let rows = vec![
+        CodexRollout { path: "/s/old.jsonl".into(), id: Some("old".into()), cwd: Some("/work".into()), created: 100.0, mtime: 1100.0 },
+        CodexRollout { path: "/s/new.jsonl".into(), id: Some("new".into()), cwd: Some("/work".into()), created: 1200.0, mtime: 1300.0 },
+    ];
+    let names = HashMap::from([("old".into(), "Available assistance".into()), ("new".into(), "Explain overfitting".into())]);
+    assert_eq!(pick_codex_rollout(&rows, &proc, std::slice::from_ref(&proc), &names), Some("/s/new.jsonl".into()));
+    // Native /resume can also select a thread older than the current process.
+    let older = CodexRollout { created: 50.0, ..rows[1].clone() };
+    assert_eq!(pick_codex_rollout(&[rows[0].clone(), older], &proc, std::slice::from_ref(&proc), &names), Some("/s/new.jsonl".into()));
 }

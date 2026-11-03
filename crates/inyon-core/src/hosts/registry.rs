@@ -219,6 +219,8 @@ pub struct HostRuntime {
     pub screens: HashMap<String, ScreenState>,
     /// Codex panes whose visible footer confirms a blank/new conversation.
     pub(crate) empty_codex: HashSet<String>,
+    /// A confirmed /new in this process invalidates the resume id in its startup arguments.
+    codex_cleared: HashSet<i64>,
     /// when the integration was last put back automatically
     healed_at: Option<u64>,
     /// sessions already resumed automatically (once each, so a failure can't loop)
@@ -267,6 +269,7 @@ impl HostRuntime {
             dirty_timer: None,
             screens: HashMap::new(),
             empty_codex: HashSet::new(),
+            codex_cleared: HashSet::new(),
             healed_at: None,
             resumed: HashSet::new(),
             rested: HashMap::new(),
@@ -1126,7 +1129,8 @@ impl Registry {
             agent_panes.iter()
                 .filter_map(|pane| pr.borrow().agent_procs.get(&pane.id).cloned().map(|proc| (pane, proc)))
                 .filter(|(_, x)| x.kind == AgentKind::Codex)
-                .map(|(pane, x)| CodexProc { pid: x.pid as i64, cwd: x.cwd.clone(), started_at: x.started_at, resume: x.resume.clone(), title: Some(pane.title.clone()) })
+                .map(|(pane, x)| CodexProc { pid: x.pid as i64, cwd: x.cwd.clone(), started_at: x.started_at,
+                    resume: (!rt.borrow().codex_cleared.contains(&(x.pid as i64))).then(|| x.resume.clone()).flatten(), title: Some(pane.title.clone()) })
                 .collect(),
         );
         let work = agent_panes.into_iter().map(|p| self.annotate_pane(rt, &host, pr, p, screens.clone(), codex_procs.clone(), live.clone()));
@@ -1164,6 +1168,7 @@ impl Registry {
         r.status_cache.retain(|pid, _| live.contains(pid));
         r.screens.retain(|id, _| agent_ids.contains(id));
         r.empty_codex.retain(|id| agent_ids.contains(id));
+        r.codex_cleared.retain(|pid| live.contains(pid));
         Ok(())
     }
 
@@ -1196,6 +1201,7 @@ impl Registry {
             let mut r = rt.borrow_mut();
             if empty_codex {
                 r.empty_codex.insert(p.id.clone());
+                if r.cwd_map.get(&pid).is_some_and(|m| m.path.is_some()) { r.codex_cleared.insert(pid); }
                 r.cwd_map.remove(&pid);
                 r.status_cache.remove(&pid);
             } else {
@@ -1263,8 +1269,11 @@ impl Registry {
                         found.0
                     }
                     AgentKind::Codex => {
-                        let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume: proc.resume.clone(), title: Some(p.title.clone()) };
-                        find_codex_rollout(host, home, &me, &codex_procs).await?
+                        let resume = (!rt.borrow().codex_cleared.contains(&pid)).then(|| proc.resume.clone()).flatten();
+                        let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume, title: Some(p.title.clone()) };
+                        let found = find_codex_rollout(host, home, &me, &codex_procs).await?;
+                        by = if found.as_ref().is_some_and(|path| me.resume.as_ref().is_some_and(|id| path.contains(id))) { MappedBy::Resume } else { MappedBy::Cwd };
+                        found
                     }
                     AgentKind::Gemini => find_gemini_session(host, home, &GeminiProc { cwd: proc.cwd.clone(), started_at: proc.started_at }).await?,
                     AgentKind::Copilot => find_copilot_session(host, home, &CopilotProc { pid, resume: proc.resume.clone() }).await?,
