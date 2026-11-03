@@ -25,3 +25,7 @@ site/out
 
 # cargo's build output for the whole workspace
 /target
+
+# Python regression-test caches
+__pycache__/
+*.py[cod]
