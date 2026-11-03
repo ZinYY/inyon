@@ -7,6 +7,8 @@ use ts_rs::TS;
 
 /// Inyon's version, the same for the app, the hub and the inyon program (the root package.json's).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Private builds distribute node binaries separately from the upstream update service.
+pub const MANAGED_NODE_RELEASES: bool = option_env!("INYON_MANAGED_NODE_RELEASES").is_some();
 
 /// What the product is called, everywhere a person reads it.
 pub const PRODUCT: &str = "Inyon";

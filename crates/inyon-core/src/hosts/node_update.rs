@@ -184,6 +184,9 @@ impl NodeUpdates {
 
     /// The version a machine's inyon can update to.
     pub fn latest(&self, c: &HostConfig) -> Option<String> {
+        if inyon_protocol::MANAGED_NODE_RELEASES {
+            return None;
+        }
         match c.kind {
             HostKind::Node => Some(VERSION.to_owned()),
             HostKind::Link => self.latest_release(),

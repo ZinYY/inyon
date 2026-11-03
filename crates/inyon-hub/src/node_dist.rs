@@ -560,7 +560,7 @@ impl Dist {
     /// Builds what machines download in the background, so adding one doesn't wait for it.
     pub fn prebuild(self: &Rc<Self>) {
         // hubs started by tests never hand out the program
-        if std::env::var("NODE_ENV").as_deref() == Ok("test") {
+        if inyon_protocol::MANAGED_NODE_RELEASES || std::env::var("NODE_ENV").as_deref() == Ok("test") {
             return;
         }
         let me = self.clone();

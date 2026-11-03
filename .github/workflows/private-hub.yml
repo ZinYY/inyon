@@ -1,4 +1,4 @@
-name: Private Linux Hub
+name: Private Hub and Windows Node
 on:
   workflow_dispatch:
 permissions:
@@ -39,6 +39,7 @@ jobs:
         env:
           CC_x86_64_unknown_linux_musl: musl-gcc
           INYON_BUILD_COMMIT: ${{ github.sha }}
+          INYON_MANAGED_NODE_RELEASES: '1'
       - run: |
           mkdir -p out
           cp target/x86_64-unknown-linux-musl/release/inyon out/inyon-linux-x64
@@ -47,6 +48,33 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-hub
+          path: out/
+  windows-node:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: cargo test --locked --target x86_64-pc-windows-msvc -p inyon-cli -p inyon-engine
+      - run: cargo build --release --locked --target x86_64-pc-windows-msvc -p inyon-cli
+        env:
+          INYON_BUILD_COMMIT: ${{ github.sha }}
+          INYON_MANAGED_NODE_RELEASES: '1'
+          CARGO_PROFILE_RELEASE_PANIC: abort
+      - name: Package Windows node
+        shell: bash
+        run: |
+          mkdir -p out
+          cp target/x86_64-pc-windows-msvc/release/inyon.exe out/inyon-windows-x64.exe
+          gzip -k out/inyon-windows-x64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-node
           path: out/
   mac-probe:
     runs-on: macos-latest
@@ -60,7 +88,7 @@ jobs:
           subprocess.run(['/bin/sh', '-n'], input=probe.encode(), check=True)
           PY
   publish:
-    needs: [build, mac-probe]
+    needs: [build, windows-node, mac-probe]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -68,6 +96,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: linux-hub
+          path: out
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-node
           path: out
       - run: sudo apt-get update -qq && sudo apt-get install -y minisign
       - name: Sign and publish
@@ -83,7 +115,7 @@ jobs:
           trap 'rm -f "$key"' EXIT
           printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key"
           cd out
-          sha256sum inyon-linux-x64 inyon-linux-x64.gz version.txt > SHA256SUMS
+          sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Fix remote transcript truncation, macOS probe parsing and Codex state flicker. Signed Linux x64 hub build.' --latest inyon-linux-x64 inyon-linux-x64.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Publish the private Windows node alongside the Linux hub. Remove upstream node update notices for these independently managed builds.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
