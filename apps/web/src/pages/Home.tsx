@@ -292,7 +292,7 @@ export function Home() {
                               {g.host.status !== 'online' && <span className="shrink-0 text-[12px] text-fg-3">{g.host.status === 'error' ? 'Offline' : 'Connecting'}</span>}
                               <span className="tabular ml-auto shrink-0 font-mono text-[12px] text-fg-3">{g.panes}</span>
                             </button>
-                            <div className="expand" data-open={open}>
+                            <div hidden={!open}>
                               <div inert={!open}>
                                 <AnimatedList
                                   enter=""
@@ -316,7 +316,7 @@ export function Home() {
                       <span className="truncate text-[14px] font-medium text-fg-2">Parked and snoozed</span>
                       <span className="tabular ml-auto shrink-0 font-mono text-[12px] text-fg-3">{sorted.folded.length}</span>
                     </button>
-                    <div className="expand" data-open={parkedOpen}>
+                    <div hidden={!parkedOpen}>
                       <div inert={!parkedOpen}>
                         <AnimatedList enter="" className={clsx(GRID, 'pt-2 pb-3')} items={sorted.folded.map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={hosts.length > 1} /> }))} />
                       </div>
