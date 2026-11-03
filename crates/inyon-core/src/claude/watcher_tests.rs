@@ -446,6 +446,35 @@ fn a_chat_left_open_while_claude_exits_and_starts_again_empties_instead_of_showi
 }
 
 #[test]
+fn clear_in_the_same_claude_process_empties_chat_before_reading_the_new_file() {
+    run(|| async {
+        let _fake = Fake::install(|_, _, _| ok(""));
+        fresh_new_agent();
+        let w = chat_of_first();
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        w.st.borrow_mut().info.session_id = Some("old-session".into());
+        registry().update_pane("new-agent-test", "%5", |p| {
+            let a = p.agent.as_mut().unwrap();
+            a.session_id = Some("fresh-session".into());
+            a.transcript_path = Some(r"C:\Users\user\.claude\projects\work\fresh-session.jsonl".into());
+        });
+        // Merely being offline is not evidence that the visible conversation should disappear.
+        registry().get("new-agent-test").unwrap().borrow_mut().state.status = HostStatus::Connecting;
+        w.sync();
+        assert_eq!(texts(&w).len(), 2);
+        registry().get("new-agent-test").unwrap().borrow_mut().state.status = HostStatus::Online;
+        phone.got.borrow_mut().clear();
+        w.sync();
+        // No async file read has run yet. The empty reset must already have reached clients.
+        assert!(texts(&w).is_empty());
+        assert!(phone.got.borrow().iter().any(|m| matches!(m, ServerMsg::ChatReset { items, .. } if items.is_empty())));
+        assert_eq!(w.info().session_id.as_deref(), Some("fresh-session"));
+        watchers().stop(NEW_KEY);
+    });
+}
+
+#[test]
 fn reopening_the_chat_later_shows_the_new_claude_empty_from_the_saved_copy_as_from_a_recently_closed_one() {
     run(|| async {
         let _fake = Fake::install(|_, _, _| ok(""));

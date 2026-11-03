@@ -1333,7 +1333,11 @@ impl ChatWatcher {
             (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone())
         };
         let blank_codex = registry().codex_is_empty(&self.host_id, &self.pane_id);
-        if online && agent.is_some() && path.is_none() && proc.is_some() && (proc != shown || blank_codex) && held {
+        // A /clear or /resume is confirmed by the new transcript identity, before that file
+        // necessarily exists. Drop the previous chat now: a slow/failed initial read must not
+        // leave it displayed under the new session id until someone forces a reload.
+        let switched = path.as_ref().is_some_and(|p| Some(p) != transcript.as_ref());
+        if online && agent.is_some() && held && (switched || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
             self.forget();
         }
         if let (true, Some(p)) = (online, &path) {
