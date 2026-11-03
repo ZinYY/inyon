@@ -954,3 +954,35 @@ fn machine_order_is_saved_without_replacing_live_sessions_and_invalid_moves_are_
         assert_eq!(ids(), ["a", "b", "c"]);
     });
 }
+
+#[test]
+fn windows_codex_hostname_case_does_not_hide_a_blank_or_resumed_footer() {
+    run(|| async {
+        let b = ModeBox::new();
+        let now = now_ms() as f64 / 1000.0;
+        let probe = || {
+            let mut p = mode_probe(now);
+            p.home = r"C:\Users\74122".into();
+            p.hostname = "Qian-PC".into();
+            let proc = p.agent_procs.get_mut("%9").unwrap();
+            proc.kind = AgentKind::Codex;
+            proc.cwd = Some(r"C:\Users\74122\LYR_GPT".into());
+            p.sessions[0].windows[0].panes[0].title = "QIAN-PC".into();
+            Rc::new(RefCell::new(p))
+        };
+        b.rt.borrow_mut().cwd_map.insert(7, Mapped { path: Some("/old.jsonl".into()), by: MappedBy::Cwd, at: now_ms(), title: "QIAN-PC".into() });
+        b.draw("\u{1b}[0m\n  >_ OpenAI Codex (v0.166.0)\n     ~\\LYR_GPT\n\n• Model changed to gpt-6-astra high for this session only\n\n› Ask Codex to do anything\n\n  GPT-6-Astra high · ~\\LYR_GPT\n? for shortcuts\n\u{1b}[0m\n");
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        let pane = pr.borrow().sessions[0].windows[0].panes[0].clone();
+        assert!(pane.title.is_empty());
+        assert!(pane.agent.unwrap().transcript_path.is_none());
+        assert!(b.rt.borrow().empty_codex.contains("%9"));
+        assert!(!b.rt.borrow().cwd_map.contains_key(&7));
+        b.draw("› Ask Codex to do anything\n  GPT-6-Astra high · ~\\LYR_GPT · Explain training data\n? for shortcuts\n");
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, "Explain training data");
+        assert!(!b.rt.borrow().empty_codex.contains("%9"));
+    });
+}

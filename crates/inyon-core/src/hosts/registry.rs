@@ -1147,7 +1147,7 @@ impl Registry {
         for pane in &mut agent_panes {
             let probe = pr.borrow();
             if let Some(proc) = probe.agent_procs.get(&pane.id).filter(|p| p.kind == AgentKind::Codex) {
-                if pane.title == probe.hostname || codex_title(&pane.title, proc.cwd.as_deref()).is_empty() {
+                if pane.title.eq_ignore_ascii_case(&probe.hostname) || codex_title(&pane.title, proc.cwd.as_deref()).is_empty() {
                     if let Some(title) = screens.get(&pane.id).and_then(|lines| codex_footer_title(lines, proc.cwd.as_deref())) {
                         pane.title = title;
                     }

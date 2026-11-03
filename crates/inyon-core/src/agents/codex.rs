@@ -546,8 +546,7 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
 /// Only accept the short form and the actual pane's directory, never an arbitrary output line.
 pub fn codex_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String> {
     let folder = cwd?.split(['/', '\\']).rfind(|s| !s.is_empty())?;
-    for line in lines.iter().rev().filter(|l| !l.trim().is_empty()).take(4) {
-        let clean = crate::claude::screen::unstyle(line).text;
+    for clean in lines.iter().rev().map(|l| crate::claude::screen::unstyle(l).text).filter(|l| !l.trim().is_empty()).take(4) {
         let parts: Vec<_> = clean.split(" · ").map(str::trim).collect();
         if !(2..=3).contains(&parts.len()) || !re!(r"(?i)^(?:gpt-|codex-|o[134](?:-|\b))").is_match(parts[0]) { continue; }
         let path = parts[1];
@@ -570,7 +569,8 @@ pub fn codex_empty_conversation(lines: &[String], title: &str, cwd: Option<&str>
     if !clean.first().is_some_and(|l| l.starts_with(">_ OpenAI Codex (v")) { return false; }
     let Some(prompt) = clean.iter().rposition(|l| l.starts_with('›')) else { return false; };
     prompt >= 2 && clean[2..prompt].iter().all(|l| l == "To get started, describe a task or try one of these commands:"
-        || ["/init -", "/status -", "/permissions -", "/model -", "/review -"].iter().any(|p| l.starts_with(p)))
+        || ["/init -", "/status -", "/permissions -", "/model -", "/review -"].iter().any(|p| l.starts_with(p))
+        || re!(r"^• Model changed to (?:gpt-|codex-|o[134](?:-|\b))\S*(?: (?:none|minimal|low|medium|high|xhigh|ultra))? for this session only$").is_match(l))
 }
 
 /// "@@ -2 +2,5 @@\n ctx\n+new" → hunks with their line numbers.

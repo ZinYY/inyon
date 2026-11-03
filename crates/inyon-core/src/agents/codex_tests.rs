@@ -897,6 +897,13 @@ fn windows_codex_short_footer_identifies_new_and_resumed_threads() {
     assert_eq!(codex_footer_title(&[r"GPT-6-Astra xhigh · ~\LYR_GPT · Full Access".into()], cwd), None);
     assert_eq!(codex_footer_title(&[r"GPT-6-Astra xhigh · ~\LYR_GPT · A truncated…".into()], cwd), None);
     assert!(!codex_empty_conversation(&[r"GPT-6-Astra xhigh · ~\LYR_GPT".into()], "", cwd));
+    let mut configured = blank.clone();
+    configured.insert(2, "• Model changed to gpt-6-astra high for this session only".into());
+    configured.extend((0..6).map(|_| "\u{1b}[0m".into()));
+    assert_eq!(codex_footer_title(&configured, cwd).as_deref(), Some(""));
+    assert!(codex_empty_conversation(&configured, "", cwd));
+    configured.insert(3, "• Model changed to an ordinary answer".into());
+    assert!(!codex_empty_conversation(&configured, "", cwd));
 }
 
 #[test]
