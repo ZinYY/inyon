@@ -27,7 +27,7 @@ use super::node_update::node_updates;
 use super::turns::{Shown, Turns};
 use crate::agents::antigravity::{agy_status, agy_transcript};
 use crate::agents::claude_usage::{fetch_claude_usage, AccountUsage};
-use crate::agents::codex::{codex_empty_conversation, codex_title, find_codex_rollout, read_codex_status, CodexProc};
+use crate::agents::codex::{codex_empty_conversation, codex_footer_title, codex_title, find_codex_rollout, read_codex_status, CodexProc};
 use crate::agents::codex_limits;
 use crate::agents::copilot::{find_copilot_session, CopilotProc};
 use crate::agents::gemini::{find_gemini_session, GeminiProc};
@@ -1138,12 +1138,22 @@ impl Registry {
     /// Adds the agent, its session mapping, live status and on-screen state to each agent pane.
     pub(crate) async fn annotate_agents(&self, rt: &Rt, pr: &Rc<RefCell<ProbeResult>>) -> HubResult<()> {
         let host = rt.borrow().host.clone();
-        let agent_panes: Vec<PaneInfo> = {
+        let mut agent_panes: Vec<PaneInfo> = {
             let p = pr.borrow();
             panes(&p.sessions).filter(|x| p.agent_procs.contains_key(&x.id)).cloned().collect()
         };
         let ids: Vec<String> = agent_panes.iter().map(|p| p.id.clone()).collect();
         let screens = Rc::new(capture_panes(&host, &ids).await?);
+        for pane in &mut agent_panes {
+            let probe = pr.borrow();
+            if let Some(proc) = probe.agent_procs.get(&pane.id).filter(|p| p.kind == AgentKind::Codex) {
+                if pane.title == probe.hostname || codex_title(&pane.title, proc.cwd.as_deref()).is_empty() {
+                    if let Some(title) = screens.get(&pane.id).and_then(|lines| codex_footer_title(lines, proc.cwd.as_deref())) {
+                        pane.title = title;
+                    }
+                }
+            }
+        }
         let live: Rc<RefCell<HashSet<i64>>> = Rc::default();
         // every Codex on the host, so two in one folder don't claim the same thread
         let codex_procs: Rc<Vec<CodexProc>> = Rc::new(

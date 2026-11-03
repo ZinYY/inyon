@@ -519,7 +519,7 @@ fn script_output(raw: Option<&Value>) -> ScriptOutput {
 /// Codex titles the terminal `[spinner] [Action Required | ]<thread name> | <folder>`; keep the
 /// name. Before the thread has a name it's "codex" or the folder alone, which is no name.
 pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
-    let folder = cwd.and_then(|c| c.split('/').rfind(|s| !s.is_empty()));
+    let folder = cwd.and_then(|c| c.split(['/', '\\']).rfind(|s| !s.is_empty()));
     // JS-compatible \w is ASCII even with the u flag: treating its complement as
     // a spinner eats leading Chinese (and other Unicode letters), breaking /resume matching.
     let stripped = title.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '_' && !c.is_whitespace()).trim_start();
@@ -541,10 +541,36 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
 /// A blank/new Codex thread has no name and a zero-use footer, even if the same TUI process
 /// previously held a conversation. A draft does not change that identity. Never infer emptiness
 /// from a generic title alone: older clients may not set conversation titles.
+/// PSmux may retain the computer name instead of Codex's OSC title. Recent Codex also writes
+/// its thread name in the short footer: `GPT-… effort · ~\\folder [· thread name]`.
+/// Only accept the short form and the actual pane's directory, never an arbitrary output line.
+pub fn codex_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String> {
+    let folder = cwd?.split(['/', '\\']).rfind(|s| !s.is_empty())?;
+    for line in lines.iter().rev().filter(|l| !l.trim().is_empty()).take(4) {
+        let clean = crate::claude::screen::unstyle(line).text;
+        let parts: Vec<_> = clean.split(" · ").map(str::trim).collect();
+        if !(2..=3).contains(&parts.len()) || !re!(r"(?i)^(?:gpt-|codex-|o[134](?:-|\b))").is_match(parts[0]) { continue; }
+        let path = parts[1];
+        if path.split(['/', '\\']).next_back() != Some(folder) || !path.contains(['/', '\\']) { continue; }
+        let name = parts.get(2).copied().unwrap_or("");
+        if name.contains('…') || re!(r"(?i)^(?:context\b|full access|ask for approval|read.only|weekly\b)|%|left$").is_match(name) { continue; }
+        return Some(name.to_owned());
+    }
+    None
+}
+
 pub fn codex_empty_conversation(lines: &[String], title: &str, cwd: Option<&str>) -> bool {
     if !codex_title(title, cwd).is_empty() { return false; }
     let footer = lines.iter().rev().take(8).map(|s| crate::claude::screen::unstyle(s).text).collect::<Vec<_>>().join(" ");
-    re!(r"\bContext\s+0%\s+used\b", "i").is_match(&footer)
+    if re!(r"\bContext\s+0%\s+used\b", "i").is_match(&footer) { return true; }
+    // 0.166's default footer omits context. Require the whole empty welcome screen, not just
+    // a nameless footer: an unnamed conversation with visible output must keep its transcript.
+    if codex_footer_title(lines, cwd).as_deref() != Some("") { return false; }
+    let clean: Vec<_> = lines.iter().map(|l| crate::claude::screen::unstyle(l).text.trim().to_owned()).filter(|l| !l.is_empty()).collect();
+    if !clean.first().is_some_and(|l| l.starts_with(">_ OpenAI Codex (v")) { return false; }
+    let Some(prompt) = clean.iter().rposition(|l| l.starts_with('›')) else { return false; };
+    prompt >= 2 && clean[2..prompt].iter().all(|l| l == "To get started, describe a task or try one of these commands:"
+        || ["/init -", "/status -", "/permissions -", "/model -", "/review -"].iter().any(|p| l.starts_with(p)))
 }
 
 /// "@@ -2 +2,5 @@\n ctx\n+new" → hunks with their line numbers.

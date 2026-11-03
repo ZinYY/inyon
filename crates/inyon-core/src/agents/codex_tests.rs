@@ -881,6 +881,25 @@ fn only_a_nameless_zero_context_footer_confirms_a_blank_codex_thread() {
 }
 
 #[test]
+fn windows_codex_short_footer_identifies_new_and_resumed_threads() {
+    let cwd = Some(r"C:\Users\74122\LYR_GPT");
+    let blank: Vec<String> = [">_ OpenAI Codex (v0.166.0)", r"~\LYR_GPT", "", "› An unsent draft", "", r"GPT-6-Astra xhigh · ~\LYR_GPT", "? for shortcuts"].iter().map(|s| s.to_string()).collect();
+    assert_eq!(codex_footer_title(&blank, cwd).as_deref(), Some(""));
+    assert!(codex_empty_conversation(&blank, "", cwd));
+    assert!(!codex_empty_conversation(&blank, "A named conversation", cwd));
+    assert_eq!(codex_footer_title(&blank, Some(r"C:\Users\74122\QYY_GPT")), None);
+    let mut conversation = blank.clone();
+    conversation.insert(2, "• A real answer".into());
+    assert!(!codex_empty_conversation(&conversation, "", cwd));
+    let resumed = vec![r"GPT-6-Astra xhigh · ~\LYR_GPT · 解释训练集与测试集区别".into(), "? for shortcuts".into()];
+    assert_eq!(codex_footer_title(&resumed, cwd).as_deref(), Some("解释训练集与测试集区别"));
+    assert_eq!(codex_title(r"解释训练集与测试集区别 | LYR_GPT", cwd), "解释训练集与测试集区别");
+    assert_eq!(codex_footer_title(&[r"GPT-6-Astra xhigh · ~\LYR_GPT · Full Access".into()], cwd), None);
+    assert_eq!(codex_footer_title(&[r"GPT-6-Astra xhigh · ~\LYR_GPT · A truncated…".into()], cwd), None);
+    assert!(!codex_empty_conversation(&[r"GPT-6-Astra xhigh · ~\LYR_GPT".into()], "", cwd));
+}
+
+#[test]
 fn current_codex_title_wins_over_a_startup_resume_flag_after_an_in_process_switch() {
     let proc = CodexProc { pid: 1, cwd: Some("/work".into()), started_at: 1000.0, resume: Some("old".into()), title: Some("Explain overfitting | work".into()) };
     let rows = vec![
