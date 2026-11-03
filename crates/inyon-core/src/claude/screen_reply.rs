@@ -105,10 +105,10 @@ pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32
 /// nevertheless visible on screen, with a dim bullet; tool headings are bold.
 fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenReply> {
     let lines: Vec<String> = captured.iter().map(|l| unstyle(l).text.trim_end().to_owned()).collect();
-    let prompt = re!(r"^›(?:\s|$)");
+    let prompt = re!(r"^[›»](?:\s|$)");
     let input = lines.iter().rposition(|l| prompt.is_match(l))?;
     let end = (0..input).rev().find(|&i| {
-        re!(r"^[•◦●○\u{2800}-\u{28ff}]\s.*(?:esc to interrupt|ctrl\+c to interrupt)").is_match(&lines[i])
+        re!(r"^[•◦●○◉∙⋅\u{2800}-\u{28ff}]\s.*(?:esc to interrupt|ctrl\+c to interrupt)").is_match(&lines[i])
     })?;
     let echo = (0..end).rev().find(|&i| prompt.is_match(&lines[i]));
     let start = echo.map_or(0, |i| i + 1);
