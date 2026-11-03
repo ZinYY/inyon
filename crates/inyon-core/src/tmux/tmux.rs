@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
-use inyon_protocol::{agents, detect_agent, AgentKind, IntegrationState, MachineKind, PaneInfo, SessionInfo, WindowInfo, AGENT_KINDS};
+use inyon_protocol::{agents, detect_agent, AgentKind, IntegrationState, MachineKind, MappedBy, PaneInfo, SessionInfo, WindowInfo, AGENT_KINDS};
 use serde_json::Value;
 
 use super::machine_kind::machine_kind;
@@ -1005,13 +1005,14 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
 }
 
 /// `guessTranscript(host, home, proc)`
-pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<Option<String>> {
+pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<(Option<String>, MappedBy)> {
     let record = format!("{home}/.claude/sessions/{}.json", proc.pid);
     let r = host.run(&format!("cat {} 2>/dev/null", shq(&record))).await?;
-    if let Some(path) = process_transcript(&r.stdout, home, proc) { return Ok(Some(path)); }
-    let Some((dir, cmd)) = guess_transcript_command(home, proc) else { return Ok(None) };
+    if let Some(path) = process_transcript(&r.stdout, home, proc) { return Ok((Some(path), MappedBy::Process)); }
+    let by = if proc.resume.is_some_and(|r| !r.is_empty()) { MappedBy::Resume } else { MappedBy::Cwd };
+    let Some((dir, cmd)) = guess_transcript_command(home, proc) else { return Ok((None, by)) };
     let r = host.run(&cmd).await?;
-    Ok(guess_transcript(&r.stdout, &dir, proc))
+    Ok((guess_transcript(&r.stdout, &dir, proc), by))
 }
 
 fn nonempty_or(s: &str, fallback: &str) -> String {

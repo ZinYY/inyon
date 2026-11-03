@@ -156,6 +156,7 @@ pub enum RegistryEvent {
 #[derive(Debug, Clone)]
 struct Mapped {
     path: Option<String>,
+    by: MappedBy,
     at: u64,
     title: String,
 }
@@ -1224,9 +1225,12 @@ impl Registry {
                 }
             };
             let cached = if stale {
+                let mut by = if proc.resume.as_deref().is_some_and(|r| !r.is_empty()) { MappedBy::Resume } else { MappedBy::Cwd };
                 let path = match proc.kind {
                     AgentKind::Claude => {
-                        find_transcript(host, home, &TranscriptProc { pid: proc.pid as u32, cwd: proc.cwd.as_deref(), started_at: proc.started_at, resume: proc.resume.as_deref() }).await?
+                        let found = find_transcript(host, home, &TranscriptProc { pid: proc.pid as u32, cwd: proc.cwd.as_deref(), started_at: proc.started_at, resume: proc.resume.as_deref() }).await?;
+                        by = found.1;
+                        found.0
                     }
                     AgentKind::Codex => {
                         let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume: proc.resume.clone(), title: Some(p.title.clone()) };
@@ -1243,7 +1247,7 @@ impl Registry {
                         }
                     },
                 };
-                let c = Mapped { path, at: now_ms(), title: p.title.clone() };
+                let c = Mapped { path, by, at: now_ms(), title: p.title.clone() };
                 rt.borrow_mut().cwd_map.insert(pid, c.clone());
                 c
             } else {
@@ -1264,7 +1268,7 @@ impl Registry {
                     info.session_id = if path.starts_with(OCDB) { ocdb_session(&path).map(str::to_owned) } else { Some(last.to_owned()).filter(|s| !s.is_empty()) };
                 }
                 info.transcript_path = Some(path);
-                info.mapped_by = Some(if proc.resume.as_deref().is_some_and(|r| !r.is_empty()) { MappedBy::Resume } else { MappedBy::Cwd });
+                info.mapped_by = Some(cached.by);
             }
         }
         // live numbers
@@ -1279,7 +1283,7 @@ impl Registry {
             }
             info.status = {
                 let pr = pr.borrow();
-                let session = if info.mapped_by == Some(MappedBy::Hook) { info.session_id.as_deref() } else { None };
+                let session = if matches!(info.mapped_by, Some(MappedBy::Hook | MappedBy::Process)) { info.session_id.as_deref() } else { None };
                 claude_status(pr.integration, &pr.status_panes, &pr.compact_panes, &p.id, proc.started_at, session)
             };
             // Claude rewrites its status as it redraws (after /model, say): a moment without a model
@@ -1364,6 +1368,14 @@ impl Registry {
             self.apply_failure(rt, pr, &mut p);
         }
         let info = p.agent.clone().expect("the agent");
+        // Claude's own conversation record is authoritative when the terminal host doesn't
+        // propagate OSC titles. Also acknowledge a rename from that record, not our pending label.
+        if proc.kind == AgentKind::Claude {
+            if let Some(title) = info.session_id.as_deref().and_then(|session|
+                crate::claude::watcher::watchers().peek(&host_id, &p.id).and_then(|w| w.recorded_title(session))) {
+                p.title = title;
+            }
+        }
         // a rename the agent hasn't taken yet: done once its title says so, else typed when it's idle
         if let Some(want) = pending_name(&host_id, info.session_id.as_deref()) {
             if owns_title(Some(proc.kind)) {

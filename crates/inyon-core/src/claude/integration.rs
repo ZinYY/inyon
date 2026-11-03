@@ -111,8 +111,17 @@ orig="$HOME/.inyon/agy-statusline.orig"
 exit 0
 "#;
 
-const HOOK_CMD: &str = "~/.inyon/hook.sh";
-const STATUS_CMD: &str = "~/.inyon/statusline.sh";
+
+// Native Windows Claude invokes commands through PowerShell when Git Bash isn't installed.
+// A bare .sh path then doesn't run. Use the shell shipped with the node, explicitly; cmd's
+// USERPROFILE expansion works both when the outer shell is PowerShell and when it is Git Bash.
+fn integration_command(file: &str, windows: bool) -> String {
+    if windows {
+        format!(r#"cmd.exe /d /c call "%USERPROFILE%/.inyon/bin/busybox.exe" sh "%USERPROFILE%/.inyon/{file}""#)
+    } else {
+        format!("~/.inyon/{file}")
+    }
+}
 
 /// Entries written before the rename to Inyon name ~/.tether: still ours, so they're replaced, not doubled.
 fn ours(c: Option<&Value>, file: &str) -> bool {
@@ -277,6 +286,9 @@ async fn install_settings(host: &Host) -> HubResult<bool> {
 
 async fn install_settings_once(host: &Host) -> HubResult<bool> {
     let (mut settings, sum) = read_settings(host).await?;
+    let windows = host.run(r#"printf '%s' "${OS:-}""#).await?.stdout.trim() == "Windows_NT";
+    let status_cmd = integration_command("statusline.sh", windows);
+    let hook_cmd = integration_command("hook.sh", windows);
     let sl = settings.get("statusLine").cloned();
     let sl = sl.as_ref();
     if !is_our_status(sl.at("command")) {
@@ -292,11 +304,11 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
             sl => spread(sl),
         };
         m.insert("type".into(), Value::String("command".into()));
-        m.insert("command".into(), Value::String(STATUS_CMD.into()));
+        m.insert("command".into(), Value::String(status_cmd.clone()));
         settings.insert("statusLine".into(), Value::Object(m));
     } else {
-        if sl.at("command").str() != Some(STATUS_CMD) {
-            settings.insert("statusLine".into(), with_command(sl, STATUS_CMD));
+        if sl.at("command").str() != Some(status_cmd.as_str()) {
+            settings.insert("statusLine".into(), with_command(sl, &status_cmd));
         }
         // a saved "own" status line that is this wrapper again would start itself forever: use the one
         // from before Inyon was installed instead, if there was one
@@ -326,7 +338,7 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
             if let Some(Value::Array(hs)) = g.get_mut("hooks") {
                 for h in hs.iter_mut() {
                     if is_ours(Some(h)) {
-                        h["command"] = Value::String(HOOK_CMD.into());
+                        h["command"] = Value::String(hook_cmd.clone());
                     }
                 }
             }
@@ -338,7 +350,7 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
         if let Some(m) = matcher {
             entry.insert("matcher".into(), Value::String(m.into()));
         }
-        entry.insert("hooks".into(), json!([{ "type": "command", "command": HOOK_CMD }]));
+        entry.insert("hooks".into(), json!([{ "type": "command", "command": hook_cmd }]));
         groups.push(Value::Object(entry));
     }
     // a Claude Code older than StopFailure (one downgraded since, say) ignores a settings file that has it
@@ -468,8 +480,10 @@ pub async fn reconnect_status_line(host: &Host, cwd: &str) -> HubResult<()> {
     if Some(sl.as_ref()).flatten().truthy() && !is_our_status(sl.as_ref().at("command")) {
         return Err(HubError::http(409, "This project has its own status line"));
     }
-    if !is_our_status(sl.as_ref().at("command")) {
-        settings.insert("statusLine".into(), json!({ "type": "command", "command": STATUS_CMD, "padding": 0 }));
+    let windows = host.run(r#"printf '%s' "${OS:-}""#).await?.stdout.trim() == "Windows_NT";
+    let command = integration_command("statusline.sh", windows);
+    if sl.as_ref().at("command").str() != Some(command.as_str()) {
+        settings.insert("statusLine".into(), json!({ "type": "command", "command": command, "padding": 0 }));
         let w = host.exec(&format!("umask 077; mkdir -p {} && cat > {}", shq(&dir), shq(&file)), ExecOptions::input(pretty(&Value::Object(settings)))).await?;
         if w.code != 0 {
             return Err(HubError::http(500, or_message(&w.stderr, format!("Could not write {file}"))));

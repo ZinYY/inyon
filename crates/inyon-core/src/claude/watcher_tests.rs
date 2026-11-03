@@ -40,6 +40,27 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn rename_confirmation_uses_the_record_for_this_session_not_a_pending_ui_title() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        {
+            let mut st = w.st.borrow_mut();
+            st.info.session_id = Some("current".into());
+            st.info.title = Some("pending rename".into());
+        }
+        assert_eq!(w.recorded_title("current"), None);
+        {
+            let mut st = w.st.borrow_mut();
+            st.meta.title = Some("automatic title".into());
+            st.meta.custom_title = Some("随便聊聊".into());
+        }
+        assert_eq!(w.recorded_title("current").as_deref(), Some("随便聊聊"));
+        assert_eq!(w.recorded_title("another-window"), None);
+        watchers().stop(KEY);
+    });
+}
+
+#[test]
 fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts() {
     run(|| async {
         let fake = Fake::install(|_, cmd, _| {

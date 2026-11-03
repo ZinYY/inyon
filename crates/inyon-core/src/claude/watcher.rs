@@ -426,6 +426,14 @@ impl ChatWatcher {
         self.st.borrow().info.clone()
     }
 
+    /// The agent's persisted title, without a pending Inyon rename or terminal-title fallback.
+    /// ConPTY/PSmux may leave pane_title at the computer name even after /rename succeeded.
+    pub fn recorded_title(&self, session: &str) -> Option<String> {
+        let st = self.st.borrow();
+        if st.info.session_id.as_deref() != Some(session) { return None; }
+        st.meta.custom_title.clone().filter(|s| !s.is_empty()).or_else(|| st.meta.title.clone().filter(|s| !s.is_empty()))
+    }
+
     pub fn subscribers(&self) -> usize {
         self.st.borrow().subs.len()
     }

@@ -47,10 +47,12 @@ const effortOf = async (status: Omit<AgentStatus, 'updatedAt'>) => {
   return result.current.status?.effort
 }
 
-test("Claude's effort is the model's own level until one is picked, not \"Default\"", async () => {
-  // Claude Code's status line names a level only once you choose one
-  expect(await effortOf({ model: 'Opus 5.5' })).toBe('high')
-  expect(await effortOf({ model: 'Sonnet 5.5' })).toBe('medium')
+test("missing effort stays unknown; only an explicit default uses the model catalogue", async () => {
+  expect(await effortOf({ model: 'Opus 5.5' })).toBeUndefined()
+  expect(await effortOf({ model: 'Sonnet 5.5' })).toBeUndefined()
+  expect(await effortOf({ model: 'Opus 5.5', effort: 'default' })).toBe('high')
+  expect(await effortOf({ model: 'Sonnet 5.5', effort: 'default' })).toBe('medium')
+  expect(await effortOf({ model: 'Opus 5.5', effort: 'xhigh' })).toBe('xhigh')
   expect(await effortOf({ model: 'Opus 5.5', effort: 'low' })).toBe('low')
   // a model whose default isn't known stays unknown
   expect(await effortOf({ model: 'Haiku 5.5' })).toBeUndefined()

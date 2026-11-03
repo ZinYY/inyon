@@ -29,9 +29,9 @@ export function useSession(host: string, pane: string) {
   const status = useMemo(() => {
     if (!reported) return reported
     const size = !reported.contextSize && selectedModel?.context
-    // "default" on the footer, or no level at all from a session that reports, means the model's own
-    // default level (Claude Code names one only once you pick it): show that rather than "Default"
-    const effort = (!reported.effort || reported.effort === 'default') && selectedModel?.defaultEffort
+    // An absent level is unknown (e.g. Windows without a working status-line integration).
+    // Only an explicit "default" may be replaced with the catalogue's default.
+    const effort = reported.effort === 'default' && selectedModel?.defaultEffort
     return size || effort ? { ...reported, ...(size && { contextSize: size }), ...(effort && { effort }) } : reported
   }, [reported, selectedModel])
   const screen = chat?.screen

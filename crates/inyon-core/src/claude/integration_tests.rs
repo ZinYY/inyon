@@ -41,6 +41,17 @@ fn parse(text: &str) -> Value {
 }
 
 #[test]
+fn windows_integration_explicitly_runs_the_bundled_shell_and_remains_owned() {
+    let status = integration_command("statusline.sh", true);
+    let hook = integration_command("hook.sh", true);
+    assert!(status.starts_with("cmd.exe /d /c call "));
+    assert!(status.contains("%USERPROFILE%/.inyon/bin/busybox.exe\" sh \"%USERPROFILE%/.inyon/statusline.sh"));
+    assert!(is_our_status_str(&status));
+    assert!(is_ours(Some(&json!({"command":hook}))));
+    assert_eq!(integration_command("statusline.sh", false), "~/.inyon/statusline.sh");
+}
+
+#[test]
 fn account_helper_reads_oauth_account_not_other_account_uuid_keys() {
     let home = TempDir::new("inyon-int-");
     write_config(&home, "acct-A");
