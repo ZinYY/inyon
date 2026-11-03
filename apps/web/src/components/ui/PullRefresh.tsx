@@ -28,14 +28,22 @@ export function PullRefresh({ onRefresh, className, children, scrollKey, restore
       const top = Number(sessionStorage.getItem(key))
       if (Number.isFinite(top) && top >= 0) el.scrollTop = top
     } catch { /* storage may be unavailable */ }
+    let lastTop = el.scrollTop
+    const persist = () => {
+      try { sessionStorage.setItem(key, String(lastTop)) } catch { /* keep scrolling */ }
+    }
     const save = () => {
-      try { sessionStorage.setItem(key, String(el.scrollTop)) } catch { /* keep scrolling */ }
+      lastTop = el.scrollTop
+      persist()
     }
     el.addEventListener('scroll', save, { passive: true })
+    el.addEventListener('pointerdown', save, { passive: true })
     window.addEventListener('pagehide', save)
     return () => {
-      save()
+      // Keep the last live position: route teardown can already have changed this div's layout.
+      persist()
       el.removeEventListener('scroll', save)
+      el.removeEventListener('pointerdown', save)
       window.removeEventListener('pagehide', save)
     }
   }, [scrollKey, restoreReady])
@@ -110,7 +118,7 @@ export function PullRefresh({ onRefresh, className, children, scrollKey, restore
           <Logo className="size-5" />
         </span>
       </div>
-      <div ref={box} className={clsx('overscroll-y-contain', className)}>
+      <div ref={box} className={clsx('overscroll-y-contain', scrollKey && '[overflow-anchor:none]', className)}>
         {children}
       </div>
     </div>

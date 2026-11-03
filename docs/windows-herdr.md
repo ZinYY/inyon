@@ -31,3 +31,9 @@ restart, rewind and other tmux management actions are not provided by this bridg
 manage those in Herdr. Unsupported terminal commands return an explicit error.
 Live account limits and status-line cost are not available through this connection.
 Herdr's hooks remain in charge of session identity; Inyon does not replace them.
+
+Named-pipe connection attempts wait up to 5 seconds when Herdr is busy. Requests
+are never replayed after being written, so a retry cannot duplicate a submitted
+message. Terminal input failures are displayed and require reconnecting before
+more keys are sent. Chat displays completed transcript blocks; screen-based
+streaming previews are disabled for Windows / Herdr.

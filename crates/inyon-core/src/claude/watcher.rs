@@ -2489,7 +2489,7 @@ impl ChatWatcher {
                 screen.activity = st.screen.activity.clone();
             }
         }
-        if reads_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working) {
+        if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working) {
             self.live_soon();
         }
         // a menu Inyon is working through itself stays out of the app
@@ -2590,11 +2590,17 @@ impl ChatWatcher {
     }
 
     /// Schedules the next screen read at the current pace.
+    fn reads_live_reply(&self, kind: AgentKind) -> bool {
+        // Herdr Chat follows completed transcript blocks; its terminal mirror still refreshes
+        // independently. Screen previews are intentionally disabled for this connection.
+        reads_reply(kind) && self.host().is_ok_and(|h| h.config().ssh_mode.as_deref() != Some("windows-herdr"))
+    }
+
     pub fn next_screen(&self) {
         let (stopped, streaming) = {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.screen_timer);
-            (st.stopped, st.screen.working && st.agent.is_some_and(reads_reply))
+            (st.stopped, st.screen.working && st.agent.is_some_and(|kind| self.reads_live_reply(kind)))
         };
         if !stopped {
             let t = self.later(if hidden() { QUIET_SCREEN_MS } else if streaming { LIVE_SCREEN_MS } else { SCREEN_MS }, |w| w.kick_screen());

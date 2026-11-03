@@ -418,8 +418,18 @@ fn flush(m: Rc<Mirror>) -> LocalBoxFuture<'static, ()> {
         };
         for (cmd, input) in batch_commands(&m.pane, &to_input(&d)) {
             let opts = input.map(ExecOptions::input).unwrap_or_default();
-            if m.host.exec(&cmd, opts).await.is_err() {
-                break;
+            let failure = match m.host.exec(&cmd, opts).await {
+                Ok(r) if r.code == 0 => None,
+                Ok(r) => Some(if r.stderr.trim().is_empty() { format!("Remote input command failed (code {})", r.code) } else { r.stderr }),
+                Err(e) => Some(e.message),
+            };
+            if let Some(error) = failure {
+                // Failed input must not look like success or let later keystrokes submit a
+                // partial command. Show the reason, then require an explicit reconnect.
+                let message: String = error.chars().filter(|c| !c.is_control()).take(400).collect();
+                (m.on_data.borrow_mut())(format!("\r\n\x1b[31mInyon: input failed: {message}\x1b[0m\r\n").into_bytes());
+                close(&m, 1);
+                return;
             }
         }
         let more = {

@@ -112,6 +112,9 @@ function App() {
 
 installTapHaptics()
 installNative()
+// Routes own their nested scroll containers (Chat follows its tail, Overview restores its
+// position). Native history restoration must not move them again after React restores them.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
 // a page going away writes what it was about to keep
 window.addEventListener('pagehide', flushSnapshots)
 // fetch the other pages once the first screen is up, so opening one doesn't wait on the network

@@ -14,6 +14,31 @@ fn text(t: &str) -> Input {
 }
 
 #[test]
+fn a_failed_remote_input_is_reported_and_later_keys_are_not_submitted() {
+    use crate::hosts::host::ExecResult;
+    use crate::test_support::fake::{ok, Fake};
+    use crate::test_support::rt::{run, wait};
+    run(|| async {
+        let fake = Fake::install(|_, cmd, _| {
+            if cmd.contains("send-keys") {
+                ExecResult { code: 1, stdout: String::new(), stderr: "Herdr API pipe remained busy".into() }
+            } else { ok("") }
+        });
+        let output = Rc::new(RefCell::new(String::new()));
+        let out = output.clone();
+        let host = Host::new(serde_json::from_value(serde_json::json!({"id":"mirror-failure","name":"test","kind":"local"})).unwrap());
+        let terminal = open_mirror(host, "%1", 80, 24, move |d| out.borrow_mut().push_str(&String::from_utf8_lossy(&d)), None);
+        terminal.write("\r");
+        wait(100).await;
+        assert!(terminal.exited.is_settled());
+        assert!(output.borrow().contains("input failed: Herdr API pipe remained busy"));
+        terminal.write("\r");
+        wait(100).await;
+        assert_eq!(fake.cmds().iter().filter(|c| c.contains("send-keys")).count(), 1);
+    });
+}
+
+#[test]
 fn typing_becomes_literal_text_keys_by_name_and_raw_bytes_only_for_the_rest() {
     assert_eq!(to_input("hello"), [text("hello")]);
     assert_eq!(to_input("ls -la\r"), [text("ls -la"), keys(&["Enter"])]);

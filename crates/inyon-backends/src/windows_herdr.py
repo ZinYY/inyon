@@ -24,16 +24,43 @@ def emit(value):
     sys.stdout.buffer.flush()
 
 
+def pipe_handle(kernel, name, deadline):
+    """Wait only before connecting; retrying a written request could duplicate input."""
+    while True:
+        handle = kernel.CreateFileW(name, 0xC0000000, 0, None, 3, 0, None)
+        if handle != ctypes.c_void_p(-1).value:
+            return handle
+        error = ctypes.get_last_error()
+        if error != 231:  # ERROR_PIPE_BUSY: another poll/input owns the server instance.
+            raise ctypes.WinError(error)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Herdr API pipe remained busy for 5 seconds")
+        kernel.WaitNamedPipeW(name, max(1, min(100, int(remaining * 1000))))
+
+
 def rpc(address, method, params=None):
     """One bounded NDJSON request; never launch a server or change its access policy."""
     import msvcrt
     from ctypes import wintypes
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                  ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.WaitNamedPipeW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD]
+    kernel.WaitNamedPipeW.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.PeekNamedPipe.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD,
                                     ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
     kernel.PeekNamedPipe.restype = wintypes.BOOL
     deadline = time.monotonic() + 5
-    with open("\\\\.\\pipe\\" + address, "r+b", buffering=0) as pipe:
+    handle = pipe_handle(kernel, "\\\\.\\pipe\\" + address, deadline)
+    try:
+        fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY)
+    except Exception:
+        kernel.CloseHandle(handle)
+        raise
+    with os.fdopen(fd, "r+b", buffering=0) as pipe:
         request = json.dumps({"id": "inyon", "method": method, "params": params or {}}, ensure_ascii=False).encode("utf-8") + b"\n"
         pipe.write(request)
         data = bytearray()

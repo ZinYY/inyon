@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 SOURCE = Path(__file__).parents[1] / "src/windows_herdr.py"
 spec = importlib.util.spec_from_file_location("bridge", SOURCE)
@@ -22,6 +22,28 @@ def snapshot():
 
 
 class BridgeTest(unittest.TestCase):
+    def test_busy_pipe_waits_for_a_connection_before_any_request_is_written(self):
+        kernel = Mock()
+        invalid = bridge.ctypes.c_void_p(-1).value
+        kernel.CreateFileW.side_effect = [invalid, invalid, 123]
+        with patch.object(bridge.ctypes, "get_last_error", return_value=231, create=True), patch.object(bridge.time, "monotonic", return_value=10):
+            self.assertEqual(bridge.pipe_handle(kernel, "pipe", 15), 123)
+        self.assertEqual(kernel.CreateFileW.call_count, 3)
+        self.assertEqual(kernel.WaitNamedPipeW.call_count, 2)
+        kernel.WaitNamedPipeW.assert_called_with("pipe", 100)
+
+    def test_pipe_wait_is_bounded_and_non_busy_errors_are_not_retried(self):
+        kernel = Mock()
+        kernel.CreateFileW.return_value = bridge.ctypes.c_void_p(-1).value
+        with patch.object(bridge.ctypes, "get_last_error", return_value=231, create=True), patch.object(bridge.time, "monotonic", return_value=15):
+            with self.assertRaisesRegex(TimeoutError, "remained busy"):
+                bridge.pipe_handle(kernel, "pipe", 15)
+        kernel.WaitNamedPipeW.assert_not_called()
+        with patch.object(bridge.ctypes, "get_last_error", return_value=5, create=True), patch.object(bridge.ctypes, "WinError", return_value=PermissionError("denied"), create=True):
+            with self.assertRaises(PermissionError):
+                bridge.pipe_handle(kernel, "pipe", 20)
+        kernel.WaitNamedPipeW.assert_not_called()
+
     def test_named_sessions_keep_distinct_panes_even_when_herdr_ids_repeat(self):
         a = bridge.mapped({"name": "default", "socket_path": "a"}, snapshot())[0]
         b = bridge.mapped({"name": "work", "socket_path": "b"}, snapshot())[0]

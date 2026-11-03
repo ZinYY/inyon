@@ -528,6 +528,25 @@ fn a_reply_claude_writes_shows_live_until_its_record_lands_and_doesnt_come_back(
 }
 
 #[test]
+fn windows_herdr_chat_waits_for_recorded_blocks_instead_of_screen_previews() {
+    run(|| async {
+        let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");
+        let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %7\n{screen}")) } else { ok("") });
+        machine("herdr-no-live", "local", json!([{ "id":"%7", "width":100, "agent":{"kind":"claude","pid":7,"state":"working"} }])).borrow_mut().hold_polls();
+        registry().host("herdr-no-live").unwrap().update_config(|c| c.ssh_mode = Some("windows-herdr".into()));
+        let w = watchers().get("herdr-no-live", "%7");
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        w.poll_screen().await;
+        wait(200).await;
+        assert!(!w.reads_live_reply(AgentKind::Claude));
+        assert!(live_of(&phone).unwrap_or_default().is_empty());
+        assert!(w.st.borrow().screen_live.is_none());
+        watchers().stop("herdr-no-live:%7");
+    });
+}
+
+#[test]
 fn an_earlier_turns_record_landing_late_sends_the_reply_being_written_again() {
     run(|| async {
         let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");
