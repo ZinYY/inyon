@@ -503,7 +503,9 @@ fn script_output(raw: Option<&Value>) -> ScriptOutput {
 /// name. Before the thread has a name it's "codex" or the folder alone, which is no name.
 pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
     let folder = cwd.and_then(|c| c.split('/').rfind(|s| !s.is_empty()));
-    let stripped = re!(r"^[^\w\s]+\s*", "u").replacen(title, 1, "");
+    // JS-compatible \w is ASCII even with the u flag: treating its complement as
+    // a spinner eats leading Chinese (and other Unicode letters), breaking /resume matching.
+    let stripped = title.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '_' && !c.is_whitespace()).trim_start();
     let mut parts: Vec<&str> = stripped.split(" | ").map(|s| s.jtrim()).filter(|s| !s.is_empty()).collect();
     while parts.len() > 1 && re!(r"^(Action Required|Working|Thinking|Ready|Waiting|Done|Error|Interrupted)$", "i").is_match(parts[0]) {
         parts.remove(0);

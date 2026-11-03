@@ -92,6 +92,14 @@ mod codex_terminal_title {
         assert_eq!(codex_title("⠋ Working | Fix the parser | app", Some("/src/app")), "Fix the parser");
     }
 
+    #[test]
+    fn preserves_unicode_names_while_removing_spinner_prefixes() {
+        for name in ["复现AgentLAB测试结果", "确认QQ多设备登录", "修复聊天", "Écrire un test", "Исправить чат"] {
+            assert_eq!(codex_title(&format!("{name} | app"), Some("/src/app")), name);
+            assert_eq!(codex_title(&format!("⠋ Working | {name} | app"), Some("/src/app")), name);
+        }
+    }
+
     /// no thread name yet is no title
     #[test]
     fn no_thread_name_yet_is_no_title() {
@@ -206,6 +214,14 @@ mod codex_rollout_matching {
         assert_eq!(pick_codex_rollout(&rows, &titled, &[a.clone(), b], &n), path("greet"));
         // without the name it can't be told from a thread another Codex is writing
         assert_eq!(pick_codex_rollout(&rows, &a, std::slice::from_ref(&a), &names(&[])), None);
+    }
+
+    #[test]
+    fn a_resumed_chinese_thread_matches_after_the_hub_restarts() {
+        let a = CodexProc { title: Some("复现AgentLAB测试结果 | w".into()), ..p(1, 1000.0) };
+        let rows = [row("resumed", 100.0, 1200.0, "/w"), row("other", 150.0, 1250.0, "/w")];
+        let names = names(&[("resumed", "复现AgentLAB测试结果"), ("other", "另一个会话")]);
+        assert_eq!(pick_codex_rollout(&rows, &a, std::slice::from_ref(&a), &names), path("resumed"));
     }
 
     /// /new in a lone session moves to the new thread
