@@ -177,6 +177,7 @@ struct State {
     meta: TranscriptMeta,
     agent: Option<AgentKind>,
     screen: ScreenState,
+    codex_idle: (i64, Option<u64>),
     info: ChatInfo,
     tail: Option<StreamHandle>,
     /// the transcript tail ended by itself (the machine dropped off): follow again once it's back
@@ -290,6 +291,7 @@ impl ChatWatcher {
                 meta: new_meta(),
                 agent: None,
                 screen: blank_screen(),
+                codex_idle: (0, None),
                 info: empty_info(host_id, pane_id),
                 tail: None,
                 tail_lost: false,
@@ -2421,6 +2423,18 @@ impl ChatWatcher {
         let agent = pane.agent.clone().expect("an agent");
         let width = (*pane.width >= 0.0 && pane.width.is_finite()).then_some(*pane.width as u32);
         let mut screen = parse_screen(lines, width, agent.kind);
+        if agent.kind == AgentKind::Codex {
+            use crate::hosts::turns::Shown;
+            let shown = if screen.prompt.is_some() || screen.questions.is_some_and(|q| q > 0) { Shown::Waiting }
+                else if screen.working { Shown::Working } else { Shown::Idle };
+            let mut st = self.st.borrow_mut();
+            let was_working = st.screen.working;
+            let held = crate::hosts::registry::codex_state(&mut st.codex_idle, agent.pid, shown, was_working, now_ms());
+            if matches!(held, Shown::Working) && !screen.working {
+                screen.working = true;
+                screen.activity = st.screen.activity.clone();
+            }
+        }
         if reads_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working) {
             self.live_soon();
         }
