@@ -78,6 +78,7 @@ fn meta_lines() -> String {
         r#""(startTime|aiTitle|customTitle|goal_status|task_status|bridge_status|backgroundTaskId|taskId|isAsync)""#,
         "<task-notification>",
         "Remote Control disconnected",
+        "<local-command-stdout>Set (model|effort)",
         r#""run_in_background":true"#,
         "Successfully (stopped task|killed shell)",
         r#""type":"tool_use","id":"[^"]*","name":"(Agent|Task|Monitor|Workflow|TaskStop|KillShell|Artifact)""#,

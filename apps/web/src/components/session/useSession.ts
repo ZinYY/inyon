@@ -19,7 +19,13 @@ export function useSession(host: string, pane: string) {
   const def = useMemo(() => agent ? { ...agentDef(agent), models: catalog?.models ?? agentDef(agent).models, modes: catalog?.modes ?? agentDef(agent).modes } : undefined, [agent, catalog])
   const info = chat?.info
   const live = ref?.pane.agent?.status
-  const reported: AgentStatus | undefined = agent === 'copilot'
+  // Claude's reader merges confirmed local settings with the usage report. A resumed session
+  // or a newer report must never inherit controls from the previous conversation.
+  const claudeRecord = info?.sessionId === ref?.pane.agent?.sessionId && (!live || (info?.status?.updatedAt ?? -1) >= live.updatedAt)
+    ? info?.status : undefined
+  const reported: AgentStatus | undefined = agent === 'claude'
+    ? claudeRecord ?? live
+    : agent === 'copilot'
     ? info?.status ?? live
     : agent === 'opencode'
       ? openCodeStatus(info?.status, live)

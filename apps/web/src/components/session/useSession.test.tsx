@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test'
-import { renderHook } from '@testing-library/react'
-import { AGENTS, type AgentStatus } from '@inyon/protocol'
+import { act, renderHook } from '@testing-library/react'
+import { AGENTS, chatKey, type AgentStatus } from '@inyon/protocol'
 import { currentModelId, openCodeStatus, useSession } from './useSession.ts'
 import { useStore } from '../../lib/store.ts'
-import { agentPane, host } from '../../test/fixtures.ts'
+import { agentPane, chatInfo, host } from '../../test/fixtures.ts'
 import { flush } from '../../test/render.tsx'
-import { api } from '../../test/fakes.ts'
+import { api, emit } from '../../test/fakes.ts'
 
 test('reloading chat rebuilds the reader without sending an agent command', async () => {
   const { result } = renderHook(() => useSession('box', '%1'))
@@ -13,6 +13,21 @@ test('reloading chat rebuilds the reader without sending an agent command', asyn
   expect(api.reloadChat).toHaveBeenCalledWith('box', '%1')
   expect(api.send).not.toHaveBeenCalled()
   expect(api.restart).not.toHaveBeenCalled()
+})
+
+test('Claude shows confirmed controls before another turn, without carrying them across resume', async () => {
+  const live: AgentStatus = { model: 'Opus 5.5', effort: 'high', updatedAt: 1000 }
+  const confirmed: AgentStatus = { model: 'Sonnet 5.5', modelId: 'sonnet', effort: 'low', updatedAt: 1000 }
+  useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: 'one', status: live } })] })] })
+  // Use the same incoming chat.info path as the WebSocket, including its conversation identity.
+  emit({ t: 'chat.info', key: chatKey('box', '%1'), info: chatInfo({ sessionId: 'one', status: confirmed }) })
+  const { result, unmount } = renderHook(() => useSession('box', '%1'))
+  await flush()
+  expect(result.current.status).toMatchObject({ model: 'Sonnet 5.5', effort: 'low' })
+  act(() => emit({ t: 'chat.info', key: chatKey('box', '%1'), info: chatInfo({ sessionId: 'other', status: confirmed }) }))
+  await flush()
+  expect(result.current.status).toMatchObject({ model: 'Opus 5.5', effort: 'high' })
+  unmount()
 })
 
 test("OpenCode's footer decides the model and variant; its record keeps the numbers; the footer's fill in", () => {

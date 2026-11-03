@@ -42,6 +42,19 @@ mod with_sh {
         std::fs::metadata(p).unwrap().len()
     }
 
+    #[test]
+    fn confirmed_settings_are_kept_when_reading_only_old_conversation_metadata() {
+        let d = dir();
+        let file = d.path("settings.jsonl");
+        let command = json!({"type":"user","timestamp":"2026-11-03T14:00:00Z","message":{"content":"<local-command-stdout>Set effort level to low (saved as your default for new sessions)</local-command-stdout>"}});
+        std::fs::write(&file, format!("{}\n", command)).unwrap();
+        let rows = lines(&meta_command(file.to_str().unwrap(), size(&file), false, 0));
+        assert_eq!(rows.len(), 1);
+        let mut meta = new_meta();
+        normalize(&serde_json::from_str(&rows[0]).unwrap(), &mut meta, false);
+        assert_eq!(meta.claude_controls.unwrap().status(None).unwrap().effort.as_deref(), Some("low"));
+    }
+
     fn text_of(e: &Value) -> String {
         e["message"]["content"][0]["text"].as_str().unwrap_or("").to_owned()
     }

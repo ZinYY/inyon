@@ -1341,6 +1341,11 @@ impl Registry {
                 }
                 _ => {}
             }
+            if let (Some(path), Some(w)) = (&info.transcript_path, crate::claude::watcher::watchers().peek(&host_id, &p.id)) {
+                if let Some(status) = w.claude_status(path, info.status.as_ref()) {
+                    info.status = Some(status);
+                }
+            }
         }
         if proc.kind == AgentKind::Codex {
             if let Some(path) = info.transcript_path.clone() {

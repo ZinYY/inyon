@@ -40,6 +40,23 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn confirmed_claude_controls_are_bound_to_the_current_transcript() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        {
+            let mut st = w.st.borrow_mut();
+            st.transcript = Some("/current.jsonl".into());
+            super::super::controls::record(&mut st.meta.claude_controls, "Set effort level to low", 2000);
+        }
+        assert_eq!(w.claude_status("/current.jsonl", None).unwrap().effort.as_deref(), Some("low"));
+        assert!(w.claude_status("/resumed.jsonl", None).is_none());
+        w.st.borrow_mut().meta = new_meta();
+        assert!(w.claude_status("/current.jsonl", None).is_none());
+        watchers().stop(KEY);
+    });
+}
+
+#[test]
 fn rename_confirmation_uses_the_record_for_this_session_not_a_pending_ui_title() {
     run(|| async {
         let (_fake, w) = draft_box();

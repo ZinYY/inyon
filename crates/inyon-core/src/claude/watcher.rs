@@ -426,6 +426,15 @@ impl ChatWatcher {
         self.st.borrow().info.clone()
     }
 
+    /// A confirmed local setting only belongs to the transcript this watcher is reading.
+    pub fn claude_status(&self, path: &str, live: Option<&inyon_protocol::AgentStatus>) -> Option<inyon_protocol::AgentStatus> {
+        let st = self.st.borrow();
+        if st.transcript.as_deref() != Some(path) {
+            return None;
+        }
+        st.meta.claude_controls.as_ref().and_then(|c| c.status(live))
+    }
+
     /// The agent's persisted title, without a pending Inyon rename or terminal-title fallback.
     /// ConPTY/PSmux may leave pane_title at the computer name even after /rename succeeded.
     pub fn recorded_title(&self, session: &str) -> Option<String> {
@@ -1409,7 +1418,11 @@ impl ChatWatcher {
                 cwd: m.cwd.clone().or_else(|| found.as_ref().map(|f| f.pane.cwd.clone())),
                 title,
                 model: m.model.clone(),
-                status: m.status.clone(),
+                status: if agent.is_some_and(|a| a.kind == AgentKind::Claude && a.transcript_path.is_some() && a.transcript_path == st.transcript) {
+                    m.claude_controls.as_ref().and_then(|c| c.status(agent.and_then(|a| a.status.as_ref())))
+                } else {
+                    m.status.clone()
+                },
                 git_branch: m.git_branch.clone(),
                 version: m.version.clone(),
                 mode: st.screen.mode.clone().or_else(|| agent.and_then(|a| a.mode.clone())).or_else(|| m.mode.clone()),

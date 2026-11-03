@@ -86,6 +86,8 @@ pub struct TranscriptMeta {
     pub version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<AgentStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_controls: Option<super::controls::Controls>,
     pub stats: SessionStats,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub goal: Option<ChatGoal>,
@@ -209,6 +211,7 @@ pub fn new_meta() -> TranscriptMeta {
         git_branch: None,
         version: None,
         status: None,
+        claude_controls: None,
         stats: new_stats(),
         goal: None,
         rc: None,
@@ -846,6 +849,9 @@ fn system_item(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta) -> Vec
         }
         Some("local_command") => {
             let c = e.at("content").string_or_empty();
+            if let (Some(out), Some(at)) = (tag(&c, "local-command-stdout"), parsed_ms(&base.ts)) {
+                super::controls::record(&mut meta.claude_controls, out, at);
+            }
             if let Some(name) = tag(&c, "command-name").filter(|n| !n.is_empty()) {
                 return vec![base.command(name, tag(&c, "command-args").unwrap_or(""), None)];
             }
@@ -906,6 +912,9 @@ fn user_items(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta, sidecha
         return vec![base.command(cmd, tag(&text, "command-args").unwrap_or(""), None)];
     }
     if let Some(stdout) = tag(&text, "local-command-stdout") {
+        if let Some(at) = parsed_ms(&base.ts) {
+            super::controls::record(&mut meta.claude_controls, stdout, at);
+        }
         if re!(r"Remote Control disconnected", "i").is_match(stdout) {
             meta.rc = None;
         }
@@ -939,6 +948,20 @@ mod tests {
     use super::*;
     use crate::test_support::assert_match;
     use serde_json::json;
+
+    #[test]
+    fn claude_controls_survive_reload_for_both_local_command_record_formats() {
+        let mut meta = new_meta();
+        normalize(&json!({"type":"user","timestamp":"2026-11-03T14:00:00Z","message":{"content":"<local-command-stdout>Set model to `Sonnet 5.5` and saved as your default for new sessions</local-command-stdout>"}}), &mut meta, false);
+        normalize(&json!({"type":"system","subtype":"local_command","timestamp":"2026-11-03T14:00:01Z","content":"<local-command-stdout>Set effort level to low (saved as your default for new sessions)</local-command-stdout>"}), &mut meta, false);
+        // A quoted success in an assistant answer is conversation text, not a setting.
+        normalize(&json!({"type":"assistant","timestamp":"2026-11-03T14:00:02Z","message":{"content":[{"type":"text","text":"<local-command-stdout>Set effort level to high</local-command-stdout>"}]}}), &mut meta, false);
+        let saved = load_meta(&save_meta(&meta)).unwrap();
+        let status = saved.claude_controls.unwrap().status(None).unwrap();
+        assert_eq!(status.model.as_deref(), Some("Sonnet 5.5"));
+        assert_eq!(status.effort.as_deref(), Some("low"));
+        assert!(new_meta().claude_controls.is_none());
+    }
 
     /// queued messages leave the queue when Claude pulls them all back into the input box
     #[test]
