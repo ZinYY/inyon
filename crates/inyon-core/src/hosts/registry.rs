@@ -278,6 +278,15 @@ impl HostRuntime {
 
 /// a transcript this far ahead of the status line means the session stopped reporting
 const STALL_S: f64 = 90.0;
+
+/// Only conversational activity requires a new status-line report. Local commands such
+/// as /rename append system records and isMeta user reminders without refreshing status.
+fn reporting_activity_command(paths: &[&str]) -> String {
+    format!(
+        r#"for f in {}; do echo "$(tail -c 262144 "$f" 2>/dev/null | grep -E '"type"[[:space:]]*:[[:space:]]*"(user|assistant)"' | grep -vE '"isMeta"[[:space:]]*:[[:space:]]*true|"content"[[:space:]]*:[[:space:]]*"<(command-name|command-message|local-command-stdout|local-command-stderr)>' | grep -o '"timestamp":"[^"]*"' | tail -n 1 | cut -d'"' -f4) $f"; done"#,
+        paths.iter().map(|x| shq(x)).collect::<Vec<_>>().join(" ")
+    )
+}
 /// account limits: refresh every three minutes, retry a failure after five, ignore after twenty
 // the usage endpoint rate-limits; Claude's own /usage is only asked when you open it
 const USAGE_EVERY_MS: u64 = 3 * 60_000;
@@ -1568,15 +1577,10 @@ impl Registry {
                 paths.push(t);
             }
         }
-        // The newest entry's own timestamp, not the file's mtime: Claude also touches the file
-        // without adding a message, which would look like a session that stopped reporting.
+        // The newest conversational entry's timestamp: touching the file, local commands,
+        // and metadata reminders do not imply that Claude owes us a fresh status report.
         let host = rt.borrow().host.clone();
-        let r = host
-            .run(&format!(
-                r#"for f in {}; do echo "$(tail -c 262144 "$f" 2>/dev/null | grep -o '"timestamp":"[^"]*"' | tail -n 1 | cut -d'"' -f4) $f"; done"#,
-                paths.iter().map(|x| shq(x)).collect::<Vec<_>>().join(" ")
-            ))
-            .await?;
+        let r = host.run(&reporting_activity_command(&paths)).await?;
         let mut last: HashMap<String, f64> = HashMap::new();
         for line in r.stdout.split('\n') {
             if let Some(m) = re!(r"^(\S+) (.+)$").captures(line) {

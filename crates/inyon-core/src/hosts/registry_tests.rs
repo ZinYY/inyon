@@ -17,6 +17,28 @@ fn from<T: serde::de::DeserializeOwned>(v: Value) -> T {
     serde_json::from_value(v).unwrap()
 }
 
+#[test]
+fn renames_and_metadata_do_not_make_live_status_look_stalled() {
+    use crate::test_support::{sh, TempDir};
+    let dir = TempDir::new("inyon-reporting-");
+    let rows = [
+        json!({"type":"user","timestamp":"2026-11-03T10:00:00Z","message":{"role":"user","content":"你好"}}),
+        json!({"type":"assistant","timestamp":"2026-11-03T10:00:05Z","message":{"role":"assistant","content":[]}}),
+        json!({"type":"system","subtype":"local_command","timestamp":"2026-11-03T11:00:00Z"}),
+        json!({"type":"user","isMeta":true,"timestamp":"2026-11-03T11:00:00Z","message":{"role":"user","content":"The user named this session"}}),
+        json!({"type":"user","timestamp":"2026-11-03T11:01:00Z","message":{"content":"<command-name>/rename</command-name>"}}),
+        json!({"type":"progress","timestamp":"2026-11-03T11:02:00Z"}),
+    ].iter().map(Value::to_string).collect::<Vec<_>>().join("\n");
+    dir.write("with spaces.jsonl", &rows);
+    let path = dir.path("with spaces.jsonl").to_string_lossy().into_owned();
+    let cmd = reporting_activity_command(&[&path]);
+    assert_eq!(sh(&cmd, None, &[]).1.trim(), format!("2026-11-03T10:00:05Z {path}"));
+    // A real new prompt must still detect a status line which stopped updating.
+    let next = json!({"type":"user","timestamp":"2026-11-03T11:03:00Z","message":{"role":"user","content":"今天天气怎么样？"}});
+    dir.write("with spaces.jsonl", &format!("{rows}\n{next}\n"));
+    assert_eq!(sh(&cmd, None, &[]).1.trim(), format!("2026-11-03T11:03:00Z {path}"));
+}
+
 // pairing.test.ts
 
 #[test]
