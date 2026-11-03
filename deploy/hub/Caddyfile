@@ -1,0 +1,44 @@
+# Caddy on $PORT in front of the hub on 127.0.0.1:4777. The host's edge does HTTPS.
+{
+	admin off
+	auto_https off
+	servers {
+		# For {client_ip}: X-Forwarded-For read from the right, past the hops of the host's own
+		# network, and the first other address is the client. Whatever a client sends itself sits
+		# further left and is never reached. Only from a peer in these ranges is the header read.
+		trusted_proxies static private_ranges 100.64.0.0/10
+		client_ip_headers X-Forwarded-For
+		trusted_proxies_strict
+	}
+}
+
+:{$PORT} {
+	# The host's health check: the hub's own /api/session, so a pass means the hub answers and not
+	# just Caddy. Asked under the hub's loopback name, since a host's checker sends a Host of its
+	# own (Railway's healthcheck.railway.app, Render's onrender.com or custom name), and without
+	# cookies, so it can't keep a sign-in alive.
+	@health {
+		path /healthz
+		method GET HEAD
+	}
+	handle @health {
+		rewrite * /api/session
+		reverse_proxy 127.0.0.1:4777 {
+			header_up Host 127.0.0.1:4777
+			header_up -X-Forwarded-Host
+			header_up -Cookie
+			header_up -Authorization
+			header_up X-Forwarded-For 127.0.0.1
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:4777 {
+			# The hub trusts forwarded headers only from loopback, and counts sign-in attempts against
+			# the LAST X-Forwarded-For entry, so it gets exactly one: the client's address as
+			# inyon-boot chose to read it for this host (INYON_CLIENT_IP, see boot.sh).
+			header_up X-Forwarded-For {$INYON_CLIENT_IP}
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+	}
+}

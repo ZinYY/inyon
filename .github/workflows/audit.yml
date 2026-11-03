@@ -1,0 +1,41 @@
+name: Audit
+
+# Known vulnerabilities in what Inyon builds with: the Rust lock files (cargo audit against the
+# RustSec database, with the reviewed exceptions in .cargo/audit.toml) and the Bun lock file. On
+# every change to a lock file, and once a week for advisories published since.
+on:
+  push:
+    branches: [main]
+    paths: ['**/Cargo.lock', '**/Cargo.toml', 'bun.lock', '**/package.json', '.cargo/audit.toml', '.github/workflows/audit.yml']
+  pull_request:
+    paths: ['**/Cargo.lock', '**/Cargo.toml', 'bun.lock', '**/package.json', '.cargo/audit.toml', '.github/workflows/audit.yml']
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CARGO_AUDIT: v0.22.2
+      CARGO_AUDIT_SHA256: 7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - name: Get cargo-audit
+        run: |
+          name=cargo-audit-x86_64-unknown-linux-musl-$CARGO_AUDIT
+          curl -fsSL -o "$RUNNER_TEMP/$name.tgz" "https://github.com/rustsec/rustsec/releases/download/cargo-audit/$CARGO_AUDIT/$name.tgz"
+          echo "$CARGO_AUDIT_SHA256  $RUNNER_TEMP/$name.tgz" | sha256sum -c -
+          tar xzf "$RUNNER_TEMP/$name.tgz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+      - name: Rust lock files
+        run: for lock in Cargo.lock spikes/*/Cargo.lock; do echo "== $lock"; cargo-audit audit --deny warnings --file "$lock" || exit 1; done
+      - name: Bun lock file
+        run: bun audit

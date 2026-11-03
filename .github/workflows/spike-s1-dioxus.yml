@@ -1,0 +1,171 @@
+name: Spike S1 (Dioxus on Android)
+
+# Builds spikes/s1-dioxus-android with dx for arm64 (size) and x86_64 (emulator), then starts the
+# x86_64 APK on an emulator: cold start, screenshots, typing through the soft keyboard and the
+# keep-alive service. Spike branch only; never runs on main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [r0-android]
+    paths: ['spikes/s1-dioxus-android/**', '.github/workflows/spike-s1-dioxus.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spike-s1-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DX_VERSION: 0.7.10
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-linux-android, x86_64-linux-android]
+    defaults:
+      run:
+        working-directory: spikes/s1-dioxus-android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            spikes/s1-dioxus-android/target
+          key: spike-s1-${{ matrix.target }}-${{ hashFiles('spikes/s1-dioxus-android/Cargo.lock') }}
+          restore-keys: spike-s1-${{ matrix.target }}-
+
+      - name: Install dx
+        working-directory: ${{ runner.temp }}
+        run: |
+          base="https://github.com/DioxusLabs/dioxus/releases/download/v$DX_VERSION"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.sha256"
+          # the file lists the .tar.gz and the .zip
+          grep ' dx-x86_64-unknown-linux-gnu.tar.gz$' dx-x86_64-unknown-linux-gnu.sha256 | sha256sum -c
+          mkdir -p dx && tar xzf dx-x86_64-unknown-linux-gnu.tar.gz -C dx
+          echo "$RUNNER_TEMP/dx" >> "$GITHUB_PATH"
+      - run: dx --version
+      - run: rustup target add ${{ matrix.target }}
+      - run: ci/fetch-assets.sh
+
+      - name: Build with dx
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          echo "NDK: $ANDROID_NDK_HOME"
+          start=$(date +%s)
+          dx build --platform android --release --target ${{ matrix.target }} --verbose 2>&1 | tail -80
+          echo "dx build took $(( $(date +%s) - start )) s"
+
+      # dx assembles a debug-signed APK unless Dioxus.toml carries a keystore; build the release
+      # variant (R8 on, no debug symbols kept) in the project dx generated and sign it with a
+      # throwaway key, as the real app's CI would with the release key
+      - name: Release APK
+        run: |
+          proj=$(dirname "$(find target/dx -name gradlew -path '*android*' | head -1)")
+          echo "gradle project: $proj"
+          (cd "$proj" && ./gradlew --no-daemon -q assembleRelease)
+          unsigned=$(find "$proj" -name 'app-release-unsigned.apk' | head -1)
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/zipalign" -f -p 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/spike.p12" -storetype PKCS12 -storepass spikepass -alias spike \
+            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Inyon spike" > /dev/null 2>&1
+          "$bt/apksigner" sign --ks "$RUNNER_TEMP/spike.p12" --ks-pass pass:spikepass --out "$RUNNER_TEMP/inyon-spike.apk" "$RUNNER_TEMP/aligned.apk"
+          "$bt/apksigner" verify "$RUNNER_TEMP/inyon-spike.apk"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$RUNNER_TEMP/inyon-spike.apk" "$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}.apk"
+          debug=$(find "$proj" -name 'app-debug.apk' | head -1)
+          [ -n "$debug" ] && cp "$debug" "$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}-debug.apk" || true
+
+      # the other way: dx only compiles, the app's own Gradle project packages (gradle-app/)
+      - name: Own Gradle project
+        continue-on-error: true
+        env:
+          INYON_KEYSTORE: ${{ runner.temp }}/spike.p12
+          INYON_KEYSTORE_PASSWORD: spikepass
+          INYON_KEY_ALIAS: spike
+          INYON_KEY_PASSWORD: spikepass
+          INYON_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          abi=$([ "${{ matrix.target }}" = aarch64-linux-android ] && echo arm64-v8a || echo x86_64)
+          start=$(date +%s)
+          ci/own-gradle.sh "$abi" "$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}-own.apk"
+          echo "own Gradle packaging took $(( $(date +%s) - start )) s"
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/apksigner" verify "$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}-own.apk"
+          "$bt/aapt2" dump badging "$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}-own.apk" | head -3
+
+      - name: Sizes
+        run: |
+          own="$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}-own.apk"
+          [ -f "$own" ] && echo "| own Gradle release APK | $(stat -c %s "$own") |" > "$RUNNER_TEMP/own-size" || : > "$RUNNER_TEMP/own-size"
+          apk="$RUNNER_TEMP/out/inyon-spike-${{ matrix.target }}.apk"
+          {
+            echo "## ${{ matrix.target }}"
+            echo
+            echo "| what | bytes |"
+            echo "|---|---|"
+            echo "| dx project, release APK | $(stat -c %s "$apk") |"
+            cat "$RUNNER_TEMP/own-size"
+            unzip -lv "$apk" | awk 'NR>3 && $1 ~ /^[0-9]+$/ && $8 != "" {printf "| %s (stored %s) | %s |\n", $8, $3, $1}' | sort -t'|' -k3 -n -r | head -12
+            so=$(find target/dx -name 'libmain.so' -path '*jniLibs*' | head -1)
+            [ -n "$so" ] && echo "| libmain.so on disk (dx output) | $(stat -c %s "$so") |"
+          } | tee -a "$GITHUB_STEP_SUMMARY" "$RUNNER_TEMP/out/sizes-${{ matrix.target }}.md"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: spike-s1-${{ matrix.target }}
+          path: ${{ runner.temp }}/out/
+
+  emulator:
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OUT: ${{ github.workspace }}/s1-out
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: spike-s1-x86_64-linux-android
+          path: ${{ runner.temp }}/apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # drives the page over the DevTools protocol
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - name: Run on an emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
+          script: spikes/s1-dioxus-android/ci/emulator.sh "${{ runner.temp }}/apk/inyon-spike-x86_64-linux-android.apk" "${{ runner.temp }}/apk/inyon-spike-x86_64-linux-android-own.apk"
+      - name: Results
+        if: always()
+        run: cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: spike-s1-emulator
+          path: s1-out/

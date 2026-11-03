@@ -1,0 +1,35 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "remote": "https://antigravity.google.com/r/77637f21-f314-468d-9258-23b644a606f9-v2?p=c%2F5a9bbba1",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "remote": "https://antigravity.google.com/r/77637f21-f314-468d-9258-23b644a606f9-v2?p=c%2F5a",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 91,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "remote": "https://antigravity.google.com/r/77637f21-f314-468d-9258-23b644a606f9-v2?p=c%2F5a9bbba1",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "What is your favorite color?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "selected": true,
+            "detail": "The color red"
+          },
+          {
+            "n": 2,
+            "label": "Green",
+            "selected": false,
+            "detail": "The color green"
+          },
+          {
+            "n": 3,
+            "label": "Blue",
+            "selected": false,
+            "detail": "The color blue"
+          },
+          {
+            "n": 4,
+            "label": "Type something.",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Chat about this",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Color",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Fruits",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+        "multi": false,
+        "freeTextOption": 4
+      }
+    },
+    "summary": "What is your favorite color?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "What is your favorite color?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "selected": true,
+            "detail": "The color red"
+          },
+          {
+            "n": 2,
+            "label": "Green",
+            "selected": false,
+            "detail": "The color green"
+          },
+          {
+            "n": 3,
+            "label": "Blue",
+            "selected": false,
+            "detail": "The color blue"
+          },
+          {
+            "n": 4,
+            "label": "Type something.",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Chat about this",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Color",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Fruits",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+        "multi": false,
+        "freeTextOption": 4
+      }
+    },
+    "summary": "What is your favorite color?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "What is your favorite color?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "selected": true,
+            "detail": "The color red"
+          },
+          {
+            "n": 2,
+            "label": "Green",
+            "selected": false,
+            "detail": "The color green"
+          },
+          {
+            "n": 3,
+            "label": "Blue",
+            "selected": false,
+            "detail": "The color blue"
+          },
+          {
+            "n": 4,
+            "label": "Type something.",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Chat about this",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Color",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Fruits",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+        "multi": false,
+        "freeTextOption": 4
+      }
+    },
+    "summary": "What is your favorite color?"
+  }
+}

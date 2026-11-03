@@ -1,0 +1,8 @@
+[
+  { "t": "hello", "v": 2, "zip": ["deflate-raw"] },
+  { "t": "hello", "v": 2 },
+  { "t": "sub", "stream": "overview" },
+  { "t": "sub", "stream": "box:%1", "at": { "epoch": 1793450000123, "seq": 41 } },
+  { "t": "unsub", "stream": "box:%1" },
+  { "t": "more", "stream": "box:%1", "before": 120 }
+]

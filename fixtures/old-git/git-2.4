@@ -1,0 +1,3 @@
+#!/bin/sh
+# git from before 2.5: --git-common-dir is unknown too (see ./git).
+OLD_GIT_UNKNOWN="--path-format=absolute --git-common-dir" exec "$(dirname "$0")/git" "$@"

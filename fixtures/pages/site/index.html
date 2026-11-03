@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Fixture site</title>
+<link rel="stylesheet" href="style.css">
+<h1>Fixture site</h1>
+<p><a href="sub/">Sub page</a> · <a href="notes.md">Notes</a></p>
+<img src="img/dot.png" alt="" width="1" height="1">
+<p id="now"></p>
+<script>
+  fetch('progress.json').then((r) => r.json()).then((d) => { document.getElementById('now').textContent = d.now })
+</script>
+</html>

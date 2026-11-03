@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipe</title>
+<link rel="stylesheet" href="../../kit/blueprint.css">
+<script src="../../kit/lucide.min.js"></script><script src="../../kit/data.js"></script>
+<script src="../../kit/kit.js"></script><script src="../../kit/menus.js"></script><script src="../../kit/shell.js"></script>
+<style>
+  .rcp { padding: 24px 28px 40px; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; max-width: 920px; }
+  .rcp h2 { margin: 0 0 4px; font-size: 26px; letter-spacing: -.03em; grid-column: 1 / -1; }
+  .rcp .meta { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .rcp .ing { padding: 6px; } .rcp .ing .row { font-size: 14px; } .rcp .ing .q { margin-left: auto; font: 12px var(--mono); color: var(--fg-3); }
+  .rcp .ing .row.have { color: var(--fg-3); }
+  .rcp ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; font-size: 15px; line-height: 1.55; color: var(--fg-2); }
+  @media (max-width: 640px) { .rcp { grid-template-columns: 1fr; padding: 4px 12px 24px; gap: 16px; } .rcp h2 { display: none; } }
+</style>
+</head><body>
+<div id="app"></div>
+<template id="notes">
+  <p>A recipe with ingredients that know their amounts. One button puts the missing ones on a list.</p>
+  <ol><li>The servings control rescales every amount (2.6).</li><li>Items already in the pantry are greyed and skipped when adding.</li><li>The target list defaults to the one being shopped now.</li></ol>
+</template>
+<script>
+const ING = [['Tomatoes', 400, 'g', false], ['Garlic', 2, 'cloves', true], ['Basil', 0.5, 'bunch', false], ['Spaghetti', 250, 'g', true], ['Olive oil', 2, 'tbsp', true]];
+let serves = 2;
+const ing = () => ING.map(([t, n, u, have], i) => `<div class="row${have ? ' have' : ''}" data-row="g${i}" tabindex="0">${have ? K.icon('check') : K.icon('circle')} ${K.esc(t)}<span class="q">${+(n * serves / 2).toFixed(2)} ${u}</span></div>`).join('');
+K.shell.mount({
+  nav: 'recipes', title: 'Tomato spaghetti', crumb: 'Recipes <span aria-hidden="true">/</span> <b>Tomato spaghetti</b>', phoneTitle: 'Tomato spaghetti',
+  actions: `<button class="btn sm primary" data-act="addto">${K.icon('list-plus')} Add missing to list</button>`,
+  main: `<div class="scroll" style="flex:1"><div class="rcp">
+    <h2>Tomato spaghetti</h2>
+    <div class="meta"><span class="chip">25 min</span><span class="chip">vegetarian</span><span style="flex:1"></span><div class="seg" id="serves" aria-label="Servings">${[1, 2, 4, 6].map((n) => `<button data-value="${n}" aria-pressed="${n === 2}">${n}</button>`).join('')}</div></div>
+    <div><p class="label" style="margin:0 0 8px">Ingredients</p><div class="card sm ing" id="ing" data-keynav>${ing()}</div>
+      <button class="btn" data-act="addto" style="width:100%;margin-top:10px">${K.icon('list-plus')} Add 2 missing to Big shop</button></div>
+    <div><p class="label" style="margin:0 0 8px">Steps</p><ol><li>Boil salted water and cook the spaghetti.</li><li>Soften the garlic in oil, add the tomatoes, simmer ten minutes.</li><li>Toss with the pasta and tear in the basil.</li></ol></div>
+  </div></div>`,
+  onMount(root) {
+    K.$('#serves', root).addEventListener('change', (e) => { serves = +e.detail; K.$('#ing', root).innerHTML = ing(); K.icons(K.$('#ing', root)); });
+    root.addEventListener('click', (e) => { const b = e.target.closest('[data-act="addto"]'); if (!b) return; e.stopPropagation(); K.menu.open(b, [{ header: 'Add 2 items to' }, ...DATA.items.filter((l) => l.status !== 'off').map((l) => ({ label: l.title, checked: l.id === 'l1', onSelect: () => K.undo(`Added tomatoes and basil to ${l.title}`) }))], { align: 'end' }); }, true);
+  },
+});
+</script>
+</body></html>

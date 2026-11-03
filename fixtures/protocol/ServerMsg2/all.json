@@ -1,0 +1,42 @@
+[
+  { "t": "hello", "v": 2, "zip": "deflate-raw" },
+  { "t": "hello", "v": 2 },
+  {
+    "t": "snapshot",
+    "stream": "box:%1",
+    "epoch": 1793450000123,
+    "seq": 7,
+    "rows": {
+      "items": [{ "kind": "user", "seq": 0, "uuid": "u0", "ts": "2026-10-31T12:00:00.000Z", "text": "fix the build", "images": 0 }],
+      "live": [{ "id": "m1", "kind": "text", "text": "Looking at the" }],
+      "queue": [
+        { "kind": "held", "id": "h1", "text": "after this turn", "at": 1793450001000 },
+        { "kind": "send", "id": "s1", "text": "from the phone", "at": 1793450002000, "state": "sent" },
+        { "kind": "agent", "id": "0", "text": "typed in the terminal" }
+      ]
+    },
+    "state": {
+      "info": { "hostId": "box", "paneId": "%1", "running": true, "queue": [], "tasks": [], "subagents": [], "artifacts": [], "stats": { "turns": 1, "compactions": 0 } },
+      "screen": { "working": true, "activity": "Reading… (3s)", "width": 120 },
+      "draft": { "text": "half a thought", "source": "app", "at": 1793450003000 },
+      "progress": { "done": 0, "total": 0 },
+      "hasMore": true,
+      "loaded": true
+    }
+  },
+  { "t": "snapshot", "stream": "overview", "epoch": 1793450000100, "seq": 3, "rows": { "hosts": [] } },
+  { "t": "delta", "stream": "box:%1", "epoch": 1793450000123, "from": 7, "seq": 8, "replace": { "live": [{ "id": "m1", "kind": "text", "text": "Looking at the build" }] } },
+  {
+    "t": "delta",
+    "stream": "box:%1",
+    "epoch": 1793450000123,
+    "from": 8,
+    "seq": 9,
+    "remove": { "live": ["m1"] },
+    "append": { "items": [{ "kind": "assistant", "seq": 1, "uuid": "u1", "ts": "2026-10-31T12:00:05.000Z", "msgId": "m1", "block": { "type": "text", "text": "Looking at the build" } }] },
+    "state": { "screen": { "working": false, "width": 120 } }
+  },
+  { "t": "delta", "stream": "box:%1", "epoch": 1793450000123, "from": 9, "seq": 9 },
+  { "t": "delta", "stream": "overview", "epoch": 1793450000100, "from": 3, "seq": 4, "remove": { "hosts": ["laptop"] } },
+  { "t": "more", "stream": "box:%1", "items": [], "hasMore": false }
+]

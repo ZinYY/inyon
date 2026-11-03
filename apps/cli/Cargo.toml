@@ -1,0 +1,71 @@
+[package]
+name = "inyon-cli"
+version.workspace = true
+edition.workspace = true
+description = "The inyon command: setup, status and services for the Inyon phone app"
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "inyon"
+path = "src/main.rs"
+
+[dependencies]
+base64 = "0.23"
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.29"
+flate2 = "1.1"
+inyon-engine = { path = "../../crates/inyon-engine" }
+url = "2.5"
+minisign-verify = "0.3"
+qrcode = { version = "0.14", default-features = false }
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+# the certificate setup makes for a hub on the LAN: ring, as rustls uses, and no OpenSSL
+rcgen = { version = "0.13", default-features = false, features = ["crypto", "pem", "ring"] }
+rustls-pki-types = { version = "1.15", features = ["std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.11"
+tar = { version = "0.4", default-features = false }
+# asks the terminal for its background (OSC 11), so the greys suit a light or dark one
+terminal-colorsaurus = "1.0.3"
+unicode-width = "0.2"
+ureq = { version = "3.4", default-features = false, features = ["rustls"] }
+
+[target.'cfg(unix)'.dependencies]
+# local time for the dashboard (already built for crossterm)
+libc = "0.2"
+# the hub, built in; it runs on Linux and macOS only
+inyon-hub = { path = "../../crates/inyon-hub" }
+
+[target.'cfg(windows)'.dependencies]
+# the Inyon app's window: WebView2 (part of Windows 11, and of Windows 10 through Edge) shows the
+# app's own pages and a hub's web app, and the certificate check for a hub joined by its SHA-256
+wry = { version = "0.57", default-features = false }
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_Shell_Common"] }
+windows-core = "0.62"
+raw-window-handle = "0.6"
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_GdiPlus",
+  "Win32_Security",
+  "Win32_System_Com",
+  "Win32_System_Console",
+  "Win32_System_DataExchange",
+  "Win32_System_JobObjects",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_UI_Controls",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+minisign = "0.10"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }

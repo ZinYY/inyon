@@ -1,0 +1,100 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Tip: auto mode handles these prompts for you — choose \"switch to auto mode\" below Write hello-inyon to out.txt",
+          "╌",
+          "echo hello-inyon > out.txt",
+          "╌",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Bash command: echo hello-inyon > out.txt"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Tip: auto mode handles these prompts for you — choose \"switch to auto mode\" below",
+          "Write hello-inyon to out.txt",
+          "╌",
+          "echo hello-inyon > out.txt",
+          "╌",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Write hello-inyon to out.txt: echo hello-inyon > out.txt"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Tip: auto mode handles these prompts for you — choose \"switch to auto mode\" below",
+          "Write hello-inyon to out.txt",
+          "╌",
+          "echo hello-inyon > out.txt",
+          "╌",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Write hello-inyon to out.txt: echo hello-inyon > out.txt"
+  }
+}

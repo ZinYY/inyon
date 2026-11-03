@@ -1,0 +1,40 @@
+[1m[38;2;253;214;99mAccessing workspace:[0m
+
+[1m/tmp/tester-1001/-home-ubuntu-development-custom-tmux/7409eef9-d507-4808-a592-0bfabe896e3a/scratchpad/agy/ws3[0m
+
+Do you trust the contents of this project?
+
+[38;2;66;133;244mAntigravity CLI[39m requires permission to read, edit, and execute files here.
+
+[38;2;138;180;248m> Yes, I trust this folder[39m
+  [38;2;154;160;166mNo, exit[39m
+
+  [1m[38;2;138;180;248m↑/↓[0m[38;2;154;160;166m Navigate · [1m[38;2;138;180;248menter[0m[38;2;154;160;166m Confirm[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

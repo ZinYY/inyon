@@ -1,0 +1,86 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Always allow this until OpenCode restarts?",
+          "This will allow the following patterns until OpenCode is restarted",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Confirm",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Cancel",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Always allow this until OpenCode restarts?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Always allow this until OpenCode restarts?",
+          "This will allow the following patterns until OpenCode is restarted",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Confirm",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Cancel",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Always allow this until OpenCode restarts?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Always allow this until OpenCode restarts?",
+          "This will allow the following patterns until OpenCode is restarted",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Confirm",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Cancel",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Always allow this until OpenCode restarts?"
+  }
+}

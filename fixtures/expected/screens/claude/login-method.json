@@ -1,0 +1,98 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Login",
+          "Select login method:"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Claude account with subscription · Pro, Max, Team, or Enterprise",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Anthropic Console account · API usage billing",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "3rd-party platform · Amazon Bedrock, Microsoft Foundry, Google Vertex AI",
+            "selected": false
+          }
+        ],
+        "multi": false
+      }
+    },
+    "summary": "Login"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Login",
+          "Select login method:"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Claude account with subscription · Pro, Max, Team, or Enterprise",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Anthropic Console account · API usage billing",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "3rd-party platform · Amazon Bedrock, Microsoft Foundry, Google Vertex AI",
+            "selected": false
+          }
+        ],
+        "multi": false
+      }
+    },
+    "summary": "Login"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 99,
+      "prompt": {
+        "body": [
+          "Login",
+          "Select login method:"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Claude account with subscription · Pro, Max, Team, or Enterprise",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Anthropic Console account · API usage billing",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "3rd-party platform · Amazon Bedrock, Microsoft Foundry, Google Vertex AI",
+            "selected": false
+          }
+        ],
+        "multi": false
+      }
+    },
+    "summary": "Login"
+  }
+}

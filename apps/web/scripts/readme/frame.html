@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Draws README pictures: the silver stage, device frames, the captured screen, a cursor or touch
+     ring, captions, and a camera that zooms. Driven by record.ts. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root {
+    --stage: #e7e6e2; --hi: #f4f3ef; --lo: #dcdbd6; --dot: rgba(29,28,26,.10);
+    --ink: #1d1c1a; --muted: #57554f; --faint: #9d9b95; --panel: #f4f3f0; --line: #d6d5cf; --app: #e9e8e4;
+    --shadow: 0 40px 80px -42px rgba(29,28,26,.55), 0 14px 28px -20px rgba(29,28,26,.30);
+    --bezel: #1d1c1a;
+  }
+  .dark {
+    --stage: #151516; --hi: #1f1e1c; --lo: #121211; --dot: rgba(255,255,255,.035);
+    --ink: #f1f0ec; --muted: #a9a7a0; --faint: #6b6964; --panel: #252422; --line: rgba(255,255,255,.12); --app: #1b1a18;
+    --shadow: 0 40px 80px -40px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+    --bezel: #0b0b0a;
+  }
+  html, body { margin: 0; overflow: hidden; }
+  body { font-family: Geist, system-ui, sans-serif; color: var(--ink); background: var(--stage); }
+  #pic { position: relative; overflow: hidden; background:
+    radial-gradient(900px 600px at 12% 0%, var(--hi), transparent 70%),
+    radial-gradient(900px 700px at 100% 100%, var(--lo), transparent 70%), var(--stage); }
+  #pic::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+    background-size: 22px 22px; -webkit-mask-image: linear-gradient(#000, transparent 75%); mask-image: linear-gradient(#000, transparent 75%); }
+  #cam { position: absolute; overflow: hidden; }
+  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .device { position: absolute; }
+  .screen { position: absolute; overflow: hidden; background: var(--app); }
+  .screen img { display: block; width: 100%; height: 100%; }
+  /* browser window */
+  .browser { border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); outline: 1px solid var(--line); }
+  .browser .bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+  .browser .bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--line); display: block; }
+  .browser .bar span { position: absolute; left: 50%; transform: translateX(-50%); font: 500 12.5px 'Geist Mono', monospace; color: var(--muted);
+    padding: 4px 14px; border-radius: 999px; background: rgba(127,127,127,.08); }
+  .browser .screen { border-radius: 0 0 14px 14px; }
+  /* phone and tablet */
+  .slab { background: var(--bezel); box-shadow: var(--shadow), inset 0 0 0 1.5px rgba(255,255,255,.10); }
+  .status { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px; font: 600 12.5px Geist, sans-serif; color: var(--ink); background: var(--app); }
+  .status b { display: flex; gap: 5px; align-items: center; }
+  .status b i { display: block; background: var(--ink); border-radius: 2px; }
+  .cam-dot { position: absolute; border-radius: 50%; background: #050505; box-shadow: inset 0 0 0 2px #222; }
+  /* pointer */
+  #pointer, #touch, #ring { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+  #pointer { width: 26px; height: 26px; transform-origin: 3px 3px; }
+  #touch { width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(29,28,26,.20); box-shadow: 0 0 0 2px rgba(255,255,255,.95), 0 4px 14px rgba(0,0,0,.25); opacity: 0; }
+  .dark #touch { background: rgba(255,255,255,.22); }
+  #ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 2.5px solid var(--ink); opacity: 0; }
+  /* captions */
+  #pill { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); padding: 14px 28px; border-radius: 999px;
+    background: var(--ink); color: var(--stage); font: 500 26px Geist, sans-serif; letter-spacing: -.01em; white-space: nowrap;
+    box-shadow: 0 18px 36px -18px rgba(0,0,0,.5); transition: opacity .25s; }
+  #steps { position: absolute; }
+  #steps .label { font: 500 15px 'Geist Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 22px; }
+  #steps h2 { font: 500 44px/1.05 Geist, sans-serif; letter-spacing: -.035em; margin: 0 0 30px; }
+  #steps ol { list-style: none; margin: 0; padding: 0; }
+  #steps li { display: flex; gap: 16px; align-items: baseline; font: 400 25px/1.35 Geist, sans-serif; color: var(--faint); padding: 9px 0; transition: color .3s; }
+  #steps li span { font: 500 16px 'Geist Mono', monospace; width: 28px; }
+  #steps li.on { color: var(--ink); }
+  #steps li.done { color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="pic"><div id="cam"><div id="world"></div></div></div>
+<script>
+const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild }
+const pointerSvg = `<svg id="pointer" viewBox="0 0 26 26"><path d="M4 2.5v18.2l4.6-4.4 3.1 7.1 3.3-1.4-3.1-7h6.4z" fill="#1d1c1a" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`
+const fontsReady = document.fonts.ready
+let S, screenBox, viewBox, img
+
+/** one device, its screen placed at (x, y) in picture px at `scale` px per page px; returns the screen's box */
+function device(world, d, x, y, scale, src, o = {}) {
+  const w = d.width * scale, h = d.height * scale
+  let el, box
+  if (d.frame === 'browser') {
+    const bar = 40 * Math.max(scale, 0.75)
+    el = $(`<div class="device browser"><div class="bar"><i></i><i></i><i></i><span>${o.url || 'studio:4777'}</span></div><div class="screen"><img></div></div>`)
+    Object.assign(el.style, { left: x + 'px', top: y - bar + 'px', width: w + 'px', height: h + bar + 'px' })
+    const b = el.querySelector('.bar'), k = Math.max(scale, 0.75)
+    Object.assign(b.style, { height: bar + 'px', gap: 8 * k + 'px', padding: `0 ${16 * k}px` })
+    b.querySelectorAll('i').forEach((i) => Object.assign(i.style, { width: 11 * k + 'px', height: 11 * k + 'px' }))
+    Object.assign(b.querySelector('span').style, { fontSize: 12.5 * scale + 'px', padding: `${4 * k}px ${14 * k}px` })
+    Object.assign(el.querySelector('.screen').style, { left: 0, top: bar + 'px', width: w + 'px', height: h + 'px' })
+    box = { x, y, w, h }
+  } else {
+    const phone = d.frame === 'phone'
+    const bez = (phone ? 11 : 16) * scale, status = (phone ? 26 : 22) * scale, r = (phone ? 46 : 30) * scale
+    el = $(`<div class="device slab"><div class="screen"><div class="status"><span>9:41</span><b><i></i><i></i><i></i></b></div><img></div><div class="cam-dot"></div></div>`)
+    Object.assign(el.style, { left: x - bez + 'px', top: y - status - bez + 'px', width: w + 2 * bez + 'px', height: h + status + 2 * bez + 'px', borderRadius: r + 'px' })
+    const sc = el.querySelector('.screen')
+    Object.assign(sc.style, { left: bez + 'px', top: bez + 'px', width: w + 'px', height: h + status + 'px', borderRadius: r - bez + 'px' })
+    const st = el.querySelector('.status')
+    Object.assign(st.style, { height: status + 'px', fontSize: 12.5 * scale + 'px', padding: `0 ${22 * scale}px` })
+    st.querySelectorAll('i').forEach((i, n) => Object.assign(i.style, { width: [14, 4, 18][n] * scale + 'px', height: [9, 9, 9][n] * scale + 'px', opacity: n === 1 ? 0 : 1 }))
+    Object.assign(sc.querySelector('img').style, { position: 'absolute', top: status + 'px', height: h + 'px' })
+    const dot = el.querySelector('.cam-dot'), ds = (phone ? 9 : 6) * scale
+    Object.assign(dot.style, phone
+      ? { width: ds + 'px', height: ds + 'px', left: (w + 2 * bez - ds) / 2 + 'px', top: bez + (status - ds) / 2 + 'px' }
+      : { width: ds + 'px', height: ds + 'px', left: (w + 2 * bez - ds) / 2 + 'px', top: (bez - ds) / 2 + 'px' })
+    box = { x, y, w, h }
+  }
+  el.querySelector('img').src = src || ''
+  world.appendChild(el)
+  return { box, img: el.querySelector('img') }
+}
+
+function stage(st) {
+  document.body.className = st.scheme
+  const pic = document.getElementById('pic')
+  Object.assign(pic.style, { width: st.width + 'px', height: st.height + 'px' })
+}
+
+/** an animation: one device; the camera works inside `viewBox` */
+window.setup = async (st) => {
+  S = st
+  stage(st)
+  const d = st.device, sc = st.scale
+  const cam = document.getElementById('cam'), world = document.getElementById('world')
+  const steps = st.steps && st.steps.length
+  viewBox = steps ? { x: 0, y: 0, w: Math.round(st.width * 0.56), h: st.height } : { x: 0, y: 0, w: st.width, h: st.height }
+  Object.assign(cam.style, { left: viewBox.x + 'px', top: viewBox.y + 'px', width: viewBox.w + 'px', height: viewBox.h + 'px' })
+  Object.assign(world.style, { width: viewBox.w + 'px', height: viewBox.h + 'px' })
+  const chromeTop = d.frame === 'browser' ? 40 * Math.max(sc, .75) : ((d.frame === 'phone' ? 26 : 22) + (d.frame === 'phone' ? 11 : 16)) * sc
+  const w = d.width * sc, h = d.height * sc
+  const x = (viewBox.w - w) / 2, y = (viewBox.h - h + chromeTop) / 2 + (st.pill ? -34 : 0)
+  ;({ box: screenBox, img } = device(world, d, x, y, sc, '', { url: st.url }))
+  world.insertAdjacentHTML('beforeend', `<div id="touch"></div><div id="ring"></div>${d.touch ? '' : pointerSvg}`)
+  if (st.pill) document.getElementById('pic').insertAdjacentHTML('beforeend', `<div id="pill" style="opacity:0"></div>`)
+  if (steps) {
+    const el = $(`<div id="steps"><div class="label">${st.label || ''}</div><h2>${st.title || ''}</h2><ol>${st.steps.map((s, i) => `<li><span>0${i + 1}</span>${s}</li>`).join('')}</ol></div>`)
+    Object.assign(el.style, { left: viewBox.w - 10 + 'px', top: '50%', transform: 'translateY(-50%)', width: st.width - viewBox.w - 70 + 'px' })
+    document.getElementById('pic').appendChild(el)
+  }
+  await fontsReady
+}
+
+const P = (p) => ({ x: screenBox.x + p.x * S.scale, y: screenBox.y + p.y * S.scale })
+
+window.draw = async (st) => {
+  if (img.dataset.src !== st.src) {
+    img.src = st.src
+    img.dataset.src = st.src
+    await img.decode().catch(() => {})
+  }
+  // camera: centre on the point, but never show past the stage's edges
+  const z = st.view.zoom, c = P(st.view)
+  const half = { w: viewBox.w / 2 / z, h: viewBox.h / 2 / z }
+  const cx = Math.min(Math.max(c.x, half.w), viewBox.w - half.w), cy = Math.min(Math.max(c.y, half.h), viewBox.h - half.h)
+  document.getElementById('world').style.transform = `translate(${viewBox.w / 2}px, ${viewBox.h / 2}px) scale(${z}) translate(${-cx}px, ${-cy}px)`
+  const p = P(st.pointer)
+  const pointer = document.getElementById('pointer')
+  if (pointer) pointer.style.transform = `translate(${p.x - 3}px, ${p.y - 3}px) scale(${st.press && st.press.down ? 0.86 : 1})`
+  const touch = document.getElementById('touch'), ring = document.getElementById('ring')
+  if (st.press) {
+    const a = P(st.press.at)
+    touch.style.transform = `translate(${a.x}px, ${a.y}px) scale(${st.press.down ? 1 : 1 + st.press.ring * .3})`
+    touch.style.opacity = S.device.touch ? (st.press.down ? 1 : Math.max(0, 1 - st.press.ring * 2.2)) : 0
+    ring.style.transform = `translate(${a.x}px, ${a.y}px) scale(${0.3 + st.press.ring * 0.9})`
+    ring.style.opacity = st.press.down ? 0 : Math.max(0, 0.55 * (1 - st.press.ring))
+  } else {
+    touch.style.opacity = 0
+    ring.style.opacity = 0
+  }
+  const pill = document.getElementById('pill')
+  if (pill) {
+    pill.textContent = st.caption || ''
+    pill.style.opacity = st.caption ? 1 : 0
+  }
+  document.querySelectorAll('#steps li').forEach((li, i) => (li.className = i === st.step ? 'on' : i < st.step ? 'done' : ''))
+}
+
+/** a still: one or more devices placed by layout */
+window.setupStill = async (st) => {
+  stage(st)
+  document.getElementById('cam').style.cssText = `left:0;top:0;width:${st.width}px;height:${st.height}px`
+  const world = document.getElementById('world')
+  const loads = []
+  for (const s of st.screens) {
+    const { img } = device(world, s.device, s.x, s.y, s.scale, s.src, { url: st.url })
+    loads.push(img.decode().catch(() => {}))
+  }
+  await Promise.all([fontsReady, ...loads])
+}
+</script>
+</body>
+</html>

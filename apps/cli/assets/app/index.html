@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inyon</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M25 0H39C60 0 64 4 64 25V39C64 60 60 64 39 64H25C4 64 0 60 0 39V25C0 4 4 0 25 0Z" fill="var(--fg)"/><g fill="var(--bg)"><path transform="rotate(-12 41 23)" fill-rule="evenodd" d="M33.5 9H48.5A3.5 3.5 0 0 1 52 12.5V33.5A3.5 3.5 0 0 1 48.5 37H33.5A3.5 3.5 0 0 1 30 33.5V12.5A3.5 3.5 0 0 1 33.5 9ZM41 18.4A4.6 4.6 0 1 0 41 27.6A4.6 4.6 0 1 0 41 18.4Z"/><path d="M38.5 36.5C35 48 25 42 17.5 49.5" fill="none" stroke="var(--bg)" stroke-width="3.8" stroke-linecap="round"/><circle cx="15.5" cy="51" r="4"/></g></svg>
+      <div><b>Inyon</b><span id="host"></span></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Inyon"></nav>
+    <div class="side-foot" id="foot"></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

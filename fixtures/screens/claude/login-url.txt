@@ -1,0 +1,10 @@
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+   Login
+   Browser didn't open? Use the url below to sign in (c to copy)
+https://claude.com/cai/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&resp
+onse_type=code&redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback&scope=org%3A
+create_api_key&state=UwbdOhIwrMI5ooVjgLIvz5ysBPXoVHjRtqWSBhTnQO4
+   Hold Shift (Option in iTerm2, Fn in Terminal.app) while selecting to use your terminal's
+   native copy
+   Paste code here if prompted >
+   Esc to cancel

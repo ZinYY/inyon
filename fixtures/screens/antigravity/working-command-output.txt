@@ -1,0 +1,26 @@
+⣽ Running command...
+  ⎿  waiting for sleep to finish
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+    quiet command output
+────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+────────────────────────────────────────────────────────────────────────────────────────────────────
+? for shortcuts            Gemini 3.8 Flash · high

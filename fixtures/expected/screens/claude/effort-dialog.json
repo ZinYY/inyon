@@ -1,0 +1,20 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 51
+    }
+  }
+}

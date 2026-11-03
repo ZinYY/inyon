@@ -1,0 +1,90 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Switch model?",
+          "Your next response will be slower and use more tokens",
+          "This conversation is cached for the current model. Switching to Sonnet 5.5 means the full history gets re-read on your next message."
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, switch to Sonnet 5.5",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No, go back",
+            "selected": false
+          }
+        ],
+        "footer": "Enter to confirm · Esc to cancel",
+        "multi": false
+      }
+    },
+    "summary": "Switch model?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Switch model?",
+          "Your next response will be slower and use more tokens",
+          "This conversation is cached for the current model. Switching to Sonnet 5.5",
+          "means the full history gets re-read on your next message."
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, switch to Sonnet 5.5",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No, go back",
+            "selected": false
+          }
+        ],
+        "footer": "Enter to confirm · Esc to cancel",
+        "multi": false
+      }
+    },
+    "summary": "Switch model?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Switch model?",
+          "Your next response will be slower and use more tokens",
+          "This conversation is cached for the current model. Switching to Sonnet 5.5 means the full history gets re-read on your next message."
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, switch to Sonnet 5.5",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No, go back",
+            "selected": false
+          }
+        ],
+        "footer": "Enter to confirm · Esc to cancel",
+        "multi": false
+      }
+    },
+    "summary": "Switch model?"
+  }
+}

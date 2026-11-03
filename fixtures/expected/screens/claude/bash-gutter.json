@@ -1,0 +1,122 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Append empty-cart test and run the suite",
+          "╌",
+          "cat >> test/cart.test.js <<'EOF'",
+          "",
+          "test('empty cart costs nothing', () => {",
+          "  assert.equal(subtotal([]), 0)",
+          "})",
+          "EOF",
+          "╌",
+          "Contains brace with quote character (expansion obfuscation)",
+          "Ask rule Bash overrides auto mode for this command.",
+          "/permissions to let auto mode decide",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Append empty-cart test and run the suite: cat >> test/cart.test.js <<'EOF'"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Append empty-cart test and run the suite",
+          "╌",
+          "cat >> test/cart.test.js <<'EOF'",
+          "",
+          "test('empty cart costs nothing', () => {",
+          "  assert.equal(subtotal([]), 0)",
+          "})",
+          "EOF",
+          "╌",
+          "Contains brace with quote character (expansion obfuscation)",
+          "Ask rule Bash overrides auto mode for this command.",
+          "/permissions to let auto mode decide",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Append empty-cart test and run the suite: cat >> test/cart.test.js <<'EOF'"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "Bash command",
+          "Append empty-cart test and run the suite",
+          "╌",
+          "cat >> test/cart.test.js <<'EOF'",
+          "",
+          "test('empty cart costs nothing', () => {",
+          "  assert.equal(subtotal([]), 0)",
+          "})",
+          "EOF",
+          "╌",
+          "Contains brace with quote character (expansion obfuscation)",
+          "Ask rule Bash overrides auto mode for this command.",
+          "/permissions to let auto mode decide",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Append empty-cart test and run the suite: cat >> test/cart.test.js <<'EOF'"
+  }
+}

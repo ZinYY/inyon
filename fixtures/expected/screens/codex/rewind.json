@@ -1,0 +1,36 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "model": "GPT-6-Luna",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "model": "GPT-6-Luna",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "inputVisible": true,
+      "model": "GPT-6-Luna",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "browsing": {
+    "selected": "> Colour",
+    "screen": "\u001b[1;2m› \u001b[0msay hi\n\n\n\u001b[2m• \u001b[0mHi!\n\n\u001b[2m  Worked for 2s • 22:29\n\u001b[0m\n\n\u001b[1;2m› \u001b[0msay hi again\n\n\n\u001b[2m• \u001b[0mHi again!\n\n\u001b[2m  Worked for 1s • 22:30\n\u001b[0m\n\n\u001b[1;2m› \u001b[0mUse the request_user_input tool to ask me one question: which colour I prefer, with the options Red and Blue. After I\n  answer, reply with just the colour.\n\n\n\u001b[2m• \u001b[0mColour\n\n  • Red\n  • Blue\n\n\n\u001b[1;2m› \u001b[0;7m> Colour\u001b[0m\n\n  \u001b[7mRed\u001b[0m\n\n\n\u001b[2m• \u001b[0mRed\n\n\u001b[2m  Worked for 1m 34s • 22:36\n\u001b[0m\n\u001b[2m\n\u001b[1m›\u001b[0;2m Ask Codex to do anything\n\n\u001b[0m  \u001b[38;2;246;226;183mGPT-6-Luna default\u001b[39m · \u001b[38;2;171;223;167m/home/me/play…\n\u001b[39m  \u001b[38;2;99;168;248mBrowsing transcript\u001b[2m\u001b[39m · \u001b[0;1m↑↓/jk\u001b[0;2m scroll · \u001b[0;1m←→/hl\u001b[0;2m prompts · \u001b[0;1m^t\u001b[0;2m details · \u001b[0;1m↵\u001b[0;2m rewind · \u001b[0;1mesc\u001b[0;2m back\u001b[0m\n"
+  }
+}

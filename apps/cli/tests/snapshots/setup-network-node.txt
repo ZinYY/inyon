@@ -1,0 +1,22 @@
+  ◆
+  ╰─●    inyon x.y.z
+1 Role  ·  2 Network  ·  3 Background  ·  4 Summary
+Where should it answer?
+
+ ■ Tunnel
+     a free Cloudflare tunnel, so any network works
+ □ LAN
+     the same Wi-Fi, at 192.168.1.20
+ ■ VPN
+     Tailscale 100.64.0.9
+ Own address  …
+ Port         4780
+
+
+
+
+
+
+
+
+↑↓ move  ·  Space choose  ·  Enter next  ·  ← back  ·  Esc quit

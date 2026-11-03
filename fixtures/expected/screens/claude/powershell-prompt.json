@@ -1,0 +1,116 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "PowerShell command",
+          "Re-run the test suite",
+          "╌",
+          "npm test",
+          "╌",
+          "This command requires approval",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for: npm test *",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Re-run the test suite: npm test"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "PowerShell command",
+          "Re-run the test suite",
+          "╌",
+          "npm test",
+          "╌",
+          "This command requires approval",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for: npm test *",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Re-run the test suite: npm test"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "PowerShell command",
+          "Re-run the test suite",
+          "╌",
+          "npm test",
+          "╌",
+          "This command requires approval",
+          "Do you want to proceed?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for: npm test *",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Re-run the test suite: npm test"
+  }
+}

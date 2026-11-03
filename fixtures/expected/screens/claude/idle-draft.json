@@ -1,0 +1,38 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "draft": "half typed message",
+      "ultracode": false,
+      "effort": "high",
+      "mode": "manual",
+      "background": null
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "draft": "half typed message",
+      "ultracode": false,
+      "effort": "high",
+      "mode": "manual",
+      "background": null
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "inputVisible": true,
+      "draft": "half typed message",
+      "ultracode": false,
+      "effort": "high",
+      "mode": "manual",
+      "background": null
+    }
+  }
+}

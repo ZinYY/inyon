@@ -1,0 +1,22 @@
+  ◆
+  ╰─●    inyon x.y.z
+1 Role  ·  2 Network  ·  3 Background  ·  4 Summary
+Ready
+
+ Role paired with the phone
+ Answers on a tunnel (any network), the LAN, port 4789
+ Background only while this window is open
+
+
+
+
+
+
+
+
+
+
+
+
+
+Enter set up  ·  ← back  ·  Esc quit

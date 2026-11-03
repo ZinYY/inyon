@@ -1,0 +1,107 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "rm -rf build",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'rm'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: rm -rf build"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "rm -rf build",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'rm'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: rm -rf build"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 51,
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "rm -rf build",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'rm'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: rm -rf build"
+  }
+}

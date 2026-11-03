@@ -1,0 +1,31 @@
+[
+  {
+    "host": "local",
+    "slug": "ghostex",
+    "name": "Inyon plan",
+    "project": "/home/abhash/development/custom-tmux",
+    "by": "claude",
+    "added": 1792320000000,
+    "folder": "/home/abhash/development/custom-tmux/private/plans/ghostex",
+    "progress": { "done": 41, "total": 63, "now": "Pages v1 being built", "updated": "2026-10-19T16:45+05:30" }
+  },
+  {
+    "host": "local",
+    "slug": "handy",
+    "name": "Handy redesign",
+    "project": "/home/abhash/development/handy-redesign",
+    "by": "cli",
+    "added": 1792233600000,
+    "folder": "/home/abhash/development/handy-redesign",
+    "progress": { "done": 0, "total": 0 }
+  },
+  {
+    "host": "local",
+    "slug": "notes",
+    "name": "Notes",
+    "project": "/home/abhash/notes",
+    "by": "codex",
+    "added": 1792147200000,
+    "folder": "/home/abhash/notes/site"
+  }
+]

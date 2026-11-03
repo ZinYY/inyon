@@ -1,0 +1,14 @@
+────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☒ Color  ☒ Fruits  ✔ Submit  →
+Which fruits do you like?
+❯ 1. [✔] Apple
+         Apples
+  2. [ ] Mango
+         Mangoes
+  3. [✔] Kiwi
+         Kiwis
+  4. [ ] Type something
+     Submit
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel

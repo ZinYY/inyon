@@ -1,0 +1,29 @@
+{
+  "providers": [
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "connected": true,
+      "via": "credential",
+      "type": "oauth"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "connected": true,
+      "via": "env",
+      "env": [
+        "OPENAI_API_KEY"
+      ]
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "connected": false,
+      "env": [
+        "GROQ_API_KEY"
+      ]
+    }
+  ],
+  "updatedAt": 1792038612000
+}

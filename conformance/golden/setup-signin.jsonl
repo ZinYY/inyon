@@ -1,0 +1,34 @@
+{"step":"a new hub asks for a password and a setup code"}
+{"body":{"authed":false,"setup":true,"setupCode":true},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","method":"GET","path":"/api/session"},"status":200}
+{"body":{"error":"Not signed in"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","method":"GET","path":"/api/hosts"},"status":401}
+{"step":"setup is refused: wrong code, short password, another site"}
+{"body":{"error":"That setup code is not right. `inyon hub code` on the hub machine shows it; it is also in ~/.inyon/setup-code."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"code":"nope","password":"correct horse battery"},"method":"POST","origin":"<hub>","path":"/api/setup"},"status":401}
+{"body":{"error":"Use at least 8 characters."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"code":"<setup-code>","password":"short"},"method":"POST","origin":"<hub>","path":"/api/setup"},"status":400}
+{"body":{"error":"Cross-site request refused"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"code":"<setup-code>","password":"correct horse battery"},"method":"POST","origin":"https://evil.example","path":"/api/setup"},"status":403}
+{"body":{"error":"Invalid JSON"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","method":"POST","origin":"<hub>","path":"/api/setup","raw":"{not json"},"status":400}
+{"step":"setup with the code from the hub signs this browser in"}
+{"body":{"ok":true},"headers":{"content-type":"application/json;charset=utf-8","set-cookie":[{"attributes":["Path=/","HttpOnly","SameSite=Lax","Max-Age=2592000"],"name":"inyon_session","session":{"at":"<time>","exp":"<time>","iat":"<time>","n":"<uuid:1>"},"signature":"valid"}]},"rest":{"as":"anon","body":{"code":"<setup-code>","password":"correct horse battery"},"method":"POST","origin":"<hub>","path":"/api/setup"},"status":200}
+{"body":{"authed":true,"commit":"","setup":false,"setupCode":false,"version":"<version>"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"GET","path":"/api/session"},"status":200}
+{"body":{"error":"This hub already has a password. Sign in instead."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"code":"<setup-code>","password":"correct horse battery"},"method":"POST","origin":"<hub>","path":"/api/setup"},"status":409}
+{"step":"the app connects with the cookie; a cookieless or foreign connection is refused"}
+{"open":"open","ws":"app"}
+{"body":"Not signed in","status":401,"upgrade":"/ws","ws":"no-cookie"}
+{"body":"Cross-site connection refused","status":403,"upgrade":"/ws","ws":"foreign"}
+{"body":"Not signed in","status":401,"upgrade":"/ws?ticket=nope","ws":"bad-ticket"}
+{"step":"signing out ends the session everywhere, and its connections"}
+{"body":{"ok":true},"headers":{"content-type":"application/json;charset=utf-8","set-cookie":[{"attributes":["Path=/","HttpOnly","SameSite=Lax","Max-Age=0"],"name":"inyon_session","value":""}]},"rest":{"method":"POST","path":"/api/logout"},"status":200}
+{"closed":{"code":4401,"reason":"Signed out"},"ws":"app"}
+{"body":{"authed":false,"setup":false,"setupCode":false},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"other cookie","method":"GET","path":"/api/session"},"status":200}
+{"body":{"error":"Not signed in"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"other cookie","method":"GET","path":"/api/hosts"},"status":401}
+{"closed":{"code":4401,"reason":"Signed out"},"ws":"app"}
+{"step":"sign in with the password"}
+{"body":{"error":"Wrong password"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"password":"not it"},"method":"POST","origin":"<hub>","path":"/api/login"},"status":401}
+{"body":{"ok":true},"headers":{"content-type":"application/json;charset=utf-8","set-cookie":[{"attributes":["Path=/","HttpOnly","SameSite=Lax","Max-Age=2592000"],"name":"inyon_session","session":{"at":"<time>","exp":"<time>","iat":"<time>","n":"<uuid:2>"},"signature":"valid"}]},"rest":{"as":"anon","body":{"password":"correct horse battery"},"method":"POST","origin":"<hub>","path":"/api/login"},"status":200}
+{"body":{"authed":true,"commit":"","setup":false,"setupCode":false,"version":"<version>"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"GET","path":"/api/session"},"status":200}
+{"step":"change the password: the old cookie stops working, this browser gets a new one"}
+{"body":{"error":"Your current password is not right"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"body":{"current":"wrong one","next":"another good password"},"method":"POST","path":"/api/password"},"status":401}
+{"body":{"error":"Use at least 8 characters."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"body":{"current":"correct horse battery","next":"short"},"method":"POST","path":"/api/password"},"status":400}
+{"body":{"ok":true},"headers":{"content-type":"application/json;charset=utf-8","set-cookie":[{"attributes":["Path=/","HttpOnly","SameSite=Lax","Max-Age=2592000"],"name":"inyon_session","session":{"at":"<time>","exp":"<time>","iat":"<time>","n":"<uuid:3>"},"signature":"valid"}]},"rest":{"body":{"current":"correct horse battery","next":"another good password"},"method":"POST","path":"/api/password"},"status":200}
+{"body":{"authed":false,"setup":false,"setupCode":false},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"other cookie","method":"GET","path":"/api/session"},"status":200}
+{"body":{"authed":true,"commit":"","setup":false,"setupCode":false,"version":"<version>"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"GET","path":"/api/session"},"status":200}
+{"body":{"error":"Wrong password"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","body":{"password":"correct horse battery"},"method":"POST","origin":"<hub>","path":"/api/login"},"status":401}

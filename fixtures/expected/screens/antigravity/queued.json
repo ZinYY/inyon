@@ -1,0 +1,44 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Generating",
+      "queue": [
+        "Then say done."
+      ]
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Generating",
+      "queue": [
+        "Then say done."
+      ]
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 150,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Generating",
+      "queue": [
+        "Then say done."
+      ]
+    }
+  }
+}

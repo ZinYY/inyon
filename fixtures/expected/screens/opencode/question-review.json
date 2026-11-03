@@ -1,0 +1,86 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Review",
+          "Colour preference: Green, Blue"
+        ],
+        "options": [],
+        "multi": false,
+        "confirm": "Submit",
+        "tabs": [
+          {
+            "label": "Colour preference",
+            "done": true,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": true
+          }
+        ]
+      }
+    },
+    "summary": "Review"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Review",
+          "Colour preference: Green, Blue"
+        ],
+        "options": [],
+        "multi": false,
+        "confirm": "Submit",
+        "tabs": [
+          {
+            "label": "Colour preference",
+            "done": true,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": true
+          }
+        ]
+      }
+    },
+    "summary": "Review"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Review",
+          "Colour preference: Green, Blue"
+        ],
+        "options": [],
+        "multi": false,
+        "confirm": "Submit",
+        "tabs": [
+          {
+            "label": "Colour preference",
+            "done": true,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": true
+          }
+        ]
+      }
+    },
+    "summary": "Review"
+  }
+}

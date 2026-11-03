@@ -1,0 +1,40 @@
+
+[91m ▐[40m▛███▛█[39m[49m   [1mClaude Code[0m [90mv2.1.309[39m
+[91m▝▜[40m█████[49m█▀[39m  [90mHaiku 5.5 · Claude Max[39m
+[91m ▝▝   ▝▝ [39m  [90m~/tea[39m
+
+
+[90m[47m❯ [30mWithout using any tools, write five short paragraphs about the history of tea, then a 4-item [39m
+  [30mbulleted list of tea types with [1mbold[0m[30m[47m names.[39m
+
+[30m[49m●[39m Tea likely began in southwestern China, where people chewed or boiled wild leaves. A legend
+  credits the mythical emperor Shennong with discovering it around 2737 BCE when leaves blew into
+  his pot of boiling water. By the Han dynasty, tea was being drunk as a beverage and grown in
+  cultivated gardens. The Tang poet-scholar Lu Yu's [3mCha Jing[0m ([3mThe Classic of Tea[0m), written around
+  the 760s, was the first major text on its cultivation, processing, and preparation.
+
+  During the Tang and Song dynasties, tea was pressed into bricks or cakes, ground to powder, and
+  whisked into hot water. Buddhist monks carried this practice to Japan, where Eisai and others
+  helped establish matcha and the tea ceremony as part of monastic life. In China, tea culture grew
+  into a refined pastime of poetry, painting, and connoisseurship.
+
+  The Ming dynasty brought the shift to loose-leaf tea steeped directly in the pot or cup, which
+  made green tea the dominant style. Around the same period, processing methods that allowed
+  oxidation produced oolong and black teas, first in the mountains of Fujian. Each region developed
+  its own styles, and regional tea became a sign of local identity.
+
+  Europe encountered tea through Portuguese and Dutch traders in the 1600s. It became fashionable in
+  England after Catherine of Braganza brought the habit to the court in the 1660s, and the British
+  East India Company built a huge trade in Chinese tea. That trade fueled conflicts such as the
+  Opium Wars and, in the American colonies, the Boston Tea Party of 1773.
+
+  In the 1800s, Britain broke China's monopoly by moving tea plants to India (Assam and Darjeeling)
+
+
+
+                                                                                      [90m45294 tokens[39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────
+[90m❯ [39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[39m  [33m⏵⏵ auto mode on[90m (shift+tab to cycle) · ← 1 agent[39m

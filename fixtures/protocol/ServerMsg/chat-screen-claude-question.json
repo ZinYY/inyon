@@ -1,0 +1,68 @@
+{
+  "t": "chat.screen",
+  "key": "local:%12",
+  "screen": {
+    "working": false,
+    "width": 100,
+    "prompt": {
+      "body": [
+        "Which fruits do you like?"
+      ],
+      "wholeLines": true,
+      "options": [
+        {
+          "n": 1,
+          "label": "Apple",
+          "selected": true,
+          "checked": true,
+          "detail": "Apples"
+        },
+        {
+          "n": 2,
+          "label": "Mango",
+          "selected": false,
+          "checked": false,
+          "detail": "Mangoes"
+        },
+        {
+          "n": 3,
+          "label": "Kiwi",
+          "selected": false,
+          "checked": true,
+          "detail": "Kiwis"
+        },
+        {
+          "n": 4,
+          "label": "Type something",
+          "selected": false,
+          "checked": false
+        },
+        {
+          "n": 5,
+          "label": "Chat about this",
+          "selected": false
+        }
+      ],
+      "tabs": [
+        {
+          "label": "Color",
+          "done": true,
+          "current": false
+        },
+        {
+          "label": "Fruits",
+          "done": true,
+          "current": true
+        },
+        {
+          "label": "Submit",
+          "done": false,
+          "current": false
+        }
+      ],
+      "footer": "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+      "multi": true,
+      "freeTextOption": 4
+    }
+  }
+}

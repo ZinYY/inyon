@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the kite for Android's themed icons: 108dp canvas, kept inside the 66dp safe circle -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.928"
+        android:scaleY="0.928"
+        android:translateX="24.3"
+        android:translateY="24.3">
+        <group
+            android:pivotX="41"
+            android:pivotY="23"
+            android:rotation="-12">
+            <path
+                android:fillColor="#FFFFFFFF"
+                android:fillType="evenOdd"
+                android:pathData="M33.5,9H48.5A3.5,3.5 0,0 1,52 12.5V33.5A3.5,3.5 0,0 1,48.5 37H33.5A3.5,3.5 0,0 1,30 33.5V12.5A3.5,3.5 0,0 1,33.5 9ZM41,18.4A4.6,4.6 0,1 0,41 27.6A4.6,4.6 0,1 0,41 18.4Z" />
+        </group>
+        <path
+            android:pathData="M38.5,36.5C35,48 25,42 17.5,49.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="3.8"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M11.5,51a4,4 0,1 0,8 0a4,4 0,1 0,-8 0" />
+    </group>
+</vector>

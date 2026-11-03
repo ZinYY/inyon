@@ -1,0 +1,40 @@
+
+
+[1;2m› [0msay hi
+
+
+[2m• [0mHi!
+
+[2m  Worked for 2s • 22:29
+[0m
+
+[1;2m› [0msay hi again
+
+
+[2m• [0mHi again!
+
+[2m  Worked for 1s • 22:30
+[0m
+
+[1;2m› [0mUse the request_user_input tool to ask me one question: which colour I prefer, with the options Red and Blue. After I
+  answer, reply with just the colour.
+
+
+[2m• [0mColour
+
+  • Red
+  • Blue
+
+[1m[38;2;128;128;128m•[0m [2mWorking[0m [2m(1m 16s • [0;1mesc[0;2m to interrupt)[0m
+
+[2m• [0mQueued follow-up inputs
+
+
+  [1m[38;2;99;168;248mColour                                                                                                              [0m
+
+  [1;7m› 1. Red                                                                                                            [0m
+    2. Blue
+    3. Other
+
+  [1menter[0m submit   [1m^][0m skip   [1mshift+→[0m main prompt
+

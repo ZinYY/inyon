@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feature matrix</title>
+<link rel="icon" href="kit/icon.svg">
+<link rel="stylesheet" href="kit/blueprint.css">
+<script src="kit/lucide.min.js"></script>
+<script src="kit/data.js"></script>
+<script src="kit/kit.js"></script>
+<script src="matrix-data.js"></script>
+<style>
+body { min-height: 100%; }
+[hidden] { display: none !important; }
+.mx { max-width: 1440px; margin: 0 auto; padding: 0 24px 48px; }
+.mx svg.ic { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* header */
+.mx-head { display: flex; align-items: flex-start; gap: 16px; padding: 22px 0 18px; }
+.mx-head .txt { flex: 1; min-width: 0; }
+.mx-back { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 6px; margin-left: -6px; border-radius: 8px; font-size: 13px; color: var(--fg-2); text-decoration: none; transition: background-color var(--dur-exit) var(--ease); }
+.mx-back:hover { background: var(--hover); color: var(--fg); transition-duration: 0ms; }
+.mx-head h1 { margin: 10px 0 6px; font-size: 44px; line-height: .95; letter-spacing: -.04em; font-weight: 600; }
+.mx-head p { margin: 0; color: var(--fg-2); font-size: 15px; }
+
+/* summary */
+.mx-sum { display: grid; grid-template-columns: minmax(0, var(--sts, 5fr)) minmax(0, var(--rels, 8fr)); gap: 12px; margin-bottom: 18px; }
+.mx-sum.one { grid-template-columns: minmax(0, 1fr); }
+.mx-tiles { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--highlight); }
+/* Column counts and the last tile's span come from the data (fitTiles), so no tile is left empty. */
+.mx-tiles { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); }
+.mx-tiles > .mx-tile { grid-column: span var(--span, 1); }
+.mx-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; background: var(--panel); text-align: left; min-width: 0; transition: background-color var(--dur-exit) var(--ease); }
+.mx-tile .k { display: flex; align-items: flex-start; gap: 6px; font: 500 12px/1.2 var(--mono); color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; }
+.mx-tile .k .st-m { font-size: inherit; height: 1.2em; } /* the dot stays on the first line when a long label wraps */
+.mx-tile .n { font: 500 26px/1 var(--mono); letter-spacing: -.03em; color: var(--fg); }
+.mx-tile .nm { font-size: 12px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.mx-tile .bar { display: flex; width: 100%; height: 4px; border-radius: 2px; overflow: hidden; background: var(--raised); margin-top: 4px; }
+.mx-tile .bar i { display: block; height: 100%; }
+
+/* status mark */
+.st-m { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--fg); white-space: nowrap; }
+/* Four marks: full, half, ring and dash. --c is neutral unless the status has a tone (ok, warn, bad). */
+.st-m { --c: var(--fg-2); }
+.st-m i { width: 8px; height: 8px; border-radius: 50%; flex: none; box-sizing: border-box; }
+.st-m[data-mark='full'] i { background: var(--c); }
+.st-m[data-mark='half'] i { position: relative; overflow: hidden; border: 1.5px solid var(--c); }
+.st-m[data-mark='half'] i::after { content: ''; position: absolute; inset: 0 50% 0 0; background: var(--c); }
+.st-m[data-mark='ring'] i { border: 1.5px solid var(--c); }
+.st-m[data-mark='dash'] { --c: var(--fg-3); color: var(--fg-3); } .st-m[data-mark='dash'] i { width: 8px; height: 1.5px; border-radius: 1px; background: var(--c); }
+
+/* sticky toolbar */
+.mx-bar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid transparent; }
+.mx-bar.stuck { border-bottom-color: var(--line); }
+.mx-search { position: relative; flex: 0 1 280px; min-width: 200px; }
+.mx-search .ic { position: absolute; left: 11px; top: 10px; color: var(--fg-3); pointer-events: none; }
+.mx-search .input { padding-left: 34px; padding-right: 34px; }
+.mx-search .kbd { position: absolute; right: 8px; top: 8px; pointer-events: none; }
+.mx-search .x { position: absolute; right: 4px; top: 4px; }
+.mx-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mx-group .gl { font: 500 12px var(--mono); color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+.chip.btn-like[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.chip .c { color: var(--fg-3); }
+.chip[aria-pressed='true'] .c { color: inherit; opacity: .7; }
+.mx-meta .btn { font-family: var(--sans); }
+.mx-sep { width: 1px; height: 18px; background: var(--line); }
+.mx-meta { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--fg-3); white-space: nowrap; }
+.mx-filters-btn { display: none; }
+
+/* area popover */
+.mx-pop { position: fixed; z-index: 1000; width: 380px; max-width: calc(100vw - 32px); padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); animation: pop var(--dur-small) var(--ease); }
+.mx-pop .hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mx-pop .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* table */
+.mx-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--highlight); }
+.mx-t { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 14px; }
+.mx-t th { position: sticky; top: var(--barh, 56px); z-index: 10; height: 38px; padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--line); text-align: left; font: 500 12px var(--mono); color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.mx-t th:first-child { border-top-left-radius: 16px; } .mx-t th:last-child { border-top-right-radius: 16px; }
+.mx-sort { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px; margin-left: -6px; border-radius: 6px; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; transition: background-color var(--dur-exit) var(--ease); }
+.mx-sort:hover { background: var(--hover); color: var(--fg); transition-duration: 0ms; }
+.mx-sort .ic { width: 13px; height: 13px; opacity: 0; transition: opacity var(--dur-exit) var(--ease), transform var(--dur-small) var(--ease); }
+th[aria-sort] .mx-sort { color: var(--fg); } th[aria-sort] .mx-sort .ic { opacity: 1; }
+th[aria-sort='descending'] .mx-sort .ic { transform: rotate(180deg); }
+.mx-t td { padding: 11px 10px; vertical-align: top; border-bottom: 1px solid var(--line); line-height: 1.45; }
+.mx-t tbody tr:last-child td { border-bottom: 0; }
+.mx-r { cursor: pointer; transition: background-color var(--dur-exit) var(--ease); }
+.mx-r:hover { background: var(--hover); transition-duration: 0ms; }
+.mx-r:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; border-radius: 0; }
+.mx-r.open { background: var(--raised); }
+.mx-r.open td { border-bottom-color: transparent; }
+.c-chev { width: 40px; padding-right: 0 !important; }
+.c-chev .ic { color: var(--fg-3); transition: transform var(--dur-small) var(--ease); margin-top: 2px; }
+.mx-r.open .c-chev .ic { transform: rotate(90deg); color: var(--fg); }
+.c-area { width: 128px; font: 12.5px/1.6 var(--mono); color: var(--fg-3); }
+.c-feat { width: 220px; font-weight: 500; }
+.c-gx { color: var(--fg-2); font-size: 13.5px; }
+.c-st { width: var(--stw, 104px); }
+.c-today { width: 290px; color: var(--fg-2); font-size: 13.5px; }
+.c-rel { width: var(--relw, 78px); }
+.c-scr { width: var(--scrw, 48px); text-align: right; padding-right: 8px !important; white-space: nowrap; }
+.c-scr a { margin-top: -3px; }
+.c-scr a + a { margin-left: 2px; }
+.none { color: var(--fg-3); }
+mark { background: color-mix(in srgb, var(--fg) 16%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.mx-d td { background: var(--raised); padding: 0 10px 16px 50px; }
+.mx-dgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 28px; animation: row-in var(--dur-small) var(--ease) both; }
+.mx-dgrid .label { display: block; margin-bottom: 4px; }
+.mx-dgrid p { margin: 0; font-size: 13.5px; color: var(--fg); line-height: 1.5; }
+.mx-dgrid .wide { grid-column: 1 / -1; }
+.mx-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; text-decoration: none; color: var(--fg); padding: 4px 0; border-bottom: 1px solid var(--line-strong); }
+.mx-link:hover { border-bottom-color: var(--fg); }
+.mx-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.only-narrow { display: none; }
+.mx-empty { padding: 56px 16px; text-align: center; color: var(--fg-2); }
+.mx-empty b { display: block; color: var(--fg); font-weight: 500; margin-bottom: 4px; }
+.mx-empty .btn { margin-top: 14px; }
+.mx-foot { margin-top: 18px; font-size: 13px; color: var(--fg-3); }
+
+/* cards (narrow screens) */
+.mx-cards { display: flex; flex-direction: column; gap: 8px; }
+.mx-card { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--highlight); cursor: pointer; transition: background-color var(--dur-exit) var(--ease); }
+.mx-card:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; border-radius: 16px; }
+.mx-card .top { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.mx-card .top .a { font: 12px var(--mono); color: var(--fg-3); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-card h3 { margin: 6px 0 4px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.mx-card .gx { margin: 0; font-size: 14px; color: var(--fg-2); }
+.mx-card .det { display: grid; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); animation: row-in var(--dur-small) var(--ease) both; }
+.mx-card .det .label { display: block; margin-bottom: 3px; }
+.mx-card .det p { margin: 0; font-size: 14px; }
+.mx-card .more { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 13px; color: var(--fg-3); }
+.mx-card .more .ic { width: 14px; height: 14px; transition: transform var(--dur-small) var(--ease); }
+.mx-card.open .more .ic { transform: rotate(90deg); }
+
+/* filter sheet */
+.mx-sh .grp { margin-bottom: 18px; }
+.mx-sh .grp .label { display: block; margin-bottom: 8px; }
+.mx-sh .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mx-sh .chip { height: 36px; padding: 0 13px; font-size: 13px; }
+.mx-sh .seg { display: flex; } .mx-sh .seg button { flex: 1; height: 34px; }
+
+@media (max-width: 1180px) {
+  .c-today { display: none; }
+  .mx-t { table-layout: auto; }
+  .c-gx { width: auto; }
+  .only-narrow { display: block; }
+  .mx-sum { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .mx { padding: 0 16px 40px; }
+  .mx-head { padding: 14px 0 14px; }
+  .mx-head h1 { font-size: 1.75rem; margin-top: 8px; }
+  .mx-head p { font-size: 14px; }
+  .mx-tiles { grid-template-columns: repeat(var(--cols-p, 4), minmax(0, 1fr)); }
+  .mx-tiles > .mx-tile { grid-column: span var(--span-p, 1); }
+  .mx-tile { padding: 10px 10px; }
+  .mx-tile .n { font-size: 20px; }
+  .mx-tile .k { font-size: 12px; letter-spacing: .02em; }
+  .mx-bar { flex-wrap: nowrap; gap: 8px; }
+  .mx-search { flex: 1 1 auto; min-width: 0; }
+  .mx-search .kbd { display: none; }
+  .mx-search .input { height: 40px; font-size: 16px; }
+  .mx-search .ic { top: 12px; }
+  .mx-search .x { top: 6px; }
+  .mx-bar .mx-group, .mx-bar .mx-meta, .mx-bar .mx-sep, #mx-area-btn { display: none; }
+  .mx-tile.tot { display: none; }
+  .mx-filters-btn { display: inline-flex; height: 40px; flex: none; }
+  .mx-filters-btn .cnt { font: 12px var(--mono); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--accent-fg); display: inline-grid; place-items: center; }
+  .mx-shown { font: 12px var(--mono); color: var(--fg-3); margin: 2px 0 8px; }
+}
+@media (min-width: 861px) { .mx-shown { display: none; } }
+@media (max-width: 400px) { .mx-tile .k { font-size: 12px; } .mx-tile { padding: 9px 8px; } }
+</style>
+</head><body>
+<div class="mx" id="mx">
+  <header class="mx-head">
+    <div class="txt">
+      <a class="mx-back" href="index.html"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Plan</a>
+      <h1 id="mx-title">Feature matrix</h1>
+      <p id="mx-sub"></p>
+    </div>
+    <button class="icon-btn" id="mx-theme" aria-label="Switch light or dark" data-tip="Light or dark"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
+  </header>
+  <section class="mx-sum" aria-label="Summary">
+    <div class="mx-tiles st" id="mx-st"></div>
+    <div class="mx-tiles rel" id="mx-rel"></div>
+  </section>
+  <div class="mx-bar" id="mx-bar">
+    <div class="mx-search">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input class="input" id="mx-q" type="search" autocomplete="off" spellcheck="false">
+      <span class="kbd" id="mx-slash"><span>/</span></span>
+    </div>
+    <div class="mx-group" id="mx-g-st" role="group" aria-label="Status"></div>
+    <span class="mx-sep" aria-hidden="true" id="mx-sep-rel"></span>
+    <div class="mx-group" id="mx-g-rel" role="group" aria-label="Release"></div>
+    <span class="mx-sep" aria-hidden="true" id="mx-sep-area"></span>
+    <button class="chip btn-like" id="mx-area-btn" aria-haspopup="dialog"><span id="mx-area-l">Area</span> <span class="c" id="mx-area-n"></span><svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="mx-meta"><span id="mx-count"></span><button class="btn ghost sm" id="mx-clear" hidden>Clear filters</button></div>
+    <button class="btn mx-filters-btn" id="mx-filters"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>Filters<span class="cnt" id="mx-fcnt" hidden></span></button>
+  </div>
+  <div class="mx-shown" id="mx-shown"></div>
+  <div id="mx-list"></div>
+  <p class="mx-foot" id="mx-foot"></p>
+</div>
+<script>
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = K.esc;
+  const M = window.MATRIX.map((r, i) => ({ ...r, i }));
+  const RELS = window.MATRIX_RELEASES || [];
+  const B = BRAND.name;
+  // Every visible word the data can change. A label set to '' hides that column or field.
+  const L = {
+    title: 'Feature matrix', one: 'feature', many: 'features', search: 'Search features',
+    area: 'Area', feature: 'Feature', want: 'Wanted', status: B, statusName: 'Status', release: 'Release',
+    today: `${B} today`, todayNone: 'Nothing yet', todaySkipped: 'Not planned',
+    phone: 'On the phone', desktop: 'Desktop and browser', note: 'Note', link: 'Link',
+    menuShow: 'Show details', menuHide: 'Hide details', menuMockup: 'Open mockup', menuLink: 'Open link',
+    menuArea: 'Only {area}', allAreas: 'All areas', menuRelease: 'Only release {release}', menuCopy: 'Copy as text',
+    copied: 'Copied', copyFailed: 'Could not copy', sortNone: 'Inventory',
+    sub: '', subShort: '', foot: '',
+    ...window.MATRIX_LABELS,
+  };
+  const show = (k) => !!L[k];
+  const fmt = (s, o) => String(s).replace(/\{(\w+)\}/g, (_, k) => o[k] ?? '');
+  const sentence = (s) => (/[.!?]$/.test(s) ? s : s + '.');
+  document.title = `${L.title} · ${B}`;
+  $('#mx-title').textContent = L.title;
+
+  // Statuses come from MATRIX_STATUSES, or today's four. mark: full | half | ring | dash (by list order
+  // when left out); tone: ok | warn | bad gives the mark a colour, for states that need attention.
+  const DEFAULT_ST = [{ v: 'have', l: 'Have', mark: 'full', tone: 'ok' }, { v: 'partial', l: 'Partial', mark: 'half', tone: 'warn' }, { v: 'new', l: 'New', mark: 'ring' }, { v: 'skipped', l: 'Skipped', mark: 'dash' }];
+  const MARKS = ['full', 'half', 'ring', 'dash'];
+  const TONE = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--danger)' };
+  const ST = (window.MATRIX_STATUSES && window.MATRIX_STATUSES.length ? window.MATRIX_STATUSES : DEFAULT_ST)
+    .map((s, i) => ({ ...s, l: s.l ?? s.v, mark: MARKS.includes(s.mark) ? s.mark : MARKS[i % 4], tone: TONE[s.tone] ? s.tone : '' }));
+  const ST_BY = Object.fromEntries(ST.map((s) => [s.v, s]));
+  const stOf = (v) => ST_BY[v] || { v, l: v, mark: 'ring', tone: '' };
+  const ST_ORDER = Object.fromEntries(ST.map((s, i) => [s.v, i]));
+  const AREA_ORDER = [...(window.MATRIX_AREAS || [])]; // first-seen order for areas not listed
+  M.forEach((r) => { if (!AREA_ORDER.includes(r.area)) AREA_ORDER.push(r.area); });
+  const AREAS = AREA_ORDER.filter((a) => M.some((r) => r.area === a));
+  const REL_ORDER = Object.fromEntries(RELS.map((r, i) => [r.v, i]));
+  const SHOW_REL = show('release') && RELS.length > 0;
+  const SHOW_AREA = show('area');
+  // status: '' drops the column with its filters, sort, tiles and copied line, as for the others
+  const SHOW_ST = show('status');
+  // Mockup links only when the site has mockups: some row names a screen, and matrix-data.js doesn't say
+  // MATRIX_MOCKUPS = false (new-site.mjs --no-mockups sets that). screens.js then loads before the first render.
+  const MOCKS = window.MATRIX_MOCKUPS !== false && M.some((r) => r.screen);
+  const SCREENS = {};
+  const indexScreens = () => (window.SCREENS || []).forEach((g) => g.items.forEach((s) => (SCREENS[s.id] = s.title)));
+  const hasMock = (r) => MOCKS && !!r.screen;
+  const urlOf = (r) => (r.url && !/^\s*javascript:/i.test(r.url) ? r.url : '');
+  const hostOf = (u) => { try { const x = new URL(u, location.href); return x.origin === location.origin ? x.pathname.split('/').pop() || u : x.hostname.replace(/^www\./, ''); } catch { return u; } };
+  const count = (pred) => M.filter(pred).length;
+  const noun = (n) => (n === 1 ? L.one : L.many);
+
+  // Column widths follow the longest status label and release name.
+  const root = document.documentElement.style;
+  const longest = (xs) => Math.max(0, ...xs.map((x) => String(x).length));
+  root.setProperty('--stw', Math.max(104, Math.round(longest(ST.map((s) => s.l)) * 7.4 + 34)) + 'px');
+  root.setProperty('--relw', Math.max(78, Math.round(longest(RELS.map((r) => r.v)) * 7.6 + 40)) + 'px');
+  const linkN = Math.max(0, ...M.map((r) => (hasMock(r) ? 1 : 0) + (urlOf(r) ? 1 : 0)));
+  if (linkN > 1) root.setProperty('--scrw', '84px');
+
+  // Tile grids: one column per tile up to max, else balanced rows; the last tile spans what's left.
+  const grid = (n, max) => { const c = n <= max ? n : Math.ceil(n / Math.ceil(n / max)); return { c, last: n % c ? c - (n % c) + 1 : 1 }; };
+  function fitTiles(el, n, max, maxPhone, skipFirstOnPhone) {
+    const d = grid(n, max), p = grid(n - (skipFirstOnPhone ? 1 : 0), maxPhone);
+    el.style.setProperty('--cols', d.c); el.style.setProperty('--cols-p', p.c);
+    const last = el.lastElementChild; if (!last) return d.c;
+    last.style.setProperty('--span', d.last); last.style.setProperty('--span-p', p.last);
+    return d.c;
+  }
+
+  const state = { q: '', st: new Set(), rel: new Set(), area: new Set(), sort: null, dir: 1, open: new Set() };
+  const SVG = {
+    chev: '<svg class="ic" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>',
+    out: '<svg class="ic" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>',
+    ext: '<svg class="ic" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+    up: '<svg class="ic" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>',
+    x: '<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  };
+  const stMark = (v, bare) => { const s = stOf(v); return `<span class="st-m st-${esc(s.v)}" data-mark="${s.mark}"${s.tone ? ` style="--c: ${TONE[s.tone]}"` : ''}><i></i>${bare ? '' : esc(s.l)}</span>`; };
+  // Colour of a status in the release bars: its tone, or a neutral step by mark. Dash statuses are left out.
+  const barColor = (s) => s.tone ? TONE[s.tone] : { full: 'var(--fg-3)', half: 'color-mix(in srgb, var(--fg-3) 55%, transparent)', ring: 'var(--line-strong)' }[s.mark];
+  const isCards = () => window.innerWidth <= 860;
+
+  /* ---------- search ---------- */
+  let rx = null;
+  function setQuery(q) {
+    state.q = q;
+    const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    rx = toks.length ? new RegExp('(' + toks.map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi') : null;
+    state.toks = toks;
+  }
+  const hl = (s) => { const e = esc(s || ''); return rx ? e.replace(rx, '<mark>$1</mark>') : e; };
+  const hay = (r) => (r._h ||= [r.area, r.feature, r.want, r.today, r.phone, r.desktop, r.note, r.release, r.status, stOf(r.status).l, r.screen, r.url].join(' ').toLowerCase());
+  function matches(r, skip) {
+    if (skip !== 'st' && state.st.size && !state.st.has(r.status)) return false;
+    if (skip !== 'rel' && state.rel.size && !state.rel.has(r.release)) return false;
+    if (skip !== 'area' && state.area.size && !state.area.has(r.area)) return false;
+    if (state.toks && state.toks.length) { const h = hay(r); if (!state.toks.every((t) => h.includes(t))) return false; }
+    return true;
+  }
+  function sorted(list) {
+    if (!state.sort) return list;
+    const key = { area: (r) => AREA_ORDER.indexOf(r.area), feature: (r) => r.feature.toLowerCase(), status: (r) => (r.status in ST_ORDER ? ST_ORDER[r.status] : 99), release: (r) => (r.release in REL_ORDER ? REL_ORDER[r.release] : 99) }[state.sort];
+    return [...list].sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : a.i - b.i) * state.dir; });
+  }
+  const active = () => state.st.size + state.rel.size + state.area.size + (state.q.trim() ? 1 : 0);
+
+  /* ---------- summary ---------- */
+  function renderSummary() {
+    const total = M.length;
+    const st = $('#mx-st');
+    st.innerHTML = `<div class="mx-tile tot"><span class="k">Total</span><span class="n">${total}</span><span class="nm">${esc(L.many)}</span></div>` +
+      (SHOW_ST ? ST.map((s) => { const c = count((r) => r.status === s.v); return `<div class="mx-tile"><span class="k">${stMark(s.v, true)}${esc(s.l)}</span><span class="n">${c}</span><span class="nm">${total ? Math.round((c / total) * 100) : 0}%</span></div>`; }).join('') : '');
+    const sc = fitTiles(st, SHOW_ST ? ST.length + 1 : 1, 6, 4, true);
+    const rel = $('#mx-rel');
+    rel.hidden = !SHOW_REL; $('.mx-sum').classList.toggle('one', !SHOW_REL);
+    if (!SHOW_REL) return;
+    rel.innerHTML = RELS.map((x) => {
+      const rows = M.filter((r) => r.release === x.v), n = rows.length || 1;
+      const seg = ST.filter((s) => s.mark !== 'dash').map((s) => { const c = rows.filter((r) => r.status === s.v).length; return c ? `<i style="width:${(c / n) * 100}%;background:${barColor(s)}"></i>` : ''; }).join('');
+      return `<div class="mx-tile" title="${esc(x.name || x.v)}"><span class="k">${esc(x.v)}</span><span class="n">${rows.length}</span><span class="nm">${esc(x.name || '')}</span>${SHOW_ST ? `<span class="bar" aria-hidden="true">${seg}</span>` : ''}</div>`;
+    }).join('');
+    const rc = fitTiles(rel, RELS.length, 8, 4);
+    // Side by side on wide screens: share the row so every tile is the same width.
+    root.setProperty('--sts', sc + 'fr'); root.setProperty('--rels', rc + 'fr');
+  }
+
+  /* ---------- toolbar ---------- */
+  const FIELD = { st: 'status', rel: 'release', area: 'area' };
+  function chipsHtml(kind, items, set, bare) {
+    return items.map((it) => `<button class="chip btn-like" data-${kind}="${esc(it.v)}" aria-pressed="${set.has(it.v)}"${it.t ? ` data-tip="${esc(it.t)}"` : ''}>${esc(it.l)}${bare ? '' : ` <span class="c">${count((r) => matches(r, kind) && r[FIELD[kind]] === it.v)}</span>`}</button>`).join('');
+  }
+  function renderBar(shown) {
+    const gs = $('#mx-g-st'), gr = $('#mx-g-rel');
+    if (SHOW_ST && !gs.firstChild) gs.innerHTML = chipsHtml('st', ST, state.st, true);
+    if (SHOW_REL && !gr.firstChild) gr.innerHTML = chipsHtml('rel', RELS.map((r) => ({ v: r.v, l: r.v, t: r.name })), state.rel, true);
+    gs.querySelectorAll('[data-st]').forEach((b) => b.setAttribute('aria-pressed', state.st.has(b.dataset.st)));
+    gr.querySelectorAll('[data-rel]').forEach((b) => b.setAttribute('aria-pressed', state.rel.has(b.dataset.rel)));
+    $('#mx-area-n').textContent = state.area.size ? state.area.size : 'All';
+    $('#mx-area-btn').setAttribute('aria-pressed', state.area.size > 0);
+    const txt = shown === M.length ? `${M.length} ${noun(M.length)}` : `${shown} of ${M.length}`;
+    $('#mx-count').textContent = txt; $('#mx-shown').textContent = txt;
+    const f = state.st.size + state.rel.size + state.area.size;
+    $('#mx-clear').hidden = !active();
+    $('#mx-fcnt').hidden = !f; $('#mx-fcnt').textContent = f;
+    $('#mx-slash').hidden = !!state.q;
+    if (pop) fillPop();
+    if (sheet) fillSheet();
+  }
+
+  /* ---------- table ---------- */
+  function mockLink(r, text) {
+    if (!hasMock(r)) return '';
+    const t = SCREENS[r.screen] || r.screen;
+    return text
+      ? `<a class="mx-link" href="mockups/index.html#${esc(r.screen)}">Open the ${esc(t.toLowerCase())} mockup ${SVG.out}</a>`
+      : `<a class="icon-btn sm" href="mockups/index.html#${esc(r.screen)}" aria-label="Open the ${esc(t)} mockup" data-tip="Mockup: ${esc(t)}">${SVG.out}</a>`;
+  }
+  function urlLink(r, text) {
+    const u = urlOf(r); if (!u) return '';
+    const h = hostOf(u);
+    return text
+      ? `<a class="mx-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(h)} ${SVG.ext}</a>`
+      : `<a class="icon-btn sm" href="${esc(u)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(L.menuLink)}: ${esc(h)}" data-tip="${esc(h)}">${SVG.ext}</a>`;
+  }
+  function details(r, withToday) {
+    const it = [];
+    if (withToday && show('today')) it.push([L.today, r.today || (stOf(r.status).mark === 'ring' && L.todayNone ? sentence(L.todayNone) : ''), withToday === 'narrow' ? 'only-narrow' : '']);
+    if (show('phone') && r.phone) it.push([L.phone, r.phone]);
+    if (show('desktop') && r.desktop) it.push([L.desktop, r.desktop]);
+    if (show('note') && r.note) it.push([L.note, r.note]);
+    const links = mockLink(r, true) + urlLink(r, true);
+    return it.filter((x) => x[1]).map(([k, v, c]) => `<div class="${c || ''}"><span class="label">${esc(k)}</span><p>${hl(v)}</p></div>`).join('') +
+      (links ? `<div class="wide mx-links">${links}</div>` : '');
+  }
+  const todayCell = (r) => r.today ? hl(r.today) : `<span class="none">${esc(stOf(r.status).mark === 'dash' ? L.todaySkipped : L.todayNone)}</span>`;
+  // The table's columns; a label set to '' leaves its column out.
+  const COLS = [
+    { cls: 'c-chev', head: '<span class="sr">Details</span>', cell: () => SVG.chev },
+    SHOW_AREA && { cls: 'c-area', sort: 'area', head: esc(L.area), cell: (r) => hl(r.area) },
+    { cls: 'c-feat', sort: 'feature', head: esc(L.feature), cell: (r) => hl(r.feature) },
+    show('want') && { cls: 'c-gx', head: esc(L.want), cell: (r) => hl(r.want) },
+    show('status') && { cls: 'c-st', sort: 'status', head: esc(L.status), cell: (r) => stMark(r.status) },
+    show('today') && { cls: 'c-today', head: esc(L.today), cell: todayCell },
+    SHOW_REL && { cls: 'c-rel', sort: 'release', head: esc(L.release), cell: (r) => (r.release ? `<span class="chip">${esc(r.release)}</span>` : '<span class="none">–</span>') },
+    linkN > 0 && { cls: 'c-scr', head: `<span class="sr">${MOCKS ? 'Mockup' : esc(L.link)}</span>`, cell: (r) => mockLink(r) + urlLink(r) },
+  ].filter(Boolean);
+  const th = (c) => c.sort
+    ? `<th class="${c.cls}"${state.sort === c.sort ? ` aria-sort="${state.dir > 0 ? 'ascending' : 'descending'}"` : ''}><button class="mx-sort" data-sort="${c.sort}">${c.head}${SVG.up}</button></th>`
+    : `<th class="${c.cls}">${c.head}</th>`;
+  function renderTable(list) {
+    const rows = list.map((r) => {
+      const open = state.open.has(r.i);
+      return `<tr class="mx-r${open ? ' open' : ''}" data-i="${r.i}" data-row data-ctx="mxrow" tabindex="0" aria-expanded="${open}">
+        ${COLS.map((c) => `<td class="${c.cls}">${c.cell(r)}</td>`).join('')}</tr>` +
+        (open ? `<tr class="mx-d"><td colspan="${COLS.length}"><div class="mx-dgrid">${details(r, 'narrow')}</div></td></tr>` : '');
+    }).join('');
+    const host = $('#mx-list');
+    if (!list.length) { host.innerHTML = emptyHtml(); return; }
+    let t = $('table.mx-t', host);
+    if (!t) {
+      host.innerHTML = `<div class="mx-wrap"><table class="mx-t"><thead><tr>${COLS.map(th).join('')}</tr></thead><tbody data-keynav></tbody></table></div>`;
+      t = $('table.mx-t', host); K.enhance(host);
+    }
+    t.querySelectorAll('[data-sort]').forEach((b) => { const h = b.parentElement; if (state.sort === b.dataset.sort) h.setAttribute('aria-sort', state.dir > 0 ? 'ascending' : 'descending'); else h.removeAttribute('aria-sort'); });
+    t.tBodies[0].innerHTML = rows;
+  }
+  function renderCards(list) {
+    if (!list.length) { $('#mx-list').innerHTML = emptyHtml(); return; }
+    $('#mx-list').innerHTML = `<div class="mx-cards" data-keynav>${list.map((r) => {
+      const open = state.open.has(r.i);
+      return `<article class="mx-card${open ? ' open' : ''}" data-i="${r.i}" data-row data-ctx="mxrow" tabindex="0" aria-expanded="${open}">
+        <div class="top"><span class="a">${SHOW_AREA ? hl(r.area) : ''}</span>${SHOW_REL && r.release ? `<span class="chip">${esc(r.release)}</span>` : ''}${show('status') ? stMark(r.status) : ''}</div>
+        <h3>${hl(r.feature)}</h3>${show('want') ? `<p class="gx">${hl(r.want)}</p>` : ''}
+        ${open ? `<div class="det">${details(r, 'always')}</div>` : `<div class="more">${SVG.chev}Details</div>`}
+      </article>`;
+    }).join('')}</div>`;
+    K.enhance($('#mx-list'));
+  }
+  const emptyHtml = () => `<div class="mx-wrap mx-empty"><b>No ${esc(L.many)} match${state.q.trim() ? ` “${esc(state.q.trim())}”` : ''}.</b>Try fewer words or clear the filters.<br><button class="btn" data-clear>Clear filters</button></div>`;
+
+  function render() {
+    const list = sorted(M.filter((r) => matches(r)));
+    renderSummary(); renderBar(list.length);
+    (isCards() ? renderCards : renderTable)(list);
+  }
+
+  /* ---------- area popover (desktop) ---------- */
+  let pop = null;
+  function fillPop() {
+    pop.innerHTML = `<div class="hd"><span class="label">${esc(L.area)}</span>${state.area.size ? `<button class="btn ghost sm" data-area-clear>${esc(L.allAreas)}</button>` : ''}</div><div class="chips">${chipsHtml('area', AREAS.map((a) => ({ v: a, l: a })), state.area)}</div>`;
+  }
+  function openPop() {
+    if (pop) return closePop();
+    pop = K.el(`<div class="mx-pop" role="dialog" aria-label="Filter by ${esc(L.area.toLowerCase())}"></div>`);
+    document.body.appendChild(pop); fillPop();
+    const r = $('#mx-area-btn').getBoundingClientRect();
+    pop.style.top = r.bottom + 6 + 'px';
+    pop.style.left = Math.max(16, Math.min(innerWidth - pop.offsetWidth - 16, r.left)) + 'px';
+    pop.addEventListener('click', onFilterClick);
+    $('button', pop)?.focus({ preventScroll: true });
+  }
+  function closePop() { if (!pop) return; pop.remove(); pop = null; }
+  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('#mx-area-btn')) closePop(); }, true);
+
+  /* ---------- filter sheet (phone) ---------- */
+  let sheet = null;
+  const SORTS = [['', L.sortNone], SHOW_AREA && ['area', L.area], SHOW_REL && ['release', L.release], SHOW_ST && ['status', L.statusName]].filter(Boolean);
+  const sortSeg = () => `<div class="seg" id="mx-sortseg">${SORTS.map(([v, l]) => `<button data-value="${v}" aria-pressed="${(state.sort || '') === v}">${esc(l)}</button>`).join('')}</div>`;
+  function fillSheet() {
+    const b = $('.mx-sh', sheet.el); if (!b) return;
+    if (SHOW_ST) b.querySelector('[data-g=st]').innerHTML = chipsHtml('st', ST, state.st);
+    if (SHOW_REL) b.querySelector('[data-g=rel]').innerHTML = chipsHtml('rel', RELS.map((r) => ({ v: r.v, l: r.name ? `${r.v} ${r.name}` : r.v })), state.rel);
+    if (SHOW_AREA) b.querySelector('[data-g=area]').innerHTML = chipsHtml('area', AREAS.map((a) => ({ v: a, l: a })), state.area);
+    const n = M.filter((r) => matches(r)).length;
+    const p = $('footer .primary', sheet.el); if (p) p.textContent = n ? `Show ${n} ${noun(n)}` : 'Nothing matches';
+  }
+  function openSheet() {
+    const body = K.el(`<div class="mx-sh">
+      <div class="grp"><span class="label">Sort</span>${sortSeg()}</div>
+      ${SHOW_ST ? `<div class="grp"><span class="label">${esc(L.statusName)}</span><div class="chips" data-g="st"></div></div>` : ''}
+      ${SHOW_REL ? `<div class="grp"><span class="label">${esc(L.release)}</span><div class="chips" data-g="rel"></div></div>` : ''}
+      ${SHOW_AREA ? `<div class="grp"><span class="label">${esc(L.area)}</span><div class="chips" data-g="area"></div></div>` : ''}</div>`);
+    body.addEventListener('click', onFilterClick);
+    body.addEventListener('change', (e) => { if (e.target.id === 'mx-sortseg') { state.sort = e.detail || null; state.dir = 1; render(); } });
+    sheet = K.sheet.open({
+      title: 'Filters', icon: 'sliders-horizontal', body,
+      actions: [
+        { label: 'Clear', kind: 'ghost', onClick: () => { clearFilters(false); return false; } },
+        { label: 'Show', kind: 'primary', onClick: () => { sheet = null; } },
+      ],
+    });
+    new MutationObserver((_, mo) => { if (!sheet || !document.body.contains(sheet.el)) { sheet = null; mo.disconnect(); } }).observe(document.body, { childList: true });
+    fillSheet();
+  }
+
+  /* ---------- events ---------- */
+  function toggle(set, v) { set.has(v) ? set.delete(v) : set.add(v); }
+  function onFilterClick(e) {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.st !== undefined) toggle(state.st, b.dataset.st);
+    else if (b.dataset.rel !== undefined) toggle(state.rel, b.dataset.rel);
+    else if (b.dataset.area !== undefined) toggle(state.area, b.dataset.area);
+    else if (b.hasAttribute('data-area-clear')) state.area.clear();
+    else return;
+    render();
+  }
+  function clearFilters(withQuery = true) {
+    state.st.clear(); state.rel.clear(); state.area.clear();
+    if (withQuery) { $('#mx-q').value = ''; setQuery(''); }
+    render();
+  }
+  function toggleRow(i) {
+    state.open.has(i) ? state.open.delete(i) : state.open.add(i);
+    const keep = document.activeElement?.closest('[data-row]')?.dataset.i;
+    render();
+    const el = keep !== undefined && $(`[data-row][data-i="${keep}"]`); el && el.focus({ preventScroll: true });
+  }
+
+  // Toolbar words and the controls a hidden label leaves out.
+  const q = $('#mx-q');
+  q.placeholder = L.search; q.setAttribute('aria-label', L.search);
+  $('#mx-g-st').setAttribute('aria-label', L.statusName);
+  $('#mx-g-rel').setAttribute('aria-label', L.release || 'Release');
+  $('#mx-area-l').textContent = L.area;
+  $('#mx-g-st').hidden = !SHOW_ST;
+  $('#mx-g-rel').hidden = !SHOW_REL;
+  $('#mx-sep-rel').hidden = !SHOW_REL || !SHOW_ST;
+  $('#mx-area-btn').hidden = !SHOW_AREA;
+  $('#mx-sep-area').hidden = !SHOW_AREA || !(SHOW_ST || SHOW_REL);
+
+  $('#mx-bar').addEventListener('click', onFilterClick);
+  $('#mx-area-btn').addEventListener('click', openPop);
+  $('#mx-filters').addEventListener('click', openSheet);
+  $('#mx-clear').addEventListener('click', () => clearFilters(true));
+  const MOON = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+  const SUN = '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const themeIcon = () => { const d = document.documentElement.dataset.theme === 'dark'; $('#mx-theme').innerHTML = d ? SUN : MOON; $('#mx-theme').setAttribute('aria-label', d ? 'Switch to light' : 'Switch to dark'); $('#mx-theme').dataset.tip = d ? 'Light' : 'Dark'; };
+  $('#mx-theme').addEventListener('click', () => { K.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); themeIcon(); });
+  themeIcon();
+  let qt; q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { setQuery(q.value); render(); }, 60); });
+  q.addEventListener('keydown', (e) => { if (e.key === 'Escape' && q.value) { e.stopPropagation(); q.value = ''; setQuery(''); render(); } if (e.key === 'ArrowDown') { e.preventDefault(); $('[data-row]')?.focus(); } });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pop) { closePop(); $('#mx-area-btn').focus(); }
+    if (e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName || '') && !document.querySelector('.sheet')) { e.preventDefault(); q.focus(); q.select(); }
+  });
+  $('#mx-list').addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    if (e.target.closest('[data-clear]')) return clearFilters(true);
+    if (e.target.closest('[data-sort]')) {
+      const k = e.target.closest('[data-sort]').dataset.sort;
+      if (state.sort !== k) { state.sort = k; state.dir = 1; } else if (state.dir === 1) state.dir = -1; else { state.sort = null; state.dir = 1; }
+      return render();
+    }
+    if (document.querySelector('.menu')) return;
+    const row = e.target.closest('[data-row]'); if (row) toggleRow(+row.dataset.i);
+  });
+
+  /* right-click and long-press on a row */
+  function copyText(r) {
+    const s = stOf(r.status);
+    return [
+      `${r.feature}${SHOW_AREA ? ` (${r.area})` : ''}`,
+      show('want') && r.want && `${L.want}: ${r.want}`,
+      SHOW_ST ? `${L.status}: ${s.l}${SHOW_REL && r.release ? ', ' + r.release : ''}` : SHOW_REL && r.release && `${L.release}: ${r.release}`,
+      show('today') && r.today && `${L.today}: ${r.today}`,
+      show('note') && r.note && `${L.note}: ${r.note}`,
+      urlOf(r) && `${L.link || 'Link'}: ${urlOf(r)}`,
+    ].filter(Boolean).join('\n');
+  }
+  K.ctx.register('mxrow', (el) => {
+    const r = M[+el.dataset.i];
+    const items = [
+      { header: r.feature },
+      { label: state.open.has(r.i) ? L.menuHide : L.menuShow, icon: 'chevrons-up-down', onSelect: () => toggleRow(r.i) },
+      hasMock(r) && { label: L.menuMockup, icon: 'arrow-up-right', hint: SCREENS[r.screen] || r.screen, onSelect: () => (location.href = `mockups/index.html#${r.screen}`) },
+      urlOf(r) && { label: L.menuLink, icon: 'external-link', hint: hostOf(urlOf(r)), onSelect: () => window.open(urlOf(r), '_blank', 'noopener') },
+      { sep: true },
+      SHOW_AREA && { label: fmt(L.menuArea, { area: r.area }), icon: 'filter', onSelect: () => { state.area = new Set([r.area]); render(); } },
+      SHOW_REL && r.release && { label: fmt(L.menuRelease, { release: r.release }), icon: 'filter', onSelect: () => { state.rel = new Set([r.release]); render(); } },
+      { sep: true },
+      { label: L.menuCopy, icon: 'copy', onSelect: () => {
+        (navigator.clipboard ? navigator.clipboard.writeText(copyText(r)) : Promise.reject()).then(() => K.toast(L.copied), () => K.toast(L.copyFailed));
+      } },
+    ].filter(Boolean);
+    return items.filter((it, i) => !(it.sep && items[i - 1]?.sep)); // no two separators in a row
+  });
+
+  /* sticky toolbar height for the table header, and a hairline once it sticks */
+  const bar = $('#mx-bar');
+  new ResizeObserver(() => document.documentElement.style.setProperty('--barh', bar.offsetHeight + 'px')).observe(bar);
+  const onScroll = () => bar.classList.toggle('stuck', bar.getBoundingClientRect().top <= 0 && scrollY > 0);
+  addEventListener('scroll', onScroll, { passive: true });
+  let wasCards = isCards();
+  addEventListener('resize', () => { if (isCards() !== wasCards) { wasCards = isCards(); closePop(); $('#mx-list').innerHTML = ''; render(); } });
+  $('#mx-sub').textContent = isCards() ? L.subShort : L.sub; $('#mx-foot').textContent = L.foot;
+
+  const p0 = new URLSearchParams(location.search).get('q');
+  if (p0) { q.value = p0; setQuery(p0); } else setQuery('');
+  const start = () => { indexScreens(); render(); };
+  if (MOCKS && !window.SCREENS) {
+    const s = document.createElement('script');
+    s.src = 'mockups/screens.js'; s.onload = s.onerror = start;
+    document.head.appendChild(s);
+  } else start();
+})();
+</script>
+</body></html>

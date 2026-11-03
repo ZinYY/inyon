@@ -1,0 +1,4 @@
+! printf hello
+
+  GPT-6-Luna default · /tmp/project
+  Shell mode

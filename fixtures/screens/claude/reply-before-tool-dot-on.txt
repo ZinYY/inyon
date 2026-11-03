@@ -1,0 +1,40 @@
+     row 13 of the output
+     row 14 of the output
+     row 15 of the output
+     row 16 of the output
+     row 17 of the output
+     row 18 of the output
+
+     row 19 of the output
+     row 20 of the output
+     row 21 of the output
+     row 22 of the output
+     row 23 of the output
+     row 24 of the output
+
+     row 25 of the output
+     row 26 of the output
+     row 27 of the output
+     row 28 of the output
+     row 29 of the output
+     row 30 of the output
+
+[30m●[39m I ran the script as requested, and it finished, printing 30 numbered rows of output.
+
+[90m✻[39m [90mBrewed for 16s · done 9:35 PM[39m
+
+[90m[47m❯ [30mWrite the exact sentence 'Running the script a second time now.' as text, and only then call the Bash tool with: bash [39m
+  [30m~/demo/run.sh[39m
+
+[30m[49m●[39m Running the script a second time now.
+
+[90m●[39m [1mBash[0m(bash ~/demo/run.sh)
+
+[91m·[39m [91mFlambéing… [90m(3s · ↓[39m [90m54 tokens)[39m
+[90m  ⎿  Tip: Run [34m/ultrareview[90m for a cloud-based multi-agent review that finds and verifies bugs in your branch — 3 free reviews left[39m
+                                                                                                                                                  [90m45877 tokens[39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[90m❯ [39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[39m  [31m⏵⏵ bypass permissions on[90m (shift+tab to cycle) · ← 1 agent[39m

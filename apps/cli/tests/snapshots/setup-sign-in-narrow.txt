@@ -1,0 +1,18 @@
+◆╰─● inyon x.y.z
+step 4 of 5
+Signing in
+
+ The hub signs you in from a browser.
+ Setup prints its address and a
+ one-time code; open the address and
+ enter the code to choose a password.
+ `inyon hub code` shows the code
+ again.
+
+
+
+
+
+
+
+Enter next  ·  ← back  ·  Esc quit

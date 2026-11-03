@@ -1,0 +1,50 @@
+# One Cargo workspace for every Rust part of Inyon: the inyon command (apps/cli) and the crates
+# that replace the Bun engine and hub (crates/*). One lock file and one target/ for all of them.
+[workspace]
+resolver = "2"
+# each crate is listed by hand, so a half-made folder under crates/ never breaks the build
+members = ["apps/cli", "crates/inyon-protocol", "crates/inyon-link", "crates/inyon-engine", "crates/inyon-core", "crates/inyon-backends", "crates/inyon-api", "crates/inyon-hub", "crates/inyon-phone", "crates/inyon-chat-core", "apps/app"]
+# a plain `cargo build` (the release jobs) builds the inyon command and its crates; the Dioxus app
+# (apps/app) is built for the browser with dx (apps/app/build.sh) and checked by --workspace runs
+default-members = ["apps/cli", "crates/inyon-protocol", "crates/inyon-link", "crates/inyon-engine", "crates/inyon-core", "crates/inyon-backends", "crates/inyon-api", "crates/inyon-hub", "crates/inyon-phone", "crates/inyon-chat-core"]
+
+[workspace.package]
+# the release number, the same as package.json; every crate takes it from here
+version = "0.24.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+# Small, self-contained release files (the inyon command ships as one download per system).
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+# Unwinding, so a panic in one hub request or job ends that task alone (tokio catches it) instead
+# of the whole hub, as a throw in one Bun handler did. It costs some size; the Windows builds, which
+# have no hub, set CARGO_PROFILE_RELEASE_PANIC=abort in CI and don't pay it.
+panic = "unwind"
+opt-level = "z"
+
+# What dx builds the browser app (apps/app) with. It keeps the symbols: wasm-bindgen reads a custom
+# section that strip would remove, and wasm-opt strips the result afterwards. A panic in the page
+# can't be caught anyway, so abort, which is smaller.
+[profile.wasm-release]
+inherits = "release"
+strip = false
+panic = "abort"
+
+# Crypto the link's tests push megabytes through, and scrypt for short pairing codes, take seconds
+# unoptimised. Generic code is compiled in the crate that uses it, so snow and the AEAD wrapper count.
+[profile.dev.package.chacha20]
+opt-level = 3
+[profile.dev.package.chacha20poly1305]
+opt-level = 3
+[profile.dev.package.poly1305]
+opt-level = 3
+[profile.dev.package.salsa20]
+opt-level = 3
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.snow]
+opt-level = 3

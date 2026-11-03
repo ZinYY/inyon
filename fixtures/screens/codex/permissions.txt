@@ -1,0 +1,40 @@
+
+[1;2m› [0msay hi again
+
+
+[2m• [0mHi again!
+
+[2m  Worked for 1s • 22:30
+[0m
+
+[1;2m› [0mUse the request_user_input tool to ask me one question: which colour I prefer, with the options Red and Blue. After I
+  answer, reply with just the colour.
+
+
+[2m• [0mColour
+
+  • Red
+  • Blue
+
+
+[1;2m› [0m> Colour
+
+  Red
+
+
+[2m• [0mRed
+
+[2m  Worked for 1m 34s • 22:36
+[0m
+
+  [1mUpdate Model Permissions[0m
+
+
+[1;7m› 1. Ask for approval  [0;7mRead and edit workspace files and run commands, with approval required for internet access or[1m
+                       [0;7medits outside the workspace[1m
+[0m  2. Approve for me    [2mOnly ask for actions detected as potentially unsafe[0m
+  3. Full Access       [2mUse with caution: Codex can edit files outside this workspace and access the internet without[0m
+                       [2mapproval[0m
+  4. Read Only         [2mRead workspace files, with approval required for edits or internet access[0m
+
+  [1menter[0;2m select · [0;1mesc[0;2m back

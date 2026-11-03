@@ -1,0 +1,15 @@
+❯ Yes ask them now. line one
+  line two
+────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☐ Color  ☐ Fruits  ✔ Submit  →
+What is your favorite color?
+❯ 1. Red
+     The color red
+  2. Green
+     The color green
+  3. Blue
+     The color blue
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel

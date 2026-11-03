@@ -1,0 +1,7 @@
+• Working (2m 06s • esc to interrupt)
+  └ Tip: Use /subagents to switch between this session’s subagents.
+
+› Ask Codex to do anything
+
+  GPT-6.1-Sol default · ~/project
+  ← for agents · ? for shortcuts

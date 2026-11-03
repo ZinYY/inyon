@@ -1,0 +1,181 @@
+name: inyon
+
+# Builds everything a release attaches: the inyon command (apps/cli, through cli.yml, one file per
+# system, the engine, the hub and the web app inside) as inyon-<system>, and copies of it as
+# inyon-engine-<system> (scripts/engine-copies.sh) for inyon 0.12 to 0.22, which fetch that file
+# as they update. inyon-web.tar.gz is the web app as static files, for anyone who wants to serve
+# it themselves; inyon-skill-*.tar.gz are the agent skills in skills/. One
+# SHA256SUMS lists them all and the installers, signed with minisign as SHA256SUMS.minisig, which
+# the website, the installers and `inyon update` check before trusting the list.
+#   push to main  -> refreshes the "node-latest" pre-release
+#   tag v1.2.3    -> attached to that release, which the one-line installers fetch from
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['apps/cli/**', 'apps/app/**', 'crates/**', 'Cargo.toml', 'Cargo.lock', 'apps/web/**', 'installers/**', 'packages/**', 'scripts/**', 'skills/**', '.github/workflows/node.yml', '.github/workflows/cli.yml']
+  workflow_dispatch:
+
+# read-only unless a job says otherwise: only publish can change the releases, and it runs no
+# third-party code (the jobs that run `bun install`, tests and builds can't touch a release)
+permissions:
+  contents: read
+
+concurrency:
+  group: node-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # the inyon command for each system, as artifacts named like the release files
+  cli:
+    uses: ./.github/workflows/cli.yml
+    permissions:
+      contents: read
+
+  web:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      # get.sh's tests check a signed mock release when minisign is on the machine
+      - run: sudo apt-get update -q > /dev/null && sudo apt-get install -y -q minisign > /dev/null
+      - run: bun test ./installers ./scripts
+      - uses: ./.github/actions/phone-core
+
+      - name: Build
+        run: |
+          out="$RUNNER_TEMP/dist"
+          mkdir -p "$out"
+          # the web app for GitHub Pages
+          bun run --filter @inyon/web build:hosted
+          tar -czf "$out/inyon-web.tar.gz" -C apps/web/dist-hosted .
+          # each agent skill as inyon-skill-<name>.tar.gz with its folder at the top, for
+          # `inyon skill add` and for anyone who wants it on its own
+          for d in skills/*/; do n=$(basename "$d"); tar -czf "$out/inyon-skill-$n.tar.gz" --owner=0 --group=0 --numeric-owner --exclude="$n/tests" --exclude=__pycache__ -C skills "$n"; done
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web
+          path: ${{ runner.temp }}/dist
+
+  publish:
+    needs: [cli, web]
+    runs-on: ubuntu-24.04
+    # uploads to the release; it installs only Ubuntu's minisign package, to sign, and runs no
+    # dependencies
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web
+          path: ${{ runner.temp }}/dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: inyon-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/dist
+
+      - name: Checksums and installers
+        env:
+          # a password-less minisign secret key; forks and runs without it get an unsigned list
+          KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          PUBKEY: RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/dist"
+          # inyon-engine-* for inyon 0.12 to 0.22: copies of the new inyon, gzipped too
+          sh "$GITHUB_WORKSPACE/scripts/engine-copies.sh" .
+          # the one-line installers: curl …/get.sh | sh, or irm …/get.ps1 | iex
+          cp "$GITHUB_WORKSPACE/installers/get.sh" "$GITHUB_WORKSPACE/installers/get.ps1" .
+          # one list for every file, the installers too (from 0.20: the website serves only copies
+          # that match it), the list and its own signature left out of it
+          ls | grep -v -e '^SHA256SUMS' | xargs sha256sum > SHA256SUMS
+          cat SHA256SUMS
+          # the layout the installers and updaters count on
+          want="get.sh get.ps1 inyon-linux-x64 inyon-linux-x64.gz inyon-windows-arm64.exe inyon-web.tar.gz inyon-skill-blueprint.tar.gz inyon-skill-inyon.tar.gz"
+          for e in linux-x64 linux-x64-musl linux-arm64 linux-arm64-musl darwin-x64 darwin-arm64 windows-x64.exe; do
+            want="$want inyon-engine-$e inyon-engine-$e.gz"
+          done
+          for f in $want; do
+            grep -q " $f\$" SHA256SUMS || { echo "::error::$f is missing from the release"; exit 1; }
+          done
+          # the signature get.sh and `inyon update` check the list against (the key file lives
+          # outside the upload and is gone again before the step ends)
+          if [ -n "$KEY" ]; then
+            sudo apt-get update -q > /dev/null && sudo apt-get install -y -q minisign > /dev/null
+            keyfile="$RUNNER_TEMP/minisign.key"
+            # minisign wants the key file whole, a comment line above the key
+            (umask 077 && { case "$KEY" in "untrusted comment:"*) ;; *) echo "untrusted comment: minisign secret key" ;; esac; printf '%s\n' "$KEY"; } > "$keyfile")
+            # run again on a tag after android.yml listed the APK: keep its line (keep-apk.sh
+            # takes it only from the list the release key signed), or the website stops at the
+            # release before
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              was="$RUNNER_TEMP/was" && mkdir -p "$was"
+              gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p SHA256SUMS -p SHA256SUMS.minisig -D "$was" 2>/dev/null || true
+              gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p 'inyon-*.apk' -D "$was" 2>/dev/null || true
+              "$GITHUB_WORKSPACE/.github/scripts/keep-apk.sh" "$was" SHA256SUMS
+            fi
+            minisign -S -s "$keyfile" -m SHA256SUMS -x SHA256SUMS.minisig < /dev/null
+            rm -f "$keyfile"
+            minisign -V -m SHA256SUMS -x SHA256SUMS.minisig -P "$PUBKEY"
+          else
+            echo "::notice::MINISIGN_SECRET_KEY isn't set, so SHA256SUMS is not signed"
+          fi
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: inyon
+          path: ${{ runner.temp }}/dist
+
+      - name: Publish
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=("$RUNNER_TEMP"/dist/*)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # a tag with a hyphen (v0.19.0-rc.1) is a test build: a pre-release, so GitHub's
+            # "latest" and the website (which lists only vX.Y.Z) keep pointing at the last release
+            pre=(); [[ "$GITHUB_REF_NAME" == *-* ]] && pre=(--prerelease)
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" "${pre[@]}" --title "Inyon ${GITHUB_REF_NAME#v}" --generate-notes
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+          else
+            gh release delete node-latest --yes --cleanup-tag 2>/dev/null || true
+            gh release create node-latest "${files[@]}" --prerelease --target "$GITHUB_SHA" \
+              --title "Latest inyon build" \
+              --notes "Built from $GITHUB_SHA on main. Run \`inyon pair\` on a laptop and scan the code with the Inyon app."
+          fi
+
+  # a fresh install in four Linux containers from a mock of this release, and upgrades from real
+  # 0.12.0 and 0.17.6 installs (see scripts/container-tests.sh)
+  containers:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inyon-linux-x64
+          path: ${{ runner.temp }}/dist
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/inyon-tests
+          key: inyon-0.12.0-0.17.6-linux-x64
+      # the mock release signs its checksums with the test key, as a real one is signed
+      - run: sudo apt-get update -q > /dev/null && sudo apt-get install -y -q minisign > /dev/null
+      - run: scripts/container-tests.sh
+        env:
+          INYON_DIST: ${{ runner.temp }}/dist

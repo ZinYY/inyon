@@ -1,0 +1,15 @@
+{
+  "t": "chat.screen",
+  "key": "box:%3",
+  "screen": {
+    "working": true,
+    "width": 120,
+    "inputVisible": true,
+    "model": "GPT-6-Luna",
+    "effort": "default",
+    "questions": 1,
+    "activity": "Working",
+    "since": 1792319977000,
+    "background": null
+  }
+}

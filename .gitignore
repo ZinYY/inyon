@@ -1,0 +1,27 @@
+node_modules
+dist
+dist-hosted
+# the Rust phone core as wasm, written by apps/web/scripts/phone-core.ts
+apps/web/src/phone-core/
+*.tsbuildinfo
+.DS_Store
+
+# local only
+.scratch
+.claude/
+CLAUDE.md
+AGENTS.md
+.env
+.env.*
+*.log
+*.db
+*.sqlite
+coverage
+test-results
+playwright-report
+
+# the built site
+site/out
+
+# cargo's build output for the whole workspace
+/target

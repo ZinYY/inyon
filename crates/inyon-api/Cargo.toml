@@ -1,0 +1,39 @@
+[package]
+name = "inyon-api"
+version.workspace = true
+description = "The hub's API on inyon-core without a server: requests and answers, the route table, the core routes and the app's WebSocket clients, for the hub and the phone alike"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.23"
+bytes = "1.12"
+# streams without a runtime, as in inyon-core
+futures-util = { version = "0.3", default-features = false, features = ["alloc", "std"] }
+getrandom = "0.3"
+# the request and answer types only; the server that carries them is the hub's (axum) or the phone's
+http = "1.5"
+indexmap = "2.10"
+inyon-core = { path = "../inyon-core" }
+inyon-protocol = { path = "../inyon-protocol" }
+# raw DEFLATE for /ws2's large frames (DecompressionStream('deflate-raw') reads it in a browser)
+miniz_oxide = "0.9"
+# for inyon_core::re!, with the same features as inyon-core's
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "unicode-script"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+subtle = "2.6"
+url = "2.5"
+
+[dev-dependencies]
+# the app's side of /ws2, to check the hub's frames end in the rows v1 gives
+inyon-chat-core = { path = "../inyon-chat-core" }
+inyon-backends = { path = "../inyon-backends", features = ["testing"] }
+sha2 = "0.11"
+inyon-core = { path = "../inyon-core", features = ["testing"] }
+tokio = { version = "1.47", features = ["rt", "time", "macros"] }
+
+# crypto.getRandomValues in the browser (see .cargo/config.toml)
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }

@@ -1,0 +1,78 @@
+name: npm
+
+# Publishes the inyon command to npm after a release is built: @abhash-chakraborty/inyon and
+# the @abhash-chakraborty/inyon-<platform>-<arch> packages (see npm/pack.ts). It uses npm's trusted
+# publishing, so no npm token is stored anywhere: npm checks this workflow's OIDC token, and every
+# version gets a provenance statement that points back to this run. Run it by hand to publish a
+# release again; versions already on npm are skipped.
+
+on:
+  workflow_run:
+    workflows: [inyon]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, like v0.16.1
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # only a release: a tag pushed to this repo whose build succeeded
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-24.04
+    # npm only accepts this workflow in this environment, which deploys from main only
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      # npm 11.5.1 or later publishes with OIDC; Node 24 ships it
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Pack
+        env:
+          TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+        # the Android job signs SHA256SUMS again when it adds the APK; a check that lands in the
+        # middle of that fails, so try again a little later
+        run: |
+          for try in 1 2 3; do
+            bun npm/pack.ts "$TAG" "$RUNNER_TEMP/npm" && exit 0
+            sleep 90
+          done
+          exit 1
+
+      - name: Publish
+        working-directory: ${{ runner.temp }}/npm
+        # the platform packages first, so @abhash-chakraborty/inyon never points at versions that
+        # aren't there yet
+        run: |
+          npm --version
+          for dir in inyon-* inyon; do
+            name=$(jq -r .name "$dir/package.json")
+            version=$(jq -r .version "$dir/package.json")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already on npm"
+              continue
+            fi
+            npm publish "./$dir" --provenance --access public
+          done

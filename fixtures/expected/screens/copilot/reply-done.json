@@ -1,0 +1,26 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "mode": "default",
+      "inputVisible": true
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "mode": "default",
+      "inputVisible": true
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "mode": "default",
+      "inputVisible": true
+    }
+  }
+}

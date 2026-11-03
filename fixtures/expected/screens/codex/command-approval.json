@@ -1,0 +1,108 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Would you like to run the following command?",
+          "Environment: local",
+          "Reason: May I create hello.txt in the workspace containing the word hi?",
+          "$ printf 'hi\\n' > hello.txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for commands that start with `printf 'hi\\n' > hello.txt`",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run printf 'hi\\n' > hello.txt"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Would you like to run the following command?",
+          "Environment: local",
+          "Reason: May I create hello.txt in the workspace containing the word hi?",
+          "$ printf 'hi\\n' > hello.txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for commands that start with `printf 'hi\\n' > hello.txt`",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run printf 'hi\\n' > hello.txt"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 102,
+      "prompt": {
+        "body": [
+          "Would you like to run the following command?",
+          "Environment: local",
+          "Reason: May I create hello.txt in the workspace containing the word hi?",
+          "$ printf 'hi\\n' > hello.txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for commands that start with `printf 'hi\\n' > hello.txt`",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run printf 'hi\\n' > hello.txt"
+  },
+  "browsing": null
+}

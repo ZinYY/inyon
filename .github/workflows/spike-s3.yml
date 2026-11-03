@@ -1,0 +1,92 @@
+name: Spike S3 (tmux control mode)
+
+# Runs the control-mode spike (spikes/s3-tmux-control) against the tmux versions Inyon meets on
+# real machines, built from the release tarballs, and probes psmux on Windows. A copy of this file
+# is kept as spikes/s3-tmux-control/ci.yml so it survives if the workflow is dropped on merge.
+on:
+  workflow_dispatch:
+  push:
+    branches: [r0-spikes]
+    paths: ['spikes/s3-tmux-control/**', '.github/workflows/spike-s3.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spike-s3-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: spikes/s3-tmux-control
+
+jobs:
+  tmux:
+    name: tmux ${{ matrix.tmux }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tmux: ['3.0a', '3.2a', '3.3a', '3.4', '3.5a', '3.6a']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: ~/tmux-${{ matrix.tmux }}
+          key: tmux-${{ matrix.tmux }}-ubuntu-24.04-v1
+      - name: Libraries
+        working-directory: ${{ runner.temp }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libevent-dev libncurses-dev bison pkg-config build-essential
+      - name: Build tmux ${{ matrix.tmux }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL "https://github.com/tmux/tmux/releases/download/${{ matrix.tmux }}/tmux-${{ matrix.tmux }}.tar.gz" | tar xz
+          cd "tmux-${{ matrix.tmux }}"
+          # 3.0a predates GCC 10's -fno-common default
+          ./configure --prefix="$HOME/tmux-${{ matrix.tmux }}" CFLAGS="-O2 -fcommon"
+          make -j"$(nproc)"
+          make install
+      - run: |
+          "$HOME/tmux-${{ matrix.tmux }}/bin/tmux" -V
+          echo "TMUX_BIN=$HOME/tmux-${{ matrix.tmux }}/bin/tmux" >> "$GITHUB_ENV"
+      - name: Unit tests
+        run: cargo test --lib
+      - name: Against tmux ${{ matrix.tmux }}
+        # two at a time: the runner has 2 cores and the load tests time themselves
+        run: cargo test --test live -- --test-threads=2 --nocapture
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup component add clippy rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+
+  psmux:
+    name: psmux (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # a probe: it reports what psmux answers; the summary goes into REPORT.md
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install psmux
+        shell: pwsh
+        run: |
+          $v = 'v3.4.0'
+          $zip = "$env:RUNNER_TEMP\psmux.zip"
+          Invoke-WebRequest "https://github.com/psmux/psmux/releases/download/$v/psmux-$v-windows-x64.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\psmux"
+          $exe = Get-ChildItem "$env:RUNNER_TEMP\psmux" -Recurse -Filter psmux.exe | Select-Object -First 1
+          & $exe.FullName -V
+          "S3_PSMUX=$($exe.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "$($exe.DirectoryName)" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: Probe psmux control mode
+        timeout-minutes: 8
+        run: cargo test --test psmux -- --nocapture

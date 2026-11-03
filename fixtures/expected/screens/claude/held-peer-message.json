@@ -1,0 +1,104 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Held message from another session",
+          "Another Claude session sent a message: from uds:/run/user/1001/cc-socks/49259.sock [verified pid 49259] (peer claims name: Inyon development)",
+          "The sending session's permission mode class doesn't match this session's, so it wasn't delivered automatically.",
+          "Message body (this is what will be delivered):",
+          "╌",
+          "Test message from the Inyon development session: please reply with only",
+          "…[1 line, 163 chars total — full body will be delivered on approve]",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Deny",
+            "detail": "drop it and tell the sender it was declined",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Deliver this message to Claude",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Held message from another session: Test message from the Inyon development session: please reply with only"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Held message from another session",
+          "Another Claude session sent a message: from uds:/run/user/1001/cc-socks/49259.sock [verified pid 49259] (peer claims name: Inyon development)",
+          "The sending session's permission mode class doesn't match this session's, so it wasn't delivered automatically.",
+          "Message body (this is what will be delivered):",
+          "╌",
+          "Test message from the Inyon development session: please reply with only",
+          "…[1 line, 163 chars total — full body will be delivered on approve]",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Deny",
+            "detail": "drop it and tell the sender it was declined",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Deliver this message to Claude",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Held message from another session: Test message from the Inyon development session: please reply with only"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 142,
+      "prompt": {
+        "body": [
+          "Held message from another session",
+          "Another Claude session sent a message: from uds:/run/user/1001/cc-socks/49259.sock [verified pid 49259] (peer claims name: Inyon development)",
+          "The sending session's permission mode class doesn't match this session's, so it wasn't delivered automatically.",
+          "Message body (this is what will be delivered):",
+          "╌",
+          "Test message from the Inyon development session: please reply with only",
+          "…[1 line, 163 chars total — full body will be delivered on approve]",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Deny",
+            "detail": "drop it and tell the sender it was declined",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Deliver this message to Claude",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Held message from another session: Test message from the Inyon development session: please reply with only"
+  }
+}

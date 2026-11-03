@@ -1,0 +1,40 @@
+[2m  Worked for 2s • 22:29
+[0m
+
+[1;2m› [0msay hi again
+
+
+[2m• [0mHi again!
+
+[2m  Worked for 1s • 22:30
+[0m
+
+[1;2m› [0mUse the request_user_input tool to ask me one question: which colour I prefer, with the options Red and Blue. After I
+  answer, reply with just the colour.
+
+
+[2m• [0mColour
+
+  • Red
+  • Blue
+
+
+[1;2m› [0m> Colour
+
+  Red
+
+
+[2m• [0mRed
+
+[2m  Worked for 1m 34s • 22:36
+[0m
+
+  [1mSelect a review preset[0m
+
+
+[1;7m› 1. Review against a base branch  [0;7m(PR Style)[1m
+[0m  2. Review uncommitted changes
+  3. Review a commit
+  4. Custom review instructions
+
+  [1menter[0;2m select · [0;1mesc[0;2m back

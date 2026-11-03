@@ -1,0 +1,34 @@
+{
+  "name": "inyon",
+  "private": true,
+  "version": "0.24.0",
+  "description": "Drive Claude Code, Codex, Gemini CLI and OpenCode in tmux on all your machines from your phone or browser.",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "conformance"
+  ],
+  "scripts": {
+    "dev:hub": "cargo run -p inyon-cli -- engine hub",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "typecheck": "bun --filter \"*\" typecheck",
+    "cli:test": "cargo test --workspace"
+  },
+  "overrides": {
+    "glob": "^14.0.3"
+  },
+  "license": "MIT",
+  "author": "Abhash Chakraborty",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "opencode",
+    "tmux",
+    "remote",
+    "mobile",
+    "agents"
+  ]
+}

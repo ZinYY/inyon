@@ -1,0 +1,16 @@
+  ◆
+  ╰─●    inyon x.y.z
+────────────────────────────────────────────────────────────────────────────────
+Not set up yet: run `inyon setup`             No phones paired yet
+
+
+○ nothing runs in the background
+
+
+                                              No agents running in tmux
+
+
+
+Log: nothing yet
+! The engine isn't installed yet: run `inyon setup`.
+q quit · r refresh · s setup · p pair

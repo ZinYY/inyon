@@ -1,0 +1,31 @@
+{"step":"the machine connects; the app watches the overview"}
+{"node":"connect","result":"open"}
+{"open":"open","ws":"app"}
+{"msg":{"t":"sub.overview"},"send":"app"}
+{"got":{"overview":{"hosts":[{"agents":["claude","codex","opencode","copilot","gemini","antigravity"],"agyIntegration":"missing","config":{"id":"local","kind":"local","name":"<hostname>"},"hostname":"conformance-hub","integration":"missing","lastSeen":"<time>","latencyMs":"<ms>","machineKind":"server","os":"Linux","sessions":[],"signedIn":[],"status":"online","tmux":"no-server","updatedAt":"<time>"},{"agents":["claude","codex","opencode"],"agyIntegration":"unknown","config":{"id":"box","kind":"node","name":"Box","pairedAt":"<time>"},"hostname":"box","integration":"missing","lastSeen":"<time>","latencyMs":"<ms>","machineKind":"server","nodeVersion":"<version>","os":"Linux","sessions":[{"attached":0,"id":"$1","name":"work","windows":[{"active":true,"activity":1790000000,"id":"@1","index":0,"name":"claude","panes":[{"active":true,"agent":{"kind":"claude","mappedBy":"cwd","mode":"manual","pid":4100001,"sessionId":"<uuid:1>","startedAt":"<time>","state":"idle","status":{"effort":"high","updatedAt":0},"transcriptPath":"<tmp>/machine/home/.claude/projects/<tmp-slug>-machine-home-code-inyon/<uuid:1>.jsonl","ultracode":false},"command":"claude","cwd":"<tmp>/machine/home/code/inyon","dead":false,"height":30,"id":"%1","index":0,"title":"✳ Fix the flaky test","width":100}]}]}],"signedIn":[],"status":"online","tmux":"ok","updatedAt":"<time>"}],"organize":{"groups":[],"projects":[],"sessions":[],"spaces":[],"v":2},"t":"overview"}},"ws":"app"}
+{"step":"the app opens a terminal on the pane: it gets the screen"}
+{"msg":{"cols":80,"host":"box","id":"t1","pane":"%1","rows":24,"t":"term.open"},"send":"app"}
+{"got":{"terms":{"t1":{"data":"\u001b[H\u001b[2J● I ran the command.\r\n✻ Worked for 3s · done 2:57 AM\r\n                                                                                  ● high · /effort\r\n────────────────────────────────────────────────────────────────────────────────────────────────────\r\n❯ \r\n────────────────────────────────────────────────────────────────────────────────────────────────────\r\n  🕷 VENOM  Opus 5.5 · high                                                                   play\r\n  context ░░░░░░░░░░ 4%  36k / 1M               session $0.30 · 0m │ plan 5h 13% ↻07:10 · week 68%\r\n  ⏸ manual mode on"}}},"ws":"app"}
+{"machine":{"pty %1":[{"cmd":"tmux bind-key -T inyon-view WheelUpPane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' 'send-keys -M' 'copy-mode -e'; tmux bind-key -T inyon-view MouseDown1Pane 'select-pane -t = ; send-keys -M'; tmux bind-key -T inyon-view MouseDrag1Pane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' 'send-keys -M' 'copy-mode -M'; exec tmux -u new-session -s 'inyon-view-<random>' -n inyon-tmp \\; link-window -s '@1' -t 'inyon-view-<random>:' \\; kill-window -t 'inyon-view-<random>:inyon-tmp' \\; set-option -t 'inyon-view-<random>' status off \\; set-option -t 'inyon-view-<random>' key-table inyon-view \\; set-option -t 'inyon-view-<random>' prefix None \\; set-option -t 'inyon-view-<random>' prefix2 None \\; set-option -t 'inyon-view-<random>' destroy-unattached on \\; select-pane -t '%1'","cols":80,"pty":"open","rows":24}]}}
+{"step":"typing goes to the machine"}
+{"msg":{"d":"ls -la\r","id":"t1","t":"term.in"},"send":"app"}
+{"got":{"terms":{"t1":{"data":"ls -la\r"}}},"ws":"app"}
+{"machine":{"pty %1":[{"data":"ls -la\r","pty":"write"}]}}
+{"step":"the phone turns: resize (and a size too small, which is raised to the minimum)"}
+{"msg":{"cols":120,"id":"t1","rows":40,"t":"term.resize"},"send":"app"}
+{"msg":{"cols":2,"id":"t1","rows":1,"t":"term.resize"},"send":"app"}
+{"machine":{"pty %1":[{"cols":120,"pty":"resize","rows":40},{"cols":10,"pty":"resize","rows":4}]}}
+{"step":"closing it"}
+{"msg":{"id":"t1","t":"term.close"},"send":"app"}
+{"machine":{"pty %1":[{"pty":"kill"}]}}
+{"step":"input and resize for a terminal that is closed are ignored"}
+{"msg":{"d":"x","id":"t1","t":"term.in"},"send":"app"}
+{"msg":{"cols":90,"id":"t1","rows":30,"t":"term.resize"},"send":"app"}
+{"step":"a pane or machine that isn't there"}
+{"msg":{"cols":80,"host":"box","id":"t2","pane":"%99","rows":24,"t":"term.open"},"send":"app"}
+{"msg":{"cols":80,"host":"nowhere","id":"t3","pane":"%1","rows":24,"t":"term.open"},"send":"app"}
+{"got":{"terms":{"t2":{"exit":[{"id":"t2","reason":"Pane not found","t":"term.exit"}]},"t3":{"exit":[{"id":"t3","reason":"Pane not found","t":"term.exit"}]}}},"ws":"app"}
+{"step":"the view ends on the machine: the app is told"}
+{"msg":{"cols":80,"host":"box","id":"t4","pane":"%1","rows":24,"t":"term.open"},"send":"app"}
+{"got":{"terms":{"t4":{"data":"\u001b[H\u001b[2J● I ran the command.\r\n✻ Worked for 3s · done 2:57 AM\r\n                                                                                  ● high · /effort\r\n────────────────────────────────────────────────────────────────────────────────────────────────────\r\n❯ \r\n────────────────────────────────────────────────────────────────────────────────────────────────────\r\n  🕷 VENOM  Opus 5.5 · high                                                                   play\r\n  context ░░░░░░░░░░ 4%  36k / 1M               session $0.30 · 0m │ plan 5h 13% ↻07:10 · week 68%\r\n  ⏸ manual mode on","exit":[{"id":"t4","t":"term.exit"}]}}},"ws":"app"}
+{"machine":{"pty %1":[{"cmd":"tmux bind-key -T inyon-view WheelUpPane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' 'send-keys -M' 'copy-mode -e'; tmux bind-key -T inyon-view MouseDown1Pane 'select-pane -t = ; send-keys -M'; tmux bind-key -T inyon-view MouseDrag1Pane if-shell -F '#{||:#{pane_in_mode},#{mouse_any_flag}}' 'send-keys -M' 'copy-mode -M'; exec tmux -u new-session -s 'inyon-view-<random>' -n inyon-tmp \\; link-window -s '@1' -t 'inyon-view-<random>:' \\; kill-window -t 'inyon-view-<random>:inyon-tmp' \\; set-option -t 'inyon-view-<random>' status off \\; set-option -t 'inyon-view-<random>' key-table inyon-view \\; set-option -t 'inyon-view-<random>' prefix None \\; set-option -t 'inyon-view-<random>' prefix2 None \\; set-option -t 'inyon-view-<random>' destroy-unattached on \\; select-pane -t '%1'","cols":80,"pty":"open","rows":24}]}}

@@ -1,0 +1,33 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 33,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "background": null
+    }
+  },
+  "browsing": null
+}

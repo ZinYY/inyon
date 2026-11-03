@@ -1,0 +1,181 @@
+{
+  "about": "ed25519 identities: seed -> public key, z-base-32 id, the X25519 (Noise) key pair from the same seed, and signatures",
+  "identities": [
+    {
+      "seed": "8c0e780902dfd6d338a26b1d95598508d32d0eaf01816072eca3c7dbe91fd317",
+      "public_key": "2c31ebd68842e979f4f4e21bf1fff97c4ed0d745fb2b76a97777b0e22ea43623",
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "x25519_secret": "e06020b20704b2b617259af9f4e1e048a3dfa33da5bf935123a4cd3cc5256750",
+      "x25519_public": "eed84831250fa3279ded6bd288dbea837eb54c64825de9fd3f7fc7936b3b5d4c",
+      "signatures": [
+        {
+          "message": "",
+          "signature": "e03e7cf7be8757ad553033354d5a7edf29a258f4217bee3d09371e84f6edabc223bc0e8a493ca57d6fff4015b71973584a2b4a40083281c495682225bf18ad0a"
+        },
+        {
+          "message": "7465746865722d72656c61792d617574683a6e6f6e6365",
+          "signature": "fec748a1239597cb410d14107b9378721507eef6ac2efc1f0ba1455eb5d86359646a232bd69cbaa636b9d29ff2813b0a301dfbf947a94960ea70fd0e4c4fd502"
+        },
+        {
+          "message": "61206c6f6e676572206d6573736167652074686174207370616e73206d6f7265207468616e206f6e6520626c6f636b206f662073686135313220696e7075742c20736f207468652068617368696e672069732065786572636973656420706173742031323820627974657320696e20746f74616c",
+          "signature": "006ff13140ed34a9f9b19c922b6bdfc6209a1a4be4b828955af58afa3ea4ca950e15ecad66d43c269749fd5c4621394e034479627ae7d97e6c8868bf5e889e03"
+        }
+      ]
+    },
+    {
+      "seed": "d0516c4fe314cc9dda95a2b03b6b444becf5d07c9b6301db30e71addc6af4dcb",
+      "public_key": "a776c8f99db2f89e5622085aa7f6829e603670e53521601a20e38782bebaf8b8",
+      "id": "w75ct6c7smhjhitnbbpkx7wnu3odch8fgwosygtyhqdafxi49nhy",
+      "x25519_secret": "40e53b2d88ea2f7fb8fb87fe9786aec18dbf0c78b026356169e0e74005ba7152",
+      "x25519_public": "bb58239485b5d573fb71abde159a3b47c78907d1b49bb5a9f4a02593bf28e617",
+      "signatures": [
+        {
+          "message": "",
+          "signature": "1b161b16d998b7f2e5a2ef769e7709b09c0000a36cbb13cae1a625a8495ef31c05b3e9f46a505a9bf04711d75827aebf9dd83d1c4d3e597c60518ac8282aee0a"
+        },
+        {
+          "message": "7465746865722d72656c61792d617574683a6e6f6e6365",
+          "signature": "61e131e396dd9dd5148135aa2ca0dcd52d7f64903f1d488c5f6f88e46805a97098a2c922547d063b825d020f02b9318b639cd70455508b7169e3315de2477b05"
+        },
+        {
+          "message": "61206c6f6e676572206d6573736167652074686174207370616e73206d6f7265207468616e206f6e6520626c6f636b206f662073686135313220696e7075742c20736f207468652068617368696e672069732065786572636973656420706173742031323820627974657320696e20746f74616c",
+          "signature": "d0629039e45f0790acc72a6271d594e728f7fb1b0e95fb589015f908e80a811d49f39441a0c03ce9e61320077bf5711cf0382882a255953ebaf3ae9b3e662a04"
+        }
+      ]
+    },
+    {
+      "seed": "0000000000000000000000000000000000000000000000000000000000000000",
+      "public_key": "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+      "id": "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo",
+      "x25519_secret": "5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f156",
+      "x25519_public": "5bf55c73b82ebe22be80f3430667af570fae2556a6415e6b30d4065300aa947d",
+      "signatures": [
+        {
+          "message": "",
+          "signature": "8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803"
+        },
+        {
+          "message": "7465746865722d72656c61792d617574683a6e6f6e6365",
+          "signature": "d77e04eb9dcd4b6fcdeba0083ab61413b7f7fc891cdc89876f4a513075f36f7c326a2049fcb0f9963b16ebf04b567d0b8ec723b0ab2cde3c7929790ed8910e0c"
+        },
+        {
+          "message": "61206c6f6e676572206d6573736167652074686174207370616e73206d6f7265207468616e206f6e6520626c6f636b206f662073686135313220696e7075742c20736f207468652068617368696e672069732065786572636973656420706173742031323820627974657320696e20746f74616c",
+          "signature": "d5c4db0df792c02fda421c7b42f272bf4707677a4ee34a103ebb4043d4fcc78ac976fd6581e5d4bc702357c2ffc12c98c80813f26c0b0dd65f005252ba185c00"
+        }
+      ]
+    },
+    {
+      "seed": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "public_key": "76a1592044a6e4f511265bca73a604d90b0529d1df602be30a19a9257660d1f5",
+      "id": "q4oi1enrw51xkrjgmxf88jor5rfokkqt57onzaakdgw1k7uy484o",
+      "x25519_secret": "20cd6935864716a79d74dd5fabbd8964304051ca41a31c4659158ebb7c3d0b57",
+      "x25519_public": "d1fa3f01826bd8b78e057c086c7b22c7ad4358ca918099cd7b7e5d3acd7e285b",
+      "signatures": [
+        {
+          "message": "",
+          "signature": "ee00ac6e44a6a43bc3a701c137b467473e32a4bed47d3293fe6186fe9868c7d254024f65ffa552487bdbd34aaccd1e82c1a20a191d183dbb64c3523cccd89c0f"
+        },
+        {
+          "message": "7465746865722d72656c61792d617574683a6e6f6e6365",
+          "signature": "d0e6622bac78ed64bba5c7ee4b323bab2b44b3602fbccf82a7ec49ea88aaa06b50ff51c8ebff221fee38a68942252fc0ed89b3108ab4bc545362c5c5614a0702"
+        },
+        {
+          "message": "61206c6f6e676572206d6573736167652074686174207370616e73206d6f7265207468616e206f6e6520626c6f636b206f662073686135313220696e7075742c20736f207468652068617368696e672069732065786572636973656420706173742031323820627974657320696e20746f74616c",
+          "signature": "51ca154590a9ae341da786d0b29d364f527dbdded960a69f68ebf3033e757ba44ab8b65f9f8c330045838e5ec7c669a3b17bec5d778517d9fc7eff9f99785109"
+        }
+      ]
+    }
+  ],
+  "z32": [
+    {
+      "bytes": "",
+      "text": ""
+    },
+    {
+      "bytes": "00",
+      "text": "yy"
+    },
+    {
+      "bytes": "ff",
+      "text": "9h"
+    },
+    {
+      "bytes": "0102030405",
+      "text": "yrbygbyf"
+    },
+    {
+      "bytes": "5887a499d4010f",
+      "text": "mnd4jgqwyr8o"
+    },
+    {
+      "bytes": "5887a499d4010f64d6b27d38908bd38b00741288f8fc62e4c3066d9149ea2779",
+      "text": "mnd4jgqwyr8sjii1xwhjbn6utcy8erwe9d6gf3gdy3s3n1xkr7ho"
+    }
+  ],
+  "machine_ids": [
+    {
+      "text": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "valid": true
+    },
+    {
+      "text": "FOA6ZIWEEMWZU78WHEP9D993XT8PBI4F9CIZPKMZQ6AQRMIRGATO",
+      "valid": false
+    },
+    {
+      "text": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgatt",
+      "valid": false
+    },
+    {
+      "text": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgat",
+      "valid": false
+    },
+    {
+      "text": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgatoy",
+      "valid": false
+    },
+    {
+      "text": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgatl",
+      "valid": false
+    },
+    {
+      "text": "",
+      "valid": false
+    },
+    {
+      "text": "not a machine id",
+      "valid": false
+    }
+  ],
+  "verifications": [
+    {
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "message": "68656c6c6f",
+      "signature": "7cce214624e7aae0272c4304510a6731562ce296f79656aa9017b1e680ab61d28139aeb2bb488bd2cdd864fe313db908f4dd869b5bb25f676ada5277e654450c",
+      "valid": true
+    },
+    {
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "message": "68656c6c70",
+      "signature": "7cce214624e7aae0272c4304510a6731562ce296f79656aa9017b1e680ab61d28139aeb2bb488bd2cdd864fe313db908f4dd869b5bb25f676ada5277e654450c",
+      "valid": false
+    },
+    {
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "message": "68656c6c6f",
+      "signature": "7cce214624e7aae0272c4204510a6731562ce296f79656aa9017b1e680ab61d28139aeb2bb488bd2cdd864fe313db908f4dd869b5bb25f676ada5277e654450c",
+      "valid": false
+    },
+    {
+      "id": "w75ct6c7smhjhitnbbpkx7wnu3odch8fgwosygtyhqdafxi49nhy",
+      "message": "68656c6c6f",
+      "signature": "7cce214624e7aae0272c4304510a6731562ce296f79656aa9017b1e680ab61d28139aeb2bb488bd2cdd864fe313db908f4dd869b5bb25f676ada5277e654450c",
+      "valid": false
+    },
+    {
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "message": "68656c6c6f",
+      "signature": "7cce214624e7aae0272c4304510a6731562ce296f79656aa9017b1e680ab61d28139aeb2bb488bd2cdd864fe313db908f4dd869b5bb25f676ada5277e65445",
+      "valid": false
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Viewer check</title>
+  <link rel="stylesheet" href="kit/site.css">
+  <script src="kit/kit.js"></script>
+</head>
+<body>
+  <h1 id="title">A page from a computer</h1>
+  <p id="theme"></p>
+  <p id="said"></p>
+  <p id="progress">waiting</p>
+  <img id="dot" src="kit/dot.png" alt="">
+  <div id="bg" class="bg"></div>
+  <div id="later"></div>
+  <p><a id="other" href="other.html?from=index">Other page</a> <a id="docs" href="docs">Docs folder</a> <a id="jump" href="#end">Jump</a></p>
+  <iframe id="screen" title="screen"></iframe>
+  <p id="escape"></p>
+  <p id="end">end</p>
+  <script>
+    K.say('theme', new URLSearchParams(location.search).get('theme') || 'none')
+    fetch('progress.json').then((r) => r.json()).then((d) => K.say('progress', d.done + '/' + d.total))
+    document.getElementById('later').innerHTML = '<img id="pic" src="pic.png" onerror="this.dataset.failed=1">'
+    document.getElementById('screen').src = 'screens/a.html' + location.search
+    window.addEventListener('message', (e) => { if (e.source === parent && e.data && e.data.type === 'theme') K.say('said', 'theme ' + e.data.value) })
+    parent.postMessage({ type: 'theme?' }, '*')
+    // none of these may reach anything but the page's own files
+    const tries = []
+    tries.push(fetch('../../../../api/hosts').then((r) => 'climb ' + r.status, () => 'climb failed'))
+    tries.push(fetch('https://example.com/').then(() => 'outside answered', () => 'outside refused'))
+    let parentDoc = 'parent hidden'
+    try { void parent.document.title; parentDoc = 'parent open' } catch {}
+    Promise.all(tries).then((r) => K.say('escape', [self.origin, parentDoc, ...r].join(' | ')))
+  </script>
+</body>
+</html>

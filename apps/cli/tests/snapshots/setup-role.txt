@@ -1,0 +1,22 @@
+  ◆
+  ╰─●    inyon x.y.z
+1 Role  ·  2 Network  ·  3 Background  ·  4 Summary
+What is this machine to the app?
+
+ ● Pair it with the phone
+     the app connects to this machine directly
+ ○ Make it a hub
+     the server phones sign in to; it can add other machines
+ ○ Add it to a hub
+     with the command the hub shows under Add a machine
+
+
+
+
+
+
+
+
+
+
+↑↓ move  ·  Space choose  ·  Enter next  ·  ← back  ·  Esc quit

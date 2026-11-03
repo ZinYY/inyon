@@ -1,0 +1,311 @@
+{
+ "about": "Pure rules both hubs and the CLI share: slugify, isSlug, uniqueSlug (taken = the listed slugs), sitePathProblem (null when the folder may be a page), progressSummary (null when it gives undefined), listMax (the most bytes of pages.json any reader takes).",
+ "listMax": 4194304,
+ "slugify": [
+  {
+   "text": "Inyon plan",
+   "slug": "inyon-plan"
+  },
+  {
+   "text": "Handy redesign",
+   "slug": "handy-redesign"
+  },
+  {
+   "text": "  --Café: v2.0!--  ",
+   "slug": "caf-v2-0"
+  },
+  {
+   "text": "",
+   "slug": "page"
+  },
+  {
+   "text": "!!!",
+   "slug": "page"
+  },
+  {
+   "text": "ABC def_ghi",
+   "slug": "abc-def-ghi"
+  },
+  {
+   "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "slug": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+   "text": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb c",
+   "slug": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  {
+   "text": "ąęł 日本",
+   "slug": "page"
+  }
+ ],
+ "isSlug": [
+  {
+   "s": "ghostex",
+   "ok": true
+  },
+  {
+   "s": "a",
+   "ok": true
+  },
+  {
+   "s": "0",
+   "ok": true
+  },
+  {
+   "s": "a-b-c",
+   "ok": true
+  },
+  {
+   "s": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "ok": true
+  },
+  {
+   "s": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "ok": false
+  },
+  {
+   "s": "-a",
+   "ok": false
+  },
+  {
+   "s": "A",
+   "ok": false
+  },
+  {
+   "s": "a_b",
+   "ok": false
+  },
+  {
+   "s": "a.b",
+   "ok": false
+  },
+  {
+   "s": "",
+   "ok": false
+  },
+  {
+   "s": "a b",
+   "ok": false
+  },
+  {
+   "s": "ünï",
+   "ok": false
+  }
+ ],
+ "uniqueSlug": [
+  {
+   "base": "plan",
+   "taken": [],
+   "slug": "plan"
+  },
+  {
+   "base": "plan",
+   "taken": [
+    "plan"
+   ],
+   "slug": "plan-2"
+  },
+  {
+   "base": "plan",
+   "taken": [
+    "plan",
+    "plan-2",
+    "plan-3"
+   ],
+   "slug": "plan-4"
+  },
+  {
+   "base": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "taken": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-2"
+  },
+  {
+   "base": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-z",
+   "taken": [
+    "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-z"
+   ],
+   "slug": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-2"
+  }
+ ],
+ "sitePath": [
+  {
+   "path": "/home/abhash/development/custom-tmux/private/plans/ghostex",
+   "home": "/home/abhash",
+   "problem": null
+  },
+  {
+   "path": "/home/abhash/development/handy-redesign/",
+   "home": "/home/abhash",
+   "problem": null
+  },
+  {
+   "path": "relative/site",
+   "home": "/home/abhash",
+   "problem": "The folder must be an absolute path"
+  },
+  {
+   "path": "/",
+   "home": "/home/abhash",
+   "problem": "Pick the site's own folder, not / or your home folder"
+  },
+  {
+   "path": "//",
+   "home": "/home/abhash",
+   "problem": "Pick the site's own folder, not / or your home folder"
+  },
+  {
+   "path": "/home/abhash",
+   "home": "/home/abhash",
+   "problem": "Pick the site's own folder, not / or your home folder"
+  },
+  {
+   "path": "/home/abhash/",
+   "home": "/home/abhash",
+   "problem": "Pick the site's own folder, not / or your home folder"
+  },
+  {
+   "path": "/home/abhash/.ssh",
+   "home": "/home/abhash",
+   "problem": "Folders under ~/.ssh and ~/.inyon can't be pages"
+  },
+  {
+   "path": "/home/abhash/.ssh/site",
+   "home": "/home/abhash",
+   "problem": "Folders under ~/.ssh and ~/.inyon can't be pages"
+  },
+  {
+   "path": "/home/abhash/.inyon/pages",
+   "home": "/home/abhash",
+   "problem": "Folders under ~/.ssh and ~/.inyon can't be pages"
+  },
+  {
+   "path": "/home/abhash/.inyonx/site",
+   "home": "/home/abhash",
+   "problem": null
+  },
+  {
+   "path": "/home/abhash/a/../b",
+   "home": "/home/abhash",
+   "problem": "The folder must be an absolute path"
+  },
+  {
+   "path": "/home/abhash/./b",
+   "home": "/home/abhash",
+   "problem": "The folder must be an absolute path"
+  },
+  {
+   "path": "/srv/site",
+   "home": "/home/abhash",
+   "problem": null
+  },
+  {
+   "path": "C:\\Users\\abhash\\site",
+   "home": "/home/abhash",
+   "problem": null
+  },
+  {
+   "path": "C:\\",
+   "home": "/home/abhash",
+   "problem": "Pick the site's own folder, not / or your home folder"
+  }
+ ],
+ "progress": [
+  {
+   "data": {
+    "updated": "2026-10-19T12:00+00:00",
+    "now": "Writing the sub page",
+    "releases": [
+     {
+      "v": "0.1",
+      "r": "R1",
+      "title": "Fixture",
+      "status": "doing",
+      "tasks": [
+       {
+        "id": "a",
+        "title": "Index page",
+        "status": "done"
+       },
+       {
+        "id": "b",
+        "title": "Sub page",
+        "status": "doing"
+       },
+       {
+        "id": "c",
+        "title": "Images",
+        "status": "todo"
+       }
+      ]
+     }
+    ],
+    "log": []
+   },
+   "summary": {
+    "done": 1,
+    "total": 3,
+    "now": "Writing the sub page",
+    "updated": "2026-10-19T12:00+00:00"
+   }
+  },
+  {
+   "data": {
+    "releases": []
+   },
+   "summary": {
+    "done": 0,
+    "total": 0
+   }
+  },
+  {
+   "data": {
+    "now": "x",
+    "updated": 5,
+    "releases": [
+     {
+      "tasks": [
+       {
+        "status": "done"
+       },
+       {
+        "status": "doing"
+       },
+       "junk",
+       null
+      ]
+     },
+     "junk",
+     {
+      "tasks": "none"
+     }
+    ]
+   },
+   "summary": {
+    "done": 1,
+    "total": 2,
+    "now": "x"
+   }
+  },
+  {
+   "data": {
+    "now": "no releases"
+   },
+   "summary": null
+  },
+  {
+   "data": [],
+   "summary": null
+  },
+  {
+   "data": null,
+   "summary": null
+  },
+  {
+   "data": "text",
+   "summary": null
+  }
+ ]
+}

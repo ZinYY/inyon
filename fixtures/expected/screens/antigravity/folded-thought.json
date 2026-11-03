@@ -1,0 +1,32 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 114,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "inputVisible": true,
+      "mode": "default"
+    }
+  }
+}

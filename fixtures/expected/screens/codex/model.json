@@ -1,0 +1,111 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Select Model and Effort"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "GPT-6-Luna",
+            "detail": "Fast and affordable model for easier tasks.",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "GPT-5.6-Terra",
+            "detail": "Older balanced model for straightforward work.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "GPT-5.6-Luna",
+            "detail": "Older fast and efficient model.",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Model and Effort"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Select Model and Effort"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "GPT-6-Luna",
+            "detail": "Fast and affordable model for easier tasks.",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "GPT-5.6-Terra",
+            "detail": "Older balanced model for straightforward work.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "GPT-5.6-Luna",
+            "detail": "Older fast and efficient model.",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Model and Effort"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "prompt": {
+        "body": [
+          "Select Model and Effort"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "GPT-6-Luna",
+            "detail": "Fast and affordable model for easier tasks.",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "GPT-5.6-Terra",
+            "detail": "Older balanced model for straightforward work.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "GPT-5.6-Luna",
+            "detail": "Older fast and efficient model.",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Model and Effort"
+  },
+  "browsing": null
+}

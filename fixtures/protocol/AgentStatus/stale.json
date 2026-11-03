@@ -1,0 +1,28 @@
+{
+  "model": "Opus 5.5",
+  "modelId": "claude-opus-5-5",
+  "effort": "high",
+  "fast": true,
+  "version": "2.1.299",
+  "contextSize": 1000000,
+  "costUsd": 0.4127,
+  "durationMs": 1843210,
+  "apiDurationMs": 61234,
+  "linesAdded": 12,
+  "linesRemoved": 3,
+  "fiveHour": {
+    "pct": 13,
+    "resetsAt": 1792040400
+  },
+  "sevenDay": {
+    "pct": 68.5,
+    "resetsAt": 1792220400
+  },
+  "outputStyle": "default",
+  "updatedAt": 1792038612000,
+  "stale": {
+    "limits": "account",
+    "context": "compacted"
+  },
+  "plan": "max"
+}

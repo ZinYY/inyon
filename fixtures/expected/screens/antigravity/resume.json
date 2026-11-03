@@ -1,0 +1,149 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Conversations"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "[CURRENT] Inyon QA run",
+            "detail": "27 steps · 8m ago",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Simple Greeting",
+            "detail": "custom-tmux · 47 steps · 23m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Execute Shell Command Sleep Hi",
+            "detail": "ws2 · 6 steps · 39m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Execute Shell Command Date",
+            "detail": "ws · 21 steps · 1h ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Creating And Listing Files",
+            "detail": "ws · 6 steps · 1h ago",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Page  ctrl+f Grouped View  enter Select  f2 Rename  f4 Delete  tab Switch Tab",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Conversations"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Conversations"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "[CURRENT] Inyon QA run",
+            "detail": "27 steps · 8m ago",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Simple Greeting",
+            "detail": "custom-tmux · 47 steps · 23m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Execute Shell Command Sleep Hi",
+            "detail": "ws2 · 6 steps · 39m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Execute Shell Command Date",
+            "detail": "ws · 21 steps · 1h ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Creating And Listing Files",
+            "detail": "ws · 6 steps · 1h ago",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Page  ctrl+f Grouped View  enter Select  f2 Rename  f4 Delete  tab Switch Tab",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Conversations"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 114,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Conversations"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "[CURRENT] Inyon QA run",
+            "detail": "27 steps · 8m ago",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Simple Greeting",
+            "detail": "custom-tmux · 47 steps · 23m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Execute Shell Command Sleep Hi",
+            "detail": "ws2 · 6 steps · 39m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Execute Shell Command Date",
+            "detail": "ws · 21 steps · 1h ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Creating And Listing Files",
+            "detail": "ws · 6 steps · 1h ago",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Page  ctrl+f Grouped View  enter Select  f2 Rename  f4 Delete  tab Switch Tab",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Conversations"
+  }
+}

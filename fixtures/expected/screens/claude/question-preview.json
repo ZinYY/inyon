@@ -1,0 +1,122 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Which layout?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Grid",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "List",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Cards",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Layout",
+            "done": false,
+            "current": true
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Which layout?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Which layout?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Grid",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "List",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Cards",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Layout",
+            "done": false,
+            "current": true
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Which layout?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 160,
+      "prompt": {
+        "body": [
+          "Which layout?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Grid",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "List",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Cards",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Layout",
+            "done": false,
+            "current": true
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Which layout?"
+  }
+}

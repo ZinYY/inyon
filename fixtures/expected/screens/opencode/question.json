@@ -1,0 +1,101 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Use tab characters for indentation"
+          },
+          {
+            "n": 2,
+            "label": "Spaces",
+            "selected": false,
+            "detail": "Use space characters for indentation"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "freeTextOption": 3
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Use tab characters for indentation"
+          },
+          {
+            "n": 2,
+            "label": "Spaces",
+            "selected": false,
+            "detail": "Use space characters for indentation"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "freeTextOption": 3
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Use tab characters for indentation"
+          },
+          {
+            "n": 2,
+            "label": "Spaces",
+            "selected": false,
+            "detail": "Use space characters for indentation"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "freeTextOption": 3
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  }
+}

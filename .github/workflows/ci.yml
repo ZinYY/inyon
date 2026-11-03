@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    # a test that hangs fails here instead of holding a runner until it's shut down
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      # get.sh's tests and the release pipeline's check signed mock releases with it
+      - run: sudo apt-get update -q > /dev/null && sudo apt-get install -y -q minisign > /dev/null
+      - run: bun run typecheck
+      - run: bun test
+        working-directory: apps/web
+      - run: bun test
+        working-directory: packages/protocol
+      # the one-line installers, the workflows' permissions, the Android job's re-signing, and the
+      # site's release mirror
+      - run: bun test ./installers ./scripts ./site
+      - run: bun run build
+        env:
+          # a hub's copy never runs the phone core (vite.config.ts)
+          VITE_INYON_PHONE_CORE: none
+
+  # the hub's answers against the golden transcripts (conformance/README.md): the inyon command
+  # from this checkout, serving the web app built here. On a pull request only when it touches the
+  # hub, the app, the shared packages, the Rust crates or the harness
+  conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Changes the hub?
+        id: paths
+        run: |
+          if [ "${{ github.event_name }}" != pull_request ] || git diff --name-only HEAD^1 HEAD | grep -qE '^(apps/cli|apps/web|packages|crates|conformance|Cargo\.(toml|lock))'; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing the hub depends on changed; skipping."
+            echo run=false >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.paths.outputs.run == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - if: steps.paths.outputs.run == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.paths.outputs.run == 'true'
+        run: bun run build
+        working-directory: apps/web
+        env:
+          # a hub's copy never runs the phone core (vite.config.ts)
+          VITE_INYON_PHONE_CORE: none
+      - if: steps.paths.outputs.run == 'true'
+        run: cargo build -p inyon-cli
+      - if: steps.paths.outputs.run == 'true'
+        run: bun test test
+        working-directory: conformance
+      - if: steps.paths.outputs.run == 'true'
+        run: bun conformance/run.ts
+
+  # the built app in Chromium at phone widths: text stays inside the composer and chat bubbles
+  layout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: bun run build
+        working-directory: apps/web
+        env:
+          # a hub's copy never runs the phone core (vite.config.ts)
+          VITE_INYON_PHONE_CORE: none
+      - run: bun run e2e
+        working-directory: apps/web
+      # the skills each release ships: blueprint's template renders with no errors or dead buttons
+      - run: bash scripts/test-skills.sh
+        env:
+          BLUEPRINT_PLAYWRIGHT: apps/web
+      # how fast the built app opens and how smooth it stays under updates, in the job summary. A
+      # shared runner's numbers wobble, so this reports and never fails the build
+      - name: Speed report
+        continue-on-error: true
+        working-directory: apps/web
+        run: |
+          {
+            echo '### Speed (phone profile, 10 Mbit, this runner)'
+            echo '```'
+            bun scripts/perf/cold.ts | grep -v fetched
+            bun scripts/perf/updates.ts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,5 @@
+• Two ways to do it:
+  1. Patch the parser
+  2. Rewrite it
+
+› Ask Codex to do anything

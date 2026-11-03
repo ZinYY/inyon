@@ -1,0 +1,158 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Indent with tab characters"
+          },
+          {
+            "n": 2,
+            "label": "Spaces                                                                                                          /tmp/tester-1001/-home-ubuntu-",
+            "selected": false,
+            "detail": "Indent with spaces                                                                                              development-custom-tmux/7409eef9-d507-"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer                                                                                            4808-a592-0bfabe896e3a/scratchpad/",
+            "selected": false,
+            "detail": "octui/t1"
+          }
+        ],
+        "multi": false,
+        "tabs": [
+          {
+            "label": "Indentation",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Colours",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": false
+          }
+        ]
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "contextUsed": 36533,
+      "contextPct": 18,
+      "costUsd": 0,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Indent with tab characters"
+          },
+          {
+            "n": 2,
+            "label": "Spaces",
+            "selected": false,
+            "detail": "Indent with spaces"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "freeTextOption": 3,
+        "tabs": [
+          {
+            "label": "Indentation",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Colours",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": false
+          }
+        ]
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "contextUsed": 36533,
+      "contextPct": 18,
+      "costUsd": 0,
+      "prompt": {
+        "body": [
+          "Do you prefer tabs or spaces?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Tabs",
+            "selected": true,
+            "detail": "Indent with tab characters"
+          },
+          {
+            "n": 2,
+            "label": "Spaces",
+            "selected": false,
+            "detail": "Indent with spaces"
+          },
+          {
+            "n": 3,
+            "label": "Type your own answer",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "freeTextOption": 3,
+        "tabs": [
+          {
+            "label": "Indentation",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "Colours",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Confirm",
+            "done": false,
+            "current": false
+          }
+        ]
+      }
+    },
+    "summary": "Do you prefer tabs or spaces?"
+  }
+}

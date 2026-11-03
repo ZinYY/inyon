@@ -1,0 +1,47 @@
+{
+  "t": "chat.info",
+  "key": "box:%3",
+  "info": {
+    "hostId": "box",
+    "paneId": "%3",
+    "agent": "codex",
+    "running": true,
+    "cwd": "/home/me/code/api",
+    "model": "gpt-6-luna",
+    "version": "0.162.1",
+    "status": {
+      "model": "gpt-6-luna",
+      "modelId": "gpt-6-luna",
+      "effort": "high",
+      "credits": {
+        "balance": "12.50",
+        "unlimited": false
+      },
+      "plan": "pro",
+      "contextUsed": 16034,
+      "contextSize": 272000,
+      "contextPct": 5.89485294117647,
+      "fiveHour": {
+        "pct": 7,
+        "resetsAt": 1792071010
+      },
+      "sevenDay": {
+        "pct": 41.5,
+        "resetsAt": 1792600000
+      },
+      "updatedAt": 1792062010000
+    },
+    "mode": "auto-review",
+    "queue": [],
+    "tasks": [],
+    "subagents": [],
+    "artifacts": [],
+    "stats": {
+      "turns": 1,
+      "compactions": 0,
+      "contextTokens": 16034,
+      "contextAt": 1792062010000
+    },
+    "mappedBy": "process"
+  }
+}

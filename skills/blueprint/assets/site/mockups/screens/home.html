@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today</title>
+<link rel="stylesheet" href="../../kit/blueprint.css">
+<script src="../../kit/lucide.min.js"></script><script src="../../kit/data.js"></script>
+<script src="../../kit/kit.js"></script><script src="../../kit/menus.js"></script><script src="../../kit/shell.js"></script>
+<style>
+  .home { padding: 28px 28px 40px; max-width: 760px; display: grid; gap: 18px; }
+  .home h2 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+  .home .sub { color: var(--fg-3); font-size: 14px; margin: 4px 0 0; }
+  .home .now { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .home .now b { font-weight: 600; } .home .now span { color: var(--fg-3); font-size: 13px; }
+  .home .need { padding: 6px; } .home .need .row { font-size: 14px; } .home .need .q { margin-left: auto; font: 12px var(--mono); color: var(--fg-3); }
+  .home .off { display: inline-flex; align-items: center; gap: 6px; }
+  @media (max-width: 640px) { .home { padding: 8px 12px 24px; } .home h2 { display: none; } }
+</style>
+</head><body>
+<div id="app"></div>
+<template id="notes">
+  <p>The first screen after opening Pantry: who is shopping, and what is still needed across every list.</p>
+  <ol><li>Opens from the phone's own copy, so it shows at once with no signal (2.4).</li><li>The offline chip appears only while offline and says how many edits are waiting.</li><li>Each needed item opens its list; long-press or right-click gives the same menu as the list row.</li></ol>
+</template>
+<script>
+const need = [['Oat milk', 'Big shop', '2'], ['Basil', 'Market on Saturday', '1 bunch'], ['Crisps', 'Party snacks', '4'], ['Plasters', 'Pharmacy', '1']];
+K.shell.mount({
+  nav: 'home', title: 'Today',
+  actions: `<span class="chip off" data-tip="3 edits wait for signal">${K.icon('wifi-off')} Offline · 3</span><button class="btn sm primary" data-act="new">${K.icon('plus')} New list</button>`,
+  phoneActions: `<span class="chip off">${K.icon('wifi-off')} 3</span>`,
+  main: `<div class="scroll" style="flex:1"><div class="home">
+    <div><h2>Today</h2><p class="sub">Monday, 1 March</p></div>
+    <div class="card sm now"><span class="dot live"></span><div><b>Jonas is shopping</b><br><span>Big shop · 14 left · ticked 6 in the last 10 minutes</span></div><span style="flex:1"></span><button class="btn sm" data-act="go" data-href="list.html">Open</button></div>
+    <div><p class="label" style="margin:0 0 8px">Still needed</p>
+    <div class="card sm need" data-keynav>${need.map(([t, l, q], i) => `<div class="row" data-row="n${i}" tabindex="0" role="button" data-ctx="item" data-id="l1"><input type="checkbox" aria-label="Tick ${t}" onclick="event.stopPropagation(); K.undo('Ticked ${t}')"> ${K.esc(t)} <span class="muted" style="color:var(--fg-3);font-size:13px">· ${K.esc(l)}</span><span class="q">${q}</span></div>`).join('')}</div></div>
+  </div></div>`,
+  onMount(root) { K.$$('.need .row', root).forEach((r) => (r.onclick = () => (location.href = 'list.html' + location.search))); },
+});
+</script>
+</body></html>

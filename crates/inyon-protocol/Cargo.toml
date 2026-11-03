@@ -1,0 +1,21 @@
+[package]
+name = "inyon-protocol"
+version.workspace = true
+description = "Inyon's wire types: the JSON the hub, the engine and the app exchange"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+indexmap = { version = "2.10", features = ["serde"] }
+# only for `detect_agent` (the `detect` feature); the app leaves it out to stay small
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_with = { version = "3.16", default-features = false, features = ["macros"] }
+ts-rs = { version = "12.0", features = ["indexmap-impl", "no-serde-warnings"] }
+
+[features]
+default = ["detect"]
+# which agent a process is, from the catalog's argv patterns: the engine's
+detect = ["dep:regex"]

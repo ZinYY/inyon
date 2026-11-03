@@ -1,0 +1,21 @@
+# What `bun run build` in apps/web needs to build the phone core (crates/inyon-phone) as wasm: the
+# wasm target and wasm-bindgen at the version the crate pins, kept in a cache between runs.
+name: Phone core tools
+description: The wasm target and wasm-bindgen-cli for apps/web/scripts/phone-core.ts
+runs:
+  using: composite
+  steps:
+    - name: Pinned version
+      id: pin
+      shell: bash
+      run: echo "version=$(sed -n 's/^wasm-bindgen = "=\(.*\)"/\1/p' crates/inyon-phone/Cargo.toml)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: cache
+      with:
+        path: ~/.cargo/bin/wasm-bindgen
+        key: wasm-bindgen-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.version }}
+    - shell: bash
+      run: rustup target add wasm32-unknown-unknown
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: cargo install wasm-bindgen-cli --locked --version "${{ steps.pin.outputs.version }}"

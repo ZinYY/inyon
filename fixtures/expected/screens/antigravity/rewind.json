@@ -1,0 +1,200 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Rewind Conversation"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Then say done.",
+            "detail": "19m ago",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Write a 400-word short story about a lighthouse keeper. Do not use any tools.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Then reply with just the word done.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Run the shell command: ls -la",
+            "detail": "14m ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "/goal Reply with the word ready, then stop",
+            "detail": "12m ago",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "/goal Reply with the word set, then stop",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "Run the shell command: uname -a",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 8,
+            "label": "(current)",
+            "selected": true
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  enter Select  esc Cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Rewind Conversation"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Rewind Conversation"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Then say done.",
+            "detail": "19m ago",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Write a 400-word short story about a lighthouse keeper. Do not use any tools.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Then reply with just the word done.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Run the shell command: ls -la",
+            "detail": "14m ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "/goal Reply with the word ready, then stop",
+            "detail": "12m ago",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "/goal Reply with the word set, then stop",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "Run the shell command: uname -a",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 8,
+            "label": "(current)",
+            "selected": true
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  enter Select  esc Cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Rewind Conversation"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 114,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Rewind Conversation"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Then say done.",
+            "detail": "19m ago",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Write a 400-word short story about a lighthouse keeper. Do not use any tools.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Then reply with just the word done.",
+            "detail": "16m ago",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Run the shell command: ls -la",
+            "detail": "14m ago",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "/goal Reply with the word ready, then stop",
+            "detail": "12m ago",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "/goal Reply with the word set, then stop",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "Run the shell command: uname -a",
+            "detail": "7m ago",
+            "selected": false
+          },
+          {
+            "n": 8,
+            "label": "(current)",
+            "selected": true
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  enter Select  esc Cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Rewind Conversation"
+  }
+}

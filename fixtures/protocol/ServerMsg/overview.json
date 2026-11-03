@@ -1,0 +1,261 @@
+{
+  "t": "overview",
+  "hosts": [
+    {
+      "config": {
+        "id": "local",
+        "name": "This computer",
+        "kind": "local",
+        "keepIntegration": true
+      },
+      "status": "online",
+      "hostname": "box",
+      "integration": "installed",
+      "agyIntegration": "missing",
+      "tmux": "ok",
+      "agents": [
+        "claude",
+        "codex",
+        "opencode"
+      ],
+      "signedIn": [
+        "claude",
+        "codex"
+      ],
+      "os": "linux",
+      "machineKind": "server",
+      "latencyMs": 3,
+      "sessions": [
+        {
+          "id": "$1",
+          "name": "main",
+          "attached": 1,
+          "windows": [
+            {
+              "id": "@1",
+              "index": 0,
+              "name": "work",
+              "active": true,
+              "activity": 1792038612,
+              "panes": [
+                {
+                  "id": "%12",
+                  "index": 0,
+                  "active": true,
+                  "command": "claude",
+                  "cwd": "/home/me/code/shop",
+                  "title": "✳ Fix coupon rounding",
+                  "label": "shop",
+                  "width": 100,
+                  "height": 40,
+                  "dead": false,
+                  "agent": {
+                    "kind": "claude",
+                    "pid": 48211,
+                    "sessionId": "6f1c2a9e-1b7d-4f0e-9a51-0c2b5d7e8f31",
+                    "transcriptPath": "/home/me/.claude/projects/-home-me-code-shop/6f1c2a9e-1b7d-4f0e-9a51-0c2b5d7e8f31.jsonl",
+                    "mappedBy": "hook",
+                    "state": "waiting",
+                    "mode": "accept edits",
+                    "waitingFor": "Bash: npm test",
+                    "options": [
+                      {
+                        "n": 1,
+                        "label": "Yes"
+                      },
+                      {
+                        "n": 2,
+                        "label": "Yes, and don't ask again for npm test"
+                      },
+                      {
+                        "n": 3,
+                        "label": "No"
+                      }
+                    ],
+                    "background": "1 shell",
+                    "ultracode": false,
+                    "status": {
+                      "model": "Opus 5.5",
+                      "modelId": "claude-opus-5-5",
+                      "effort": "high",
+                      "fast": false,
+                      "version": "2.1.299",
+                      "contextPct": 4.2,
+                      "contextUsed": 21435,
+                      "contextSize": 1000000,
+                      "costUsd": 0.4127,
+                      "durationMs": 1843210,
+                      "apiDurationMs": 61234,
+                      "linesAdded": 12,
+                      "linesRemoved": 3,
+                      "fiveHour": {
+                        "pct": 13,
+                        "resetsAt": 1792040400
+                      },
+                      "sevenDay": {
+                        "pct": 68.5,
+                        "resetsAt": 1792220400
+                      },
+                      "outputStyle": "default",
+                      "updatedAt": 1792038612000
+                    },
+                    "startedAt": 1792037998000
+                  }
+                },
+                {
+                  "id": "%3",
+                  "index": 1,
+                  "active": false,
+                  "command": "codex",
+                  "cwd": "/home/me/code/api",
+                  "title": "api",
+                  "width": 120,
+                  "height": 40,
+                  "dead": false,
+                  "agent": {
+                    "kind": "codex",
+                    "pid": 912,
+                    "mappedBy": "process",
+                    "state": "working",
+                    "activity": "Working",
+                    "status": {
+                      "model": "gpt-6-luna",
+                      "modelId": "gpt-6-luna",
+                      "effort": "high",
+                      "credits": {
+                        "balance": "12.50",
+                        "unlimited": false
+                      },
+                      "plan": "pro",
+                      "contextUsed": 16034,
+                      "contextSize": 272000,
+                      "contextPct": 5.89485294117647,
+                      "fiveHour": {
+                        "pct": 7,
+                        "resetsAt": 1792071010
+                      },
+                      "sevenDay": {
+                        "pct": 41.5,
+                        "resetsAt": 1792600000
+                      },
+                      "updatedAt": 1792062010000
+                    },
+                    "statusStopped": true
+                  }
+                },
+                {
+                  "id": "%4",
+                  "index": 2,
+                  "active": false,
+                  "command": "zsh",
+                  "cwd": "/home/me",
+                  "title": "box",
+                  "width": 80,
+                  "height": 24,
+                  "dead": true
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "updatedAt": 1792038612000,
+      "lastSeen": 1792038612000
+    },
+    {
+      "config": {
+        "id": "web1",
+        "name": "web1",
+        "kind": "ssh",
+        "target": "deploy@web1.example.com",
+        "port": 2222,
+        "identityFile": "~/.ssh/id_ed25519"
+      },
+      "status": "error",
+      "error": "ssh: connect to host web1.example.com port 2222: Connection timed out",
+      "integration": "unknown",
+      "tmux": "unknown",
+      "agents": [],
+      "sessions": [],
+      "updatedAt": 1792038600000,
+      "lastSeen": 1792030000000,
+      "offlineSince": 1792031000000
+    },
+    {
+      "config": {
+        "id": "n7",
+        "name": "build box",
+        "kind": "node",
+        "tokenHash": "c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeebeef",
+        "pairedAt": 1791900000000,
+        "tokenIssuedAt": 1791899000000
+      },
+      "status": "online",
+      "hostname": "build",
+      "integration": "outdated",
+      "tmux": "no-server",
+      "agents": [
+        "claude"
+      ],
+      "os": "darwin",
+      "machineKind": "desktop",
+      "nodeVersion": "0.17.4",
+      "nodeUpdate": {
+        "latest": "0.17.6",
+        "supported": true,
+        "state": "failed",
+        "error": "download failed"
+      },
+      "latencyMs": 41,
+      "sessions": [],
+      "updatedAt": 1792038611000
+    },
+    {
+      "config": {
+        "id": "lap",
+        "name": "laptop",
+        "kind": "link",
+        "machineId": "K7Q4MX2T",
+        "urls": [
+          "https://abc.trycloudflare.com"
+        ],
+        "relays": [
+          "wss://relay.example.net"
+        ]
+      },
+      "status": "connecting",
+      "integration": "removed",
+      "tmux": "missing",
+      "agents": [
+        "claude",
+        "antigravity"
+      ],
+      "os": "windows",
+      "machineKind": "laptop",
+      "nodeVersion": "0.13.0",
+      "nodeUpdate": {
+        "latest": "0.17.6",
+        "supported": false
+      },
+      "sessions": [],
+      "updatedAt": 1792038000000
+    },
+    {
+      "config": {
+        "id": "pi",
+        "name": "pi",
+        "kind": "ssh",
+        "target": "pi",
+        "hostKey": "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+        "auth": "phone-key",
+        "via": "lap"
+      },
+      "status": "online",
+      "integration": "missing",
+      "tmux": "ok",
+      "agents": [],
+      "sessions": [],
+      "updatedAt": 1792038612000
+    }
+  ]
+}

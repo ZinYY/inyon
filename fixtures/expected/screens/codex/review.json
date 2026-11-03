@@ -1,0 +1,117 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Select a review preset"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Review against a base branch",
+            "detail": "(PR Style)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Review uncommitted changes",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Review a commit",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Custom review instructions",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select a review preset"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Select a review preset"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Review against a base branch",
+            "detail": "(PR Style)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Review uncommitted changes",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Review a commit",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Custom review instructions",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select a review preset"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "prompt": {
+        "body": [
+          "Select a review preset"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Review against a base branch",
+            "detail": "(PR Style)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Review uncommitted changes",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Review a commit",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Custom review instructions",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select a review preset"
+  },
+  "browsing": null
+}

@@ -1,0 +1,6 @@
+{
+  "token": "fixture-companion-token-not-a-real-one",
+  "hubId": "3f9c1a7e2b6d4c80",
+  "scopes": ["overview", "chat", "answer", "send"],
+  "contractVersion": 1
+}

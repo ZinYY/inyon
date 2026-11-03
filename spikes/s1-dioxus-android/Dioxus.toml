@@ -1,0 +1,14 @@
+[application]
+name = "inyon-spike"
+# our own manifest and activity: they add the keep-alive service, its permissions and adjustResize
+android_manifest = "android/AndroidManifest.xml"
+android_main_activity = "android/MainActivity.kt"
+
+[bundle]
+identifier = "tech.abhashchakraborty.inyon.spike"
+publisher = "Abhash Chakraborty"
+
+[android]
+min_sdk = 26
+target_sdk = 35
+compile_sdk = 35

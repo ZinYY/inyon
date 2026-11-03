@@ -1,0 +1,104 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "OpenCode needs permission",
+          "Access external directory /etc",
+          "Patterns",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Allow once",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Allow always",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Reject",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "OpenCode needs permission"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "OpenCode needs permission",
+          "Access external directory /etc",
+          "Patterns",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Allow once",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Allow always",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Reject",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "OpenCode needs permission"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "OpenCode needs permission",
+          "Access external directory /etc",
+          "Patterns",
+          "- /etc/*"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Allow once",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Allow always",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Reject",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "OpenCode needs permission"
+  }
+}

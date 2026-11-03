@@ -1,0 +1,28 @@
+[package]
+name = "inyon-backends"
+version.workspace = true
+description = "What the hub's core needs from the machine it runs on: processes, ssh, terminals, files under ~/.inyon and its event loop"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+inyon-core = { path = "../inyon-core" }
+inyon-protocol = { path = "../inyon-protocol" }
+portable-pty = "0.9"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+tokio = { version = "1.47", features = ["rt", "time", "process", "io-util", "sync", "macros"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[features]
+# test runs only: commands never see $TMUX and get a tmux folder of their own (test-setup.ts)
+testing = []
+
+[dev-dependencies]
+indexmap = "2.10"
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl"] }
+inyon-core = { path = "../inyon-core", features = ["testing"] }
+inyon-backends = { path = ".", features = ["testing"] }

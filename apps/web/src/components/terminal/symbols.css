@@ -1,0 +1,12 @@
+/* Symbols agents draw that phone fonts often lack, so they came out as boxes: Claude Code's ⏵⏵
+   (accept edits), ⏸ (plan mode), ⏺, and the rest of U+23E9 to U+23FA. Cut from Noto Sans Symbols 2
+   (SIL Open Font License 1.1, see symbols-OFL.txt), 1.6 KB. It's the terminal's last font, so it only
+   draws what the fonts before it can't, and it loads only with the terminal. */
+@font-face {
+  font-family: 'Inyon Symbols';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./symbols.woff2) format('woff2');
+  unicode-range: U+23E9-23FA;
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "a1b2c3d4e5f6",
+    "name": "Legato on test-laptop",
+    "app": "Legato for Windows",
+    "scopes": ["overview", "chat", "answer", "send"],
+    "contractVersion": 1,
+    "pairedAt": 1792680000000,
+    "lastSeen": 1792680120000
+  },
+  {
+    "id": "0f9e8d7c6b5a",
+    "name": "Companion app",
+    "scopes": ["overview", "chat", "answer", "send"],
+    "contractVersion": 1,
+    "pairedAt": 1792600000000,
+    "lastSeen": 1792600000000
+  }
+]

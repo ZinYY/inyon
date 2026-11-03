@@ -1,0 +1,26 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": false,
+      "dialog": "Select model"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": false,
+      "dialog": "Select model"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": false,
+      "dialog": "Select model"
+    }
+  }
+}

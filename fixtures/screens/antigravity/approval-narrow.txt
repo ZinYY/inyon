@@ -1,0 +1,10 @@
+Requesting permission for:
+   rm -rf build
+
+Run this command?
+> 1. Yes, run command
+  2. Yes, and always allow in this conversation for
+     commands that start with 'rm'
+  3. No, cancel
+
+  ↑/↓ Navigate · tab Amend

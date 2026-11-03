@@ -1,0 +1,21 @@
+# Spike S2: can russh replace the phone's Kotlin SSH client (SshCore.kt)?
+# Its own workspace, so it stays out of the root one.
+[workspace]
+
+[package]
+name = "inyon-ssh-spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# ring instead of the default aws-lc-rs: no cmake or C build to cross-compile for Android
+russh = { version = "0.65.0", default-features = false, features = ["ring", "rsa", "flate2"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+opt-level = "z"

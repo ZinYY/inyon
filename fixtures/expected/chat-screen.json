@@ -1,0 +1,56 @@
+[
+  {
+    "sample": "chat-screen-antigravity-queued.json",
+    "capture": "antigravity/queued-task",
+    "width": 150
+  },
+  {
+    "sample": "chat-screen-antigravity-remote-off.json",
+    "capture": "antigravity/remote-control",
+    "width": 60,
+    "replace": [
+      "? for shortcuts",
+      "> /remote-control off\n  ⎿  Remote control off. This machine is no longer reachable.\n? for shortcuts"
+    ]
+  },
+  {
+    "sample": "chat-screen-claude-login.json",
+    "capture": "claude/login-url",
+    "width": 100
+  },
+  {
+    "sample": "chat-screen-claude-permission.json",
+    "capture": "claude/permission-prompt",
+    "width": 100
+  },
+  {
+    "sample": "chat-screen-claude-question.json",
+    "capture": "claude/question-multi",
+    "width": 100
+  },
+  {
+    "sample": "chat-screen-codex-model.json",
+    "capture": "codex/model",
+    "width": 120
+  },
+  {
+    "sample": "chat-screen-codex-queued.json",
+    "capture": "codex/queued",
+    "width": 120
+  },
+  {
+    "sample": "chat-screen-codex-working.json",
+    "capture": "codex/question-pending",
+    "width": 120
+  },
+  {
+    "sample": "chat-screen-opencode-question.json",
+    "capture": "opencode/question-multi-checked",
+    "width": 120
+  },
+  {
+    "sample": "chat-screen-opencode-working.json",
+    "capture": "opencode/working",
+    "width": 200
+  }
+]

@@ -1,0 +1,144 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6-Luna"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low",
+            "detail": "Fast responses with lighter reasoning",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Medium (default)",
+            "detail": "Balances speed and reasoning depth for everyday tasks",
+            "selected": true
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "detail": "Greater reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "detail": "Extra high reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "detail": "Max consumes usage limits faster",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6-Luna"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6-Luna"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low",
+            "detail": "Fast responses with lighter reasoning",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Medium (default)",
+            "detail": "Balances speed and reasoning depth for everyday tasks",
+            "selected": true
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "detail": "Greater reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "detail": "Extra high reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "detail": "Max consumes usage limits faster",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6-Luna"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6-Luna"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low",
+            "detail": "Fast responses with lighter reasoning",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Medium (default)",
+            "detail": "Balances speed and reasoning depth for everyday tasks",
+            "selected": true
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "detail": "Greater reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "detail": "Extra high reasoning depth for complex problems",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "detail": "Max consumes usage limits faster",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6-Luna"
+  },
+  "browsing": null
+}

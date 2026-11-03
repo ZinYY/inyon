@@ -1,0 +1,128 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "date +%Y",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend · ctrl+g edit/expand command",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: date +%Y"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "date +%Y",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend · ctrl+g edit/expand command",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: date +%Y"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 140,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "prompt": {
+        "body": [
+          "Run this command?",
+          "╌",
+          "date +%Y",
+          "╌"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, run command",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and always allow in this conversation for commands that start with 'date'",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Yes, and always allow for commands that start with 'date' (Persist to settings.json)",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "No, cancel",
+            "selected": false
+          }
+        ],
+        "footer": "↑/↓ Navigate · tab Amend · ctrl+g edit/expand command",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Run this command: date +%Y"
+  }
+}

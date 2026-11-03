@@ -1,0 +1,57 @@
+{
+  "t": "chat.screen",
+  "key": "box:%7",
+  "screen": {
+    "working": false,
+    "width": 120,
+    "prompt": {
+      "body": [
+        "Which colours do you like? (select all that apply)"
+      ],
+      "options": [
+        {
+          "n": 1,
+          "label": "Red",
+          "selected": true,
+          "checked": false,
+          "detail": "The colour red"
+        },
+        {
+          "n": 2,
+          "label": "Green",
+          "selected": false,
+          "checked": true,
+          "detail": "The colour green"
+        },
+        {
+          "n": 3,
+          "label": "Blue",
+          "selected": false,
+          "checked": true,
+          "detail": "The colour blue"
+        },
+        {
+          "n": 4,
+          "label": "Type your own answer",
+          "selected": false,
+          "checked": false
+        }
+      ],
+      "multi": true,
+      "freeTextOption": 4,
+      "tabs": [
+        {
+          "label": "Colour preference",
+          "done": false,
+          "current": true
+        },
+        {
+          "label": "Confirm",
+          "done": false,
+          "current": false
+        }
+      ],
+      "confirm": "Confirm"
+    }
+  }
+}

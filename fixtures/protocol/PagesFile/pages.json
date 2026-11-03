@@ -1,0 +1,24 @@
+[
+  { "v": 1, "pages": [] },
+  {
+    "v": 1,
+    "pages": [
+      {
+        "slug": "ghostex",
+        "name": "Inyon plan",
+        "path": "/home/abhash/development/custom-tmux/private/plans/ghostex",
+        "project": "/home/abhash/development/custom-tmux",
+        "by": "claude",
+        "added": 1792320000000
+      },
+      {
+        "slug": "handy",
+        "name": "Handy redesign",
+        "path": "/home/abhash/development/handy-redesign",
+        "project": "/home/abhash/development/handy-redesign",
+        "by": "cli",
+        "added": 1792233600000
+      }
+    ]
+  }
+]

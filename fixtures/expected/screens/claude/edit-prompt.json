@@ -1,0 +1,107 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Edit file",
+          "test\\cart.test.js",
+          "╌",
+          "1  import { test } from 'node:test'",
+          "2  import assert from 'node:assert/strict'",
+          "3 -import { subtotal, total } from '../src/cart.js'",
+          "3 +import { lineTotal, subtotal, total } from '../src/cart.js'",
+          "╌",
+          "Do you want to make this edit to cart.test.js?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Edit file: test\\cart.test.js"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Edit file",
+          "test\\cart.test.js",
+          "╌",
+          "1  import { test } from 'node:test'",
+          "2  import assert from 'node:assert/strict'",
+          "3 -import { subtotal, total } from '../src/cart.js'",
+          "3 +import { lineTotal, subtotal, total } from '../src/cart.js'",
+          "╌",
+          "Do you want to make this edit to cart.test.js?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Edit file: test\\cart.test.js"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "Edit file",
+          "test\\cart.test.js",
+          "╌",
+          "1  import { test } from 'node:test'",
+          "2  import assert from 'node:assert/strict'",
+          "3 -import { subtotal, total } from '../src/cart.js'",
+          "3 +import { lineTotal, subtotal, total } from '../src/cart.js'",
+          "╌",
+          "Do you want to make this edit to cart.test.js?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "No",
+            "selected": false
+          }
+        ],
+        "footer": "Esc to cancel · Tab to amend",
+        "multi": false
+      }
+    },
+    "summary": "Edit file: test\\cart.test.js"
+  }
+}

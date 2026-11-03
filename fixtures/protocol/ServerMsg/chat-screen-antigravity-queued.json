@@ -1,0 +1,17 @@
+{
+  "t": "chat.screen",
+  "key": "box:%5",
+  "screen": {
+    "working": true,
+    "width": 150,
+    "model": "Gemini 3.8 Flash",
+    "effort": "medium",
+    "background": "1 background task",
+    "inputVisible": true,
+    "mode": "default",
+    "activity": "Running command",
+    "queue": [
+      "Then say done, and list every file in this folder with its size, newest first, so I can see what changed."
+    ]
+  }
+}

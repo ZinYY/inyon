@@ -1,0 +1,50 @@
+[package]
+name = "inyon-phone"
+version.workspace = true
+description = "Inyon's core in the phone app and the browser copy: inyon-api's routes and sockets on the browser's event loop, storage and fetch"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# the wasm module the web app loads, and a plain library for the native tests and the Android app
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# the core on a thread of its own (tokio), with its records as files, WebSockets and HTTPS of its
+# own: the Android app (apps/app), which runs it natively instead of as wasm in a WebView
+native = ["dep:inyon-backends", "dep:tokio", "dep:tokio-tungstenite", "dep:ureq", "dep:rustls", "dep:webpki-roots", "futures-util/sink", "futures-util/std"]
+
+[dependencies]
+base64 = "0.23"
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+http = "1.5"
+inyon-api = { path = "../inyon-api" }
+inyon-core = { path = "../inyon-core" }
+inyon-link = { path = "../inyon-link" }
+inyon-protocol = { path = "../inyon-protocol" }
+js-sys = "0.3"
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "unicode-script"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+url = "2.5"
+# pinned exactly: the wasm-bindgen program that writes the JavaScript side (CI and
+# apps/web/scripts/phone-core.ts) has to be this same version
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+
+# the native build only (the `native` feature); the same versions inyon-engine uses
+inyon-backends = { path = "../inyon-backends", optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"], optional = true }
+tokio = { version = "1.47", features = ["rt", "time", "sync", "macros"], optional = true }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "handshake", "__rustls-tls"], optional = true }
+ureq = { version = "3.4", default-features = false, features = ["rustls"], optional = true }
+webpki-roots = { version = "1.0", optional = true }
+
+[dev-dependencies]
+inyon-core = { path = "../inyon-core", features = ["testing"] }
+sha2 = "0.11"
+tokio = { version = "1.47", features = ["rt", "time", "macros", "net", "test-util"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }

@@ -1,0 +1,13 @@
+{
+  "t": "chat.screen",
+  "key": "box:%5",
+  "screen": {
+    "working": false,
+    "width": 60,
+    "model": "Gemini 3.8 Flash",
+    "effort": "high",
+    "remote": null,
+    "inputVisible": true,
+    "mode": "default"
+  }
+}

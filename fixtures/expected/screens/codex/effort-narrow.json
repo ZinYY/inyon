@@ -1,0 +1,132 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6.1-Sol"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low (default)",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "Medium",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6.1-Sol"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6.1-Sol"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low (default)",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "Medium",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6.1-Sol"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 50,
+      "prompt": {
+        "body": [
+          "Select Reasoning Level for GPT-6.1-Sol"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Low (default)",
+            "selected": true,
+            "current": true
+          },
+          {
+            "n": 2,
+            "label": "Medium",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "High",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Extra high",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "More reasoning…",
+            "selected": false
+          }
+        ],
+        "footer": "enter default · s session · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Select Reasoning Level for GPT-6.1-Sol"
+  },
+  "browsing": null
+}

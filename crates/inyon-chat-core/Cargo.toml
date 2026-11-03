@@ -1,0 +1,22 @@
+[package]
+name = "inyon-chat-core"
+version.workspace = true
+description = "The app's view model: chat rows and the splices a virtualized list applies, the overview, pending sends and notices (ported from apps/web/src/lib)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+indexmap = "2.10"
+inyon-protocol = { path = "../inyon-protocol", default-features = false }
+# raw DEFLATE for /ws2's compressed frames; pure Rust, so it builds for wasm32 too
+miniz_oxide = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+# tool inputs keep the order their keys came in, as JavaScript objects do (a tool's fallback
+# summary is its first short string)
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+# the patterns and the URL parser the hand-written matchers replace, to check them against
+[dev-dependencies]
+regex = "1.12"
+url = "2.5"

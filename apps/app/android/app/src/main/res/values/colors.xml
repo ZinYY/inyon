@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the page's ground (apps/app/assets/app.css), shown before the first paint -->
+    <color name="inyon_ground">#E9E8E4</color>
+</resources>

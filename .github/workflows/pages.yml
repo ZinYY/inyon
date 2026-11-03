@@ -1,0 +1,69 @@
+name: Site
+
+# Publishes inyon.tech: the home page, the docs (site/docs), the changelog and the
+# latest release's files under /download (each checked against its signed SHA256SUMS), plus get.sh
+# and get.ps1 at the root so the one-line installers can be typed short, with the sha256 of that
+# checked list filled in so they trust no other. site/build.ts does all of it.
+# The app itself is never hosted here; it runs on your own computers, phone and hub.
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/*.webp', 'apps/web/public/icon.svg', '.github/workflows/pages.yml']
+  # after a release is built, so the short installer URLs serve that release's scripts, and again
+  # after the Android job adds the APK and signs the checksum list anew (build.ts serves a release
+  # only once its list names the APK, and keeps the one before until then)
+  workflow_run:
+    workflows: [inyon, Android]
+    types: [completed]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  deploy:
+    # publishes the site; it builds only this repository's code and installs nothing
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    # one deploy at a time, on the job and not the whole run: GitHub keeps one waiting run per group,
+    # and a run whose deploy is skipped (any branch's CI finishing) would take that place and cancel
+    # the deploy queued after a release
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the whole history, so each page's last-changed date (sitemap, article:modified_time) is real
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - name: Build the site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # the newest release's files, so the short installer URLs and /download always match the
+        # binaries the installers fetch
+        run: bun site/build.ts --mirror --out out
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: out
+          include-hidden-files: true
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      # GitHub keeps its own copy of each README image for a while: clear it, so the release badge
+      # (badge/release-*.svg from this build) shows the new version straight away
+      - name: Refresh the README's images on GitHub
+        continue-on-error: true
+        run: |
+          sleep 30
+          curl -fsSL "https://github.com/$GITHUB_REPOSITORY" |
+            grep -oE '(src|srcset)="https://camo\.githubusercontent\.com/[^"]+"' |
+            sed -E 's/^(src|srcset)="//; s/"$//' | sort -u |
+            while read -r url; do curl -fsS -X PURGE "$url" >/dev/null || echo "couldn't clear $url"; done

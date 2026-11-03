@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Inyon</string>
+    <string name="title_activity_main">Inyon</string>
+    <string name="package_name">tech.abhashchakraborty.inyon</string>
+    <string name="custom_url_scheme">tech.abhashchakraborty.inyon</string>
+</resources>

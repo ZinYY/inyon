@@ -1,0 +1,113 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Remote Control",
+          "This session is available in the Claude mobile app and at"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Disconnect this session",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Show QR code",
+            "detail": "Scan with your phone to open this session",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Continue",
+            "selected": true
+          }
+        ],
+        "footer": "Enter to select · Esc to continue",
+        "multi": false,
+        "navigate": true,
+        "links": [
+          "https://claude.ai/code/session_x"
+        ]
+      }
+    },
+    "summary": "Remote Control"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Remote Control",
+          "This session is available in the Claude mobile app and at"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Disconnect this session",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Show QR code",
+            "detail": "Scan with your phone to open this session",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Continue",
+            "selected": true
+          }
+        ],
+        "footer": "Enter to select · Esc to continue",
+        "multi": false,
+        "navigate": true,
+        "links": [
+          "https://claude.ai/code/session_x"
+        ]
+      }
+    },
+    "summary": "Remote Control"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 100,
+      "prompt": {
+        "body": [
+          "Remote Control",
+          "This session is available in the Claude mobile app and at"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Disconnect this session",
+            "selected": false
+          },
+          {
+            "n": 2,
+            "label": "Show QR code",
+            "detail": "Scan with your phone to open this session",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Continue",
+            "selected": true
+          }
+        ],
+        "footer": "Enter to select · Esc to continue",
+        "multi": false,
+        "navigate": true,
+        "links": [
+          "https://claude.ai/code/session_x"
+        ]
+      }
+    },
+    "summary": "Remote Control"
+  }
+}

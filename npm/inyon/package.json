@@ -1,0 +1,16 @@
+{
+  "name": "@abhash-chakraborty/inyon",
+  "version": "0.0.0",
+  "description": "Watch, answer and steer the coding agents running in tmux on your machines, from your phone or any browser.",
+  "keywords": ["tmux", "claude-code", "codex", "gemini-cli", "opencode", "copilot", "antigravity", "remote", "agents"],
+  "homepage": "https://inyon.tech",
+  "bugs": "https://github.com/Abhash-Chakraborty/inyon/issues",
+  "repository": { "type": "git", "url": "git+https://github.com/Abhash-Chakraborty/inyon.git", "directory": "npm/inyon" },
+  "license": "MIT",
+  "author": "Abhash Chakraborty",
+  "bin": { "inyon": "bin/inyon.js" },
+  "files": ["bin/inyon.js"],
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {},
+  "publishConfig": { "access": "public", "provenance": true }
+}

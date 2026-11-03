@@ -1,0 +1,144 @@
+<main id="main" class="page">
+  <div class="card pair" id="pair">
+    <p class="label">Pairing link</p>
+    <h2 id="pair-title">Open this in the Inyon app</h2>
+    <p id="pair-text">This link pairs a computer with your phone. In the app, tap <b>Add a computer</b> and scan the code again, or copy this link and paste it there. It never leaves this page.</p>
+    <div class="actions" style="justify-content:flex-start">
+      <button class="btn" id="copy-pair" type="button">Copy the link</button>
+      <a class="btn quiet" href="#get">Get the app</a>
+    </div>
+  </div>
+
+  <section class="hero">
+    <span class="mark-xl" aria-hidden="true"><img src="/icon.svg" width="76" height="76" alt="" style="display:block;margin:0 auto 26px"></span>
+    <h1>Your coding agents,<br>from your phone.</h1>
+    <p class="lede">Watch, answer and steer Claude Code, Codex, Gemini CLI, OpenCode, GitHub Copilot and Antigravity CLI running in tmux on your own computers. Each one keeps its own account, and nothing changes at the keyboard.</p>
+    <div class="actions">
+      <a class="btn" href="{{apk}}">Download for Android</a>
+      <a class="btn quiet" href="/docs/quick-start/">Quick start →</a>
+    </div>
+    <p class="meta">{{apk-meta}} · Open source, MIT</p>
+    <a class="ph" href="https://www.producthunt.com/products/inyon?utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-inyon" target="_blank" rel="noopener noreferrer"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1282413&amp;theme=dark" width="204" height="44" alt="Inyon on Product Hunt"></a>
+  </section>
+
+  <!--shot-->
+  <figure class="shot">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="/img/hero-dark.webp">
+      <img src="/img/hero-light.webp" width="2400" height="1380" alt="Inyon on a desktop, a tablet and a phone: the overview of every agent session across four machines, a Claude Code session read as a chat, and Codex asking to run the tests">
+    </picture>
+  </figure>
+  <!--/shot-->
+
+  <section class="section" id="get">
+    <p class="eyebrow">Get started</p>
+    <h2>Two minutes, nothing to host.</h2>
+    <p class="sub">The Android app talks to your computers itself. Install it, run one line on each computer, and scan the code it prints.</p>
+    <div class="grid two">
+      <div class="card">
+        <p class="label">01 · Phone</p>
+        <h3>Install the Android app</h3>
+        <p>Download the APK and open it. Later versions install over it, and the app tells you when one is out.</p>
+        <a class="btn" href="{{apk}}">Download for Android</a>
+        <p class="meta">{{apk-meta}}</p>
+      </div>
+      <div class="card">
+        <p class="label">02 · Computer</p>
+        <h3>Set up a computer</h3>
+        <p>Run one line in a terminal. It prints a QR code; in the app, tap <b>Add a computer</b> and scan it.</p>
+        <p class="os">macOS or Linux</p>
+        <div class="cmd"><code>curl -fsSL https://inyon.tech/get.sh | sh</code><button type="button">Copy</button></div>
+        <p class="os">Windows, in PowerShell</p>
+        <div class="cmd"><code>irm https://inyon.tech/get.ps1 | iex</code><button type="button">Copy</button></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <p class="label">Optional · Browser</p>
+      <h3>Use it from any browser with your own hub</h3>
+      <p>A hub is a small server on one of your machines. It serves the web app, reaches your other machines, and your phone can pair with it too.</p>
+      <div class="cmd"><code>curl -fsSL https://inyon.tech/get.sh | sh -s -- --hub</code><button type="button">Copy</button></div>
+      <p class="meta"><a href="/docs/hub/">Running a hub →</a></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">See it work</p>
+    <h2>Answer from anywhere.</h2>
+    <p class="sub">When an agent asks something, the question arrives as buttons. Tap one and the agent carries on, exactly as if you'd typed the answer.</p>
+    <figure class="rec">
+      <img src="/img/answer.webp" width="1600" height="1060" loading="lazy" decoding="async" alt="On a desktop browser, the overview zooms in on a Codex session asking to run bun test src/auth. The cursor clicks Yes, run it, opens the session as a chat, and the reply says all 31 auth tests pass.">
+      <figcaption>Codex asks before it runs the tests. Answer from the overview, then watch the results come in.</figcaption>
+    </figure>
+    <div class="grid two" style="margin-top:28px">
+      <figure class="rec">
+        <img src="/img/phone.webp" width="1500" height="1080" loading="lazy" decoding="async" alt="On a phone, a Claude Code session fixing a flaky checkout test opens as a chat, the edit expands into a diff, the test suite passes, and the next instruction is sent.">
+        <figcaption>On a phone: read the change, watch the tests pass, send the next instruction.</figcaption>
+      </figure>
+      <figure class="rec">
+        <img src="/img/tablet.webp" width="1500" height="1080" loading="lazy" decoding="async" alt="On a tablet, an OpenCode session's menu opens End session, the confirmation says the agent exits and its pane closes, and a Session ended toast appears.">
+        <figcaption>On a tablet: sessions sit in a tree by machine, and ending one says exactly what closes.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">How it connects</p>
+    <h2>Three ways in. Pick per machine.</h2>
+    <p class="sub">Mix them freely. A laptop can pair straight with your phone while a server joins a hub, and a locked-down box needs nothing but SSH.</p>
+    <div class="grid three">
+      <a class="card" href="/docs/setups/#paired">
+        <p class="label">Paired</p>
+        <h3>Phone ↔ computer</h3>
+        <p>Run <code>inyon</code> on the computer and scan its QR code. No hub, no open ports: it reaches your phone through a free encrypted tunnel or your VPN.</p>
+        <span class="more">Pairing a computer →</span>
+      </a>
+      <a class="card" href="/docs/setups/#hub">
+        <p class="label">Hub</p>
+        <h3>One place for everything</h3>
+        <p>A hub on a machine that stays on serves the web app to any browser. Other machines join it, and your phone pairs with it by QR.</p>
+        <span class="more">Running a hub →</span>
+      </a>
+      <a class="card" href="/docs/setups/#direct">
+        <p class="label">Direct</p>
+        <h3>Just SSH</h3>
+        <p>Can't install anything? The Android app or a hub reaches a server over SSH. The server only needs tmux and your agents.</p>
+        <span class="more">Servers over SSH →</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">What you can do</p>
+    <h2>Everything you'd do at the keyboard.</h2>
+    <ul class="feature-list">
+      <li><b>Read sessions as a chat</b><span>Replies, tool calls, diffs, plans and to-dos, with the real terminal one tap away.</span></li>
+      <li><b>Answer with buttons</b><span>Permission requests, questions, menus and sign-in links, straight from the overview.</span></li>
+      <li><b>Steer the agent</b><span>Switch model, effort and permission mode, set a goal, compact, clear and rewind, or go back to a past conversation.</span></li>
+      <li><b>Watch the limits</b><span>Model, context, cost and lines changed, plus the 5-hour and weekly plan limits.</span></li>
+      <li><b>Type like you're there</b><span><code>/</code> commands, <code>@</code> file search, <code>!</code> shell commands and images. Drafts mirror into the terminal.</span></li>
+      <li><b>Review the work</b><span>Browse the session's files, see the git working tree, comment on diff lines, commit and push, or fork a conversation.</span></li>
+      <li><b>Follow background work</b><span>Queued messages, subagents and background shells with live output and a real Stop.</span></li>
+      <li><b>Get notified</b><span>When an agent needs you or finishes, and when a machine drops off or comes back.</span></li>
+      <li><b>Open what agents build</b><span>Plans, mockups and progress boards your agents make show up under Pages, sandboxed, on your phone and desktop.</span></li>
+      <li><b>Clear out agent temp files</b><span>See the pasted images, screenshots and scratch folders agents leave on each machine, preview them and delete what you pick.</span></li>
+      <li><b>Talk to a companion agent</b><span>A Claude Code or Codex session that reads all your sessions, tells you what needs you and messages them when you say so.</span></li>
+      <li><b>Pair a companion app</b><span>Apps like Legato see your sessions, answer a question and send an instruction, with four permissions and nothing more.</span></li>
+      <li><b>Set up machines from the app</b><span>It checks for tmux and each agent, installs what's missing and opens sign-in.</span></li>
+    </ul>
+    <div class="agents" aria-label="Supported agents">
+      <span class="chip">Claude Code</span><span class="chip">Codex</span><span class="chip">Gemini CLI</span><span class="chip">OpenCode</span><span class="chip">GitHub Copilot</span><span class="chip">Antigravity CLI</span><span class="chip">Cursor, Grok, Pi, Amp and seven more in the terminal</span>
+    </div>
+    <p class="meta"><a href="/docs/agents/">What works with each agent →</a></p>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">Docs</p>
+    <h2>Read on.</h2>
+    <div class="grid four">
+      <a class="card" href="/docs/quick-start/"><h3>Quick start</h3><p>Install the app, pair your first computer and answer your first prompt.</p><span class="more">Start →</span></a>
+      <a class="card" href="/docs/sessions/"><h3>Using sessions</h3><p>The chat, the composer, answering prompts and everything in a session.</p><span class="more">Read →</span></a>
+      <a class="card" href="/docs/hub/"><h3>Running a hub</h3><p>Browser access, private networks, HTTPS, phones and updates.</p><span class="more">Read →</span></a>
+      <a class="card" href="/docs/cli/"><h3>The inyon command</h3><p>Every command and flag, the setup screen and the background service.</p><span class="more">Read →</span></a>
+    </div>
+  </section>
+</main>

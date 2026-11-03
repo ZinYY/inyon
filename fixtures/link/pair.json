@@ -1,0 +1,183 @@
+{
+  "about": "Pairing links (QR codes): pairLink output for fixed PairInfo, and what parsePairLink reads from text (null: not a pairing link). The query is application/x-www-form-urlencoded as URLSearchParams writes it.",
+  "links": [
+    {
+      "info": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "name": "Laptop",
+        "urls": [
+          "wss://x.trycloudflare.com/link"
+        ],
+        "relays": []
+      },
+      "link": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&n=Laptop&u=wss%3A%2F%2Fx.trycloudflare.com%2Flink"
+    },
+    {
+      "info": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "K7Q4MX2T:493812abc",
+        "name": "Abhash's box & co / 100% été",
+        "urls": [
+          "wss://a.example/link?x=1&y=2",
+          "ws://192.168.1.4:7842/link"
+        ],
+        "relays": [
+          "https://relay.example",
+          "https://relay2.example/base/"
+        ]
+      },
+      "link": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=K7Q4MX2T%3A493812abc&n=Abhash%27s+box+%26+co+%2F+100%25+%C3%A9t%C3%A9&u=wss%3A%2F%2Fa.example%2Flink%3Fx%3D1%26y%3D2&u=ws%3A%2F%2F192.168.1.4%3A7842%2Flink&r=https%3A%2F%2Frelay.example&r=https%3A%2F%2Frelay2.example%2Fbase%2F"
+    },
+    {
+      "info": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ccccccccccccccccccccccccccccccccccccccccccc",
+        "name": "Laptop",
+        "urls": [
+          "wss://x.trycloudflare.com/link"
+        ],
+        "relays": []
+      },
+      "web": "https://example.github.io/inyon-releases/",
+      "link": "https://example.github.io/inyon-releases/#pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ccccccccccccccccccccccccccccccccccccccccccc&n=Laptop&u=wss%3A%2F%2Fx.trycloudflare.com%2Flink"
+    }
+  ],
+  "parse": [
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&n=Laptop&u=wss%3A%2F%2Fx.trycloudflare.com%2Flink",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "name": "Laptop",
+        "urls": [
+          "wss://x.trycloudflare.com/link"
+        ],
+        "relays": []
+      }
+    },
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=K7Q4MX2T%3A493812abc&n=Abhash%27s+box+%26+co+%2F+100%25+%C3%A9t%C3%A9&u=wss%3A%2F%2Fa.example%2Flink%3Fx%3D1%26y%3D2&u=ws%3A%2F%2F192.168.1.4%3A7842%2Flink&r=https%3A%2F%2Frelay.example&r=https%3A%2F%2Frelay2.example%2Fbase%2F",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "K7Q4MX2T:493812abc",
+        "name": "Abhash's box & co / 100% été",
+        "urls": [
+          "wss://a.example/link?x=1&y=2",
+          "ws://192.168.1.4:7842/link"
+        ],
+        "relays": [
+          "https://relay.example",
+          "https://relay2.example/base/"
+        ]
+      }
+    },
+    {
+      "text": "https://example.github.io/inyon-releases/#pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ccccccccccccccccccccccccccccccccccccccccccc&n=Laptop&u=wss%3A%2F%2Fx.trycloudflare.com%2Flink",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ccccccccccccccccccccccccccccccccccccccccccc",
+        "name": "Laptop",
+        "urls": [
+          "wss://x.trycloudflare.com/link"
+        ],
+        "relays": []
+      }
+    },
+    {
+      "text": "tether://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&n=Laptop&u=wss%3A%2F%2Fx.trycloudflare.com%2Flink",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "name": "Laptop",
+        "urls": [
+          "wss://x.trycloudflare.com/link"
+        ],
+        "relays": []
+      }
+    },
+    {
+      "text": "https://example.com/app?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss&n=Web",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ssssssssssssssss",
+        "name": "Web",
+        "urls": [],
+        "relays": []
+      }
+    },
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss&n=nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ssssssssssssssss",
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "urls": [],
+        "relays": []
+      }
+    },
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ssssssssssssssss",
+        "name": "Machine",
+        "urls": [],
+        "relays": []
+      }
+    },
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss&u=javascript:alert(1)&u=wss://ok.example&u=wss://&r=http://plain.example&r=https://r.example&u=https://h.example/x",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ssssssssssssssss",
+        "name": "Machine",
+        "urls": [
+          "wss://ok.example",
+          "https://h.example/x"
+        ],
+        "relays": [
+          "https://r.example"
+        ]
+      }
+    },
+    {
+      "text": "  inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss&n=%20spaced+name%20  ",
+      "result": {
+        "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+        "secret": "ssssssssssssssss",
+        "name": " spaced name ",
+        "urls": [],
+        "relays": []
+      }
+    },
+    {
+      "text": "inyon://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=sssssssssssssss",
+      "result": null
+    },
+    {
+      "text": "inyon://pair?m=FOA6ZIWEEMWZU78WHEP9D993XT8PBI4F9CIZPKMZQ6AQRMIRGATO&s=ssssssssssssssss",
+      "result": null
+    },
+    {
+      "text": "http://example.com/#pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss",
+      "result": null
+    },
+    {
+      "text": "ftp://pair?m=foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato&s=ssssssssssssssss",
+      "result": null
+    },
+    {
+      "text": "inyon://pair?m=nope&s=short",
+      "result": null
+    },
+    {
+      "text": "hello",
+      "result": null
+    },
+    {
+      "text": "",
+      "result": null
+    }
+  ]
+}

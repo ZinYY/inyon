@@ -1,0 +1,32 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max"
+    }
+  }
+}

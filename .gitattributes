@@ -1,0 +1,7 @@
+apps/cli/tests/snapshots/*.txt text eol=lf
+# captures are compared byte for byte, line endings included
+fixtures/** -text
+# rewritten by `cargo test -p inyon-protocol --test gen`, which compares it as written
+packages/protocol/src/gen/** text eol=lf
+# `inyon docs` carries these inside the binary and reads their front matter
+site/docs/*.md text eol=lf

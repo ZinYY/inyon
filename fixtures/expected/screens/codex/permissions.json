@@ -1,0 +1,126 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Update Model Permissions"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Ask for approval",
+            "detail": "Read and edit workspace files and run commands, with approval required for internet access or edits outside the workspace",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Approve for me",
+            "detail": "Only ask for actions detected as potentially unsafe",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Full Access",
+            "detail": "Use with caution: Codex can edit files outside this workspace and access the internet without approval",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Read Only",
+            "detail": "Read workspace files, with approval required for edits or internet access",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Update Model Permissions"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Update Model Permissions"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Ask for approval",
+            "detail": "Read and edit workspace files and run commands, with approval required for internet access or edits outside the workspace",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Approve for me",
+            "detail": "Only ask for actions detected as potentially unsafe",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Full Access",
+            "detail": "Use with caution: Codex can edit files outside this workspace and access the internet without approval",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Read Only",
+            "detail": "Read workspace files, with approval required for edits or internet access",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Update Model Permissions"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "prompt": {
+        "body": [
+          "Update Model Permissions"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Ask for approval",
+            "detail": "Read and edit workspace files and run commands, with approval required for internet access or edits outside the workspace",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Approve for me",
+            "detail": "Only ask for actions detected as potentially unsafe",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Full Access",
+            "detail": "Use with caution: Codex can edit files outside this workspace and access the internet without approval",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Read Only",
+            "detail": "Read workspace files, with approval required for edits or internet access",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Update Model Permissions"
+  },
+  "browsing": null
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<link rel="stylesheet" href="../../kit/blueprint.css">
+<script src="../../kit/lucide.min.js"></script><script src="../../kit/data.js"></script>
+<script src="../../kit/kit.js"></script><script src="../../kit/menus.js"></script><script src="../../kit/shell.js"></script>
+<style>
+  .set { padding: 24px 28px 40px; max-width: 680px; display: grid; gap: 22px; }
+  .set h2 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+  .set .grp { padding: 4px 16px; }
+  .set .opt { display: flex; align-items: center; gap: 14px; padding: 12px 0; }
+  .set .opt + .opt { border-top: 1px solid var(--line); }
+  .set .opt div { flex: 1; min-width: 0; } .set .opt b { display: block; font-size: 14px; font-weight: 500; } .set .opt span { font-size: 13px; color: var(--fg-3); }
+  @media (max-width: 640px) { .set { padding: 4px 12px 24px; } .set h2 { display: none; } .set .opt { flex-wrap: wrap; } }
+</style>
+</head><body>
+<div id="app"></div>
+<template id="notes">
+  <p>Settings for offline storage and sync, plus appearance.</p>
+  <ol><li>Each change saves at once and shows a small "Saved" mark; there is no Save button.</li><li>Storage shows the real size the phone uses (2.4).</li></ol>
+</template>
+<script>
+K.shell.mount({
+  nav: 'settings', title: 'Settings',
+  main: `<div class="scroll" style="flex:1"><div class="set">
+    <h2>Settings</h2>
+    <div><p class="label" style="margin:0 0 8px">Offline</p><div class="card sm grp">
+      <div class="opt"><div><b>Keep lists on this phone</b><span>Open and edit them with no signal.</span></div><span class="toggle" aria-checked="true" aria-label="Keep lists on this phone"></span></div>
+      <div class="opt"><div><b>Storage limit</b><span>Using 1.8 MB of 50 MB.</span></div><button class="btn sm" id="limit">50 MB ${K.icon('chevron-down')}</button></div>
+      <div class="opt"><div><b>Sync over mobile data</b><span>Off means Wi-Fi only.</span></div><span class="toggle" aria-checked="true" aria-label="Sync over mobile data"></span></div>
+    </div></div>
+    <div><p class="label" style="margin:0 0 8px">Appearance</p><div class="card sm grp">
+      <div class="opt"><div><b>Theme</b><span>Follows the system unless you pick one.</span></div><div class="seg" id="theme"><button data-value="light">Light</button><button data-value="dark">Dark</button></div></div>
+    </div></div>
+    <div><button class="btn danger" id="clear">${K.icon('trash-2')} Clear the offline copy</button></div>
+  </div></div>`,
+  onMount(root) {
+    const th = K.$('#theme', root); K.$$('button', th).forEach((b) => b.setAttribute('aria-pressed', b.dataset.value === document.documentElement.dataset.theme));
+    th.addEventListener('change', (e) => { K.setTheme(e.detail); K.savedTick(th); });
+    K.$('#limit', root).onclick = (e) => K.menu.open(e.currentTarget, ['10 MB', '50 MB', '200 MB', 'No limit'].map((l) => ({ label: l, checked: l === '50 MB', onSelect: () => { e.currentTarget.firstChild.textContent = l + ' '; K.savedTick(e.currentTarget); } })), { align: 'end' });
+    K.$('#clear', root).onclick = () => K.sheet.open({ title: 'Clear the offline copy?', icon: 'trash-2', body: '<p style="margin:0;color:var(--fg-2)">Edits waiting for signal are kept. Lists download again the next time you open them.</p>', actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Clear', kind: 'danger', toast: 'Offline copy cleared' }] });
+  },
+});
+</script>
+</body></html>

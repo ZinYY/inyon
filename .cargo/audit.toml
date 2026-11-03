@@ -1,0 +1,21 @@
+# cargo audit (.github/workflows/audit.yml). Every advisory ignored here has no fix we can take
+# yet; each says where it comes from and why it can wait. Look again when Dioxus 0.8 is out: its
+# desktop build moves to a newer wry, which drops all of the first five.
+[advisories]
+ignore = [
+  # glib 0.18: VariantStrIter unsound. Only in the Linux desktop build of apps/app (dioxus-desktop
+  # -> wry 0.53 -> webkit2gtk -> gtk 0.18, whose bindings stop at glib 0.18; the fix is 0.20).
+  # Inyon never touches GVariant string iterators, and the desktop build isn't released.
+  "RUSTSEC-2024-0429",
+  # rand 0.7: unsound with a custom logger calling rand::rng(). Only at build time, inside
+  # phf_codegen for wry 0.53's pinned kuchikiki/selectors; nothing of it runs in Inyon.
+  "RUSTSEC-2026-0097",
+  # unmaintained, with nothing known to be wrong, all from dioxus-desktop: fxhash (selectors),
+  # paste (image -> exr -> pulp), proc-macro-error (glib-macros)
+  "RUSTSEC-2025-0057",
+  "RUSTSEC-2024-0436",
+  "RUSTSEC-2024-0370",
+  # rsa: the Marvin timing attack on RSA decryption, no fixed release. Only in the SSH spike
+  # (spikes/s2-ssh-android, russh), which never decrypts with RSA; look again when russh comes in.
+  "RUSTSEC-2023-0071",
+]

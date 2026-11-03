@@ -1,0 +1,29 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "activity": "Working · 867 B esc interrupt",
+      "model": "auto",
+      "inputVisible": true
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "activity": "Working · 867 B esc interrupt",
+      "model": "auto",
+      "inputVisible": true
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "activity": "Working · 867 B esc interrupt",
+      "model": "auto",
+      "inputVisible": true
+    }
+  }
+}

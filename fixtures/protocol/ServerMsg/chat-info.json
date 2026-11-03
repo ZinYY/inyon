@@ -1,0 +1,128 @@
+{
+  "t": "chat.info",
+  "key": "local:%12",
+  "info": {
+    "hostId": "local",
+    "paneId": "%12",
+    "agent": "claude",
+    "running": false,
+    "transcriptPath": "/home/me/.claude/projects/-home-me-code-shop/6f1c2a9e-1b7d-4f0e-9a51-0c2b5d7e8f31.jsonl",
+    "sessionId": "6f1c2a9e-1b7d-4f0e-9a51-0c2b5d7e8f31",
+    "mappedBy": "hook",
+    "cwd": "/home/me/code/shop",
+    "title": "Fix coupon rounding",
+    "model": "claude-opus-5-5",
+    "status": {
+      "model": "Opus 5.5",
+      "modelId": "claude-opus-5-5",
+      "effort": "high",
+      "fast": false,
+      "version": "2.1.299",
+      "contextPct": 4.2,
+      "contextUsed": 21435,
+      "contextSize": 1000000,
+      "costUsd": 0.4127,
+      "durationMs": 1843210,
+      "apiDurationMs": 61234,
+      "linesAdded": 12,
+      "linesRemoved": 3,
+      "fiveHour": {
+        "pct": 13,
+        "resetsAt": 1792040400
+      },
+      "sevenDay": {
+        "pct": 68.5,
+        "resetsAt": 1792220400
+      },
+      "outputStyle": "default",
+      "updatedAt": 1792038612000
+    },
+    "gitBranch": "main",
+    "version": "2.1.299",
+    "mode": "accept edits",
+    "ultracode": false,
+    "goal": {
+      "condition": "coupon tests cover rounding",
+      "met": false,
+      "ts": "2026-10-14T09:10:41.141Z"
+    },
+    "rc": {
+      "url": "https://claude.ai/code/session_01AbCdEf",
+      "ts": "2026-10-14T09:10:30.130Z"
+    },
+    "queue": [
+      "and update the changelog"
+    ],
+    "turn": {
+      "startedAt": 1792038601000
+    },
+    "sends": [
+      {
+        "id": "s1",
+        "text": "The cart total is wrong when a coupon is applied. Fix it and run the tests.",
+        "at": 1792038540000,
+        "state": "delivered",
+        "uuid": "a1"
+      },
+      {
+        "id": "s2",
+        "text": "/effort high",
+        "at": 1792038590000,
+        "state": "delivered",
+        "setting": true
+      },
+      {
+        "id": "s3",
+        "text": "and update the changelog",
+        "at": 1792038611000,
+        "state": "queued"
+      },
+      {
+        "id": "s4",
+        "text": "and push it",
+        "at": 1792038612000,
+        "state": "failed",
+        "error": "The pane closed before the message was typed"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "b7k2m",
+        "type": "shell",
+        "description": "Run the test suite",
+        "command": "npm test",
+        "status": "completed",
+        "startedAt": "2026-10-14T09:10:13.113Z",
+        "endedAt": "2026-10-14T09:10:20.120Z"
+      }
+    ],
+    "subagents": [
+      {
+        "toolUseId": "toolu_09",
+        "type": "Explore",
+        "description": "Find every caller of total()",
+        "prompt": "List the callers of total() in src/",
+        "status": "running",
+        "background": true,
+        "startedAt": "2026-10-14T09:10:56.156Z",
+        "transcriptPath": "/home/me/.claude/projects/-home-me-code-shop/6f1c2a9e/subagents/agent-a1b2.jsonl"
+      }
+    ],
+    "artifacts": [
+      {
+        "url": "https://claude.ai/artifact/0f3c",
+        "title": "Cart rounding notes",
+        "updatedAt": "2026-10-14T09:10:58.158Z"
+      }
+    ],
+    "stats": {
+      "turns": 1,
+      "compactions": 1,
+      "contextTokens": 9120,
+      "contextAt": 1791969050150,
+      "compactedAt": 1791969050150,
+      "startedAt": "2026-10-14T09:09:58.000Z"
+    },
+    "error": "This pane no longer exists"
+  }
+}

@@ -1,0 +1,24 @@
+  ◆
+  ╰─●    inyon x.y.z
+────────────────────────────────────────────────────────────────────────────────
+Paired with the phone                         Phones (2)
+machine k7m2p9x4w1q8z3v6                        Pixel 9     seen 13 Oct
+                                                Work phone  never seen
+● phone link  running · 0.13.0
+
+
+Answers on                                    Agents running
+  wss://quiet-otter.trycloudflare.com/link      claude in work:1.0
+  ws://100.64.0.9:4780/link                     codex in ops:0.0
+
+
+
+
+Log
+link.log: inyon 0.13.0 link service for k7m2p9x4 on port 4780
+link.log: tunnel up at quiet-otter.trycloudflare.com
+
+
+
+
+q quit · r refresh · s setup · p pair

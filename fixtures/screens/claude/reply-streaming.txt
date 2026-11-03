@@ -1,0 +1,40 @@
+
+[91m ▐[40m▛███▛█[39m[49m   [1mClaude Code[0m [90mv2.1.309[39m
+[91m▝▜[40m█████[49m█▀[39m  [90mHaiku 5.5 · Claude Max[39m
+[91m ▝▝   ▝▝ [39m  [90m~/tea[39m
+
+
+[90m[47m❯ [30mWithout using any tools, write five short paragraphs about the history of tea, then a 4-item [39m
+  [30mbulleted list of tea types with [1mbold[0m[30m[47m names.[39m
+
+[30m[49m●[39m Tea likely began in southwestern China, where people chewed or boiled wild leaves. A legend
+  credits the mythical emperor Shennong with discovering it around 2737 BCE when leaves blew into
+  his pot of boiling water. By the Han dynasty, tea was being drunk as a beverage and grown in
+  cultivated gardens. The Tang poet-scholar Lu Yu's [3mCha Jing[0m ([3mThe Classic of Tea[0m), written around
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[91m✻[39m [91mJulienning… [90m(7s · ↓[39m [90m690 tokens · thought for 4s)[39m
+                                                                                      [90m45294 tokens[39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────
+[90m❯ [39m
+[37m────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[39m  [33m⏵⏵ auto mode on[90m (shift+tab to cycle) · ← 1 agent[39m

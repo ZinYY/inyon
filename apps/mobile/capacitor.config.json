@@ -1,0 +1,12 @@
+{
+  "appId": "tech.abhashchakraborty.inyon",
+  "appName": "Inyon",
+  "webDir": "../web/dist",
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

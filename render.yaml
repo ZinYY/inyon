@@ -1,0 +1,22 @@
+# Render Blueprint: an Inyon hub as a web service, built from deploy/hub/Dockerfile, with its home
+# folder on a persistent disk. The Deploy to Render button in site/docs/hub.md opens this file.
+# Disks need a paid instance (Render's free one can't keep files), so the plan isn't free.
+services:
+  - type: web
+    name: inyon-hub
+    runtime: docker
+    dockerfilePath: ./deploy/hub/Dockerfile
+    dockerContext: ./deploy/hub
+    # 512 MB holds the hub; agents run in the container too want 1c-2g or more
+    plan: 0.5c-512mb
+    healthCheckPath: /healthz
+    # a push to this repo shouldn't redeploy every hub made from it; redeploy by hand to update
+    autoDeployTrigger: "off"
+    envVars:
+      # the hub's password from the first boot, shown under the service's Environment
+      - key: INYON_PASSWORD
+        generateValue: true
+    disk:
+      name: inyon-home
+      mountPath: /data
+      sizeGB: 5

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- usesCleartextTraffic stays on: a computer on the same network is reached at ws://, with the
+         link's own end-to-end encryption on top, and a hub on Tailscale or NetBird at http://<name>,
+         which Android can't allow by address range. The web app checks every plain-http hub before
+         it sends anything (apps/web/src/lib/hubs.ts: loopback, 100.64.0.0/10, fd7a:115c:a1e0::/48,
+         and names that point only there). -->
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- a laptop's pairing code (inyon://pair?...) scanned with the camera opens the app -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="inyon" android:host="pair" />
+                <!-- a hub's code (inyon://hub?...) pairs the phone with that hub -->
+                <data android:scheme="inyon" android:host="hub" />
+                <!-- the scheme a laptop from before the rename to Inyon prints -->
+                <data android:scheme="tether" android:host="pair" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- the pairing-code scanner, opened only by the app itself -->
+        <activity
+            android:name=".device.ScannerActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.Scanner" />
+
+        <!-- notification buttons (Mark read, Stop); only the app's own PendingIntents reach it -->
+        <receiver
+            android:name=".device.NotificationActions"
+            android:exported="false" />
+
+        <!-- wakes the app for a few seconds to send an answer tapped on a notification -->
+        <service
+            android:name=".device.AnswerService"
+            android:exported="false"
+            android:foregroundServiceType="shortService|dataSync" />
+
+        <!-- keeps the app (and the web app's sockets) alive in the background while it's on.
+             specialUse from Android 14: dataSync stops after 6 hours a day from Android 15 -->
+        <service
+            android:name=".device.KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|specialUse"
+            android:stopWithTask="true">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps SSH connections to the user's own computers open so agent alerts arrive while the app is in the background" />
+        </service>
+
+        <!-- asks Play services to fetch the QR decoder when the app is installed -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- a few seconds awake when a machine sends something, so the alert is posted before the phone sleeps -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- the one-tap "don't restrict Inyon" prompt; without it, Doze cuts the connection when the screen is off -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- asked for only when the QR scanner or a photo input opens -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- photo inputs hand off to the camera app, which has to be visible to resolve it -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
+    <!-- nothing is scheduled or restored after a reboot, so these stay out even if a library asks -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+</manifest>

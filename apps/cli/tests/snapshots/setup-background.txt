@@ -1,0 +1,22 @@
+  ◆
+  ╰─●    inyon x.y.z
+1 Role  ·  2 Network  ·  3 Background  ·  4 Summary
+Keep it running?
+
+ ● Run in the background
+     starts at login and comes back after a crash
+ ○ Only while this window is open
+     run `inyon pair` whenever you need it
+
+
+
+
+
+
+
+
+
+
+
+
+↑↓ move  ·  Space choose  ·  Enter next  ·  ← back  ·  Esc quit

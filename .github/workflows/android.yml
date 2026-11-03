@@ -1,0 +1,503 @@
+name: Android
+
+# Builds the signed Android APK.
+#   push to main  -> refreshes the "android-latest" pre-release, so the newest build is one tap away
+#   tag v1.2.3    -> a release named after the tag, with the APK attached
+#   run by hand   -> the APK as a workflow artifact
+#   pull request  -> both builds, unsigned by the release key, with their tests; nothing published
+# Every run also starts the APK on an emulator (the smoke job) to catch crashes and R8 mistakes,
+# and runs the SSH plugin's tests. The publish job waits for both, so a crashing APK isn't released.
+#
+# The app from 1.0 (apps/app/android: the Dioxus app with the phone core in Rust) is built next to
+# the Capacitor one by the app-* jobs, from the same run number, and kept as an artifact for now.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore: ['**.md']
+  pull_request:
+    paths:
+      - 'apps/app/**'
+      - 'apps/mobile/**'
+      # the app builds on the other crates too, and on the locked versions
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/android.yml'
+      - '.github/scripts/app-smoke*.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: bun install --frozen-lockfile
+      # the phone core goes into the app as wasm
+      - uses: ./.github/actions/phone-core
+      - run: bun run build
+      - run: bun x cap sync android
+        working-directory: apps/mobile
+
+      - name: Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="$(jq -r .version package.json)-build.${GITHUB_RUN_NUMBER}"; fi
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+
+      # JVM unit tests; the ones that need an sshd skip here and run in the ssh-plugin job
+      - name: Unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:testReleaseUnitTest
+
+      - name: Build
+        working-directory: apps/mobile/android
+        env:
+          # a pull request's code never sees the release key
+          KEYSTORE_BASE64: ${{ github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+          INYON_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          INYON_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+          INYON_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+          INYON_VERSION: ${{ steps.version.outputs.name }}
+          INYON_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            # pull requests, forks and first runs: a debug build still installs, but can't update a signed one
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/inyon.apk"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          export INYON_KEYSTORE="$RUNNER_TEMP/release.p12"
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/inyon.apk"
+          rm -f "$RUNNER_TEMP/release.p12"
+
+      - name: Check the signature
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --verbose --print-certs "$RUNNER_TEMP/inyon.apk" | grep -iE "verified|signer|certificate" | grep -viE "warning"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: inyon-${{ steps.version.outputs.name }}
+          path: ${{ runner.temp }}/inyon.apk
+
+      # turns R8's renamed stack traces back into readable ones (retrace)
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mapping-${{ steps.version.outputs.name }}
+          path: apps/mobile/android/app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: ignore
+
+  # Installs the APK on an emulator, starts it and checks logcat. An emulator that never boots is a
+  # warning, a crash is a failure. Only a crash holds back publishing (the `crashed` output), so a
+  # flaky emulator, even one that runs the job out of time, never does.
+  smoke:
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      crashed: ${{ steps.verdict.outputs.crashed }}
+    env:
+      OUT: ${{ github.workspace }}/smoke
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inyon-${{ needs.apk.outputs.version }}
+          path: ${{ runner.temp }}/apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # drives the WebView for the screenshots
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      # a QR code that isn't Inyon's, on the wall of the emulator camera's virtual room
+      - name: Make a camera poster
+        run: |
+          sudo apt-get install -y -qq qrencode > /dev/null
+          qrencode -s 24 -m 4 -o "${{ runner.temp }}/poster.png" 'https://example.com/menu'
+
+      - name: Start the app on an emulator
+        id: first
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -camera-back virtualscene -virtualscene-poster wall=${{ runner.temp }}/poster.png
+          script: |
+            .github/scripts/android-smoke.sh "${{ runner.temp }}/apk/inyon.apk"
+            .github/scripts/android-screens.sh || true
+
+      - name: Did the first try reach a verdict
+        id: tried
+        run: echo "verdict=$([ -f "$OUT/verdict" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - name: Start the app on a fresh emulator (the first one failed to come up)
+        if: steps.tried.outputs.verdict == 'no'
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back virtualscene -virtualscene-poster wall=${{ runner.temp }}/poster.png
+          script: |
+            .github/scripts/android-smoke.sh "${{ runner.temp }}/apk/inyon.apk"
+            .github/scripts/android-screens.sh || true
+
+      - name: Verdict
+        id: verdict
+        run: |
+          v=$(cat "$OUT/verdict" 2>/dev/null || echo none)
+          case "$v" in
+            pass) echo "The APK started cleanly: no crash, plugins loaded, web app loaded." ;;
+            none) echo "::warning::The emulator never came up, so the APK was not smoke tested." ;;
+            *) echo "crashed=yes" >> "$GITHUB_OUTPUT"; echo "::error::$v"; exit 1 ;;
+          esac
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: smoke-${{ needs.apk.outputs.version }}
+          path: smoke/
+          if-no-files-found: ignore
+
+  # JVM tests for the native SSH plugin (SshCore) against a throwaway sshd on the runner
+  ssh-plugin:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      # settings.gradle pulls the Capacitor modules from node_modules and the files `cap sync` writes
+      - run: bun install --frozen-lockfile
+      # the phone core goes into the app as wasm
+      - uses: ./.github/actions/phone-core
+      - run: bun run build
+      - run: bun x cap sync android
+        working-directory: apps/mobile
+
+      - name: Start sshd
+        run: |
+          d="$RUNNER_TEMP/sshd"
+          mkdir -p "$d"
+          chmod 700 "$d"
+          if [ ! -x /usr/sbin/sshd ]; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q openssh-server
+          fi
+          ssh-keygen -q -t ed25519 -N '' -f "$d/host_ed25519"
+          ssh-keygen -q -t ed25519 -N '' -C inyon-test -f "$d/client_ed25519"
+          cp "$d/client_ed25519.pub" "$d/authorized_keys"
+          chmod 600 "$d/authorized_keys"
+          # runs as the runner user, which can only log in as itself; MaxSessions 10 is the
+          # OpenSSH default, spelled out because the tests rely on it to exercise the pool
+          cat > "$d/sshd_config" <<EOF
+          Port 2222
+          ListenAddress 127.0.0.1
+          HostKey $d/host_ed25519
+          PidFile $d/sshd.pid
+          AuthorizedKeysFile $d/authorized_keys
+          PubkeyAuthentication yes
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          UsePAM no
+          StrictModes no
+          MaxSessions 10
+          EOF
+          # OpenSSH 9.8+ throttles sources that connect without logging in, as the probe test does
+          if /usr/sbin/sshd -t -f "$d/sshd_config" -o PerSourcePenalties=no 2>/dev/null; then
+            echo "PerSourcePenalties no" >> "$d/sshd_config"
+          fi
+          /usr/sbin/sshd -f "$d/sshd_config" -E "$d/sshd.log"
+          for i in $(seq 1 20); do
+            ssh -F /dev/null -i "$d/client_ed25519" -p 2222 -o BatchMode=yes -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null "$(id -un)@127.0.0.1" true 2>/dev/null && break
+            sleep 0.5
+          done
+          ssh -F /dev/null -i "$d/client_ed25519" -p 2222 -o BatchMode=yes -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null "$(id -un)@127.0.0.1" 'echo sshd is up'
+          {
+            echo "INYON_SSH_TEST_HOST=127.0.0.1"
+            echo "INYON_SSH_TEST_PORT=2222"
+            echo "INYON_SSH_TEST_USER=$(id -un)"
+            echo "INYON_SSH_TEST_KEY=$d/client_ed25519"
+          } >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
+      - name: sshd log
+        if: failure()
+        run: cat "$RUNNER_TEMP/sshd/sshd.log" || true
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: ssh-plugin-test-report
+          path: apps/mobile/android/app/build/reports/tests/
+
+  # The app from 1.0: dx compiles apps/app with the phone core, apps/app/android packages it with
+  # the Kotlin shared with the Capacitor app. arm64 is the phone's; x86_64 is for the emulator.
+  app-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+    env:
+      DX_VERSION: 0.7.10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: app-android-${{ matrix.abi }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: app-android-${{ matrix.abi }}-
+      - name: Install dx
+        working-directory: ${{ runner.temp }}
+        run: |
+          base="https://github.com/DioxusLabs/dioxus/releases/download/v$DX_VERSION"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.sha256"
+          # the file lists the .tar.gz and the .zip
+          grep ' dx-x86_64-unknown-linux-gnu.tar.gz$' dx-x86_64-unknown-linux-gnu.sha256 | sha256sum -c
+          mkdir -p dx && tar xzf dx-x86_64-unknown-linux-gnu.tar.gz -C dx
+          echo "$RUNNER_TEMP/dx" >> "$GITHUB_PATH"
+      - run: rustup target add ${{ matrix.abi == 'x86_64' && 'x86_64-linux-android' || 'aarch64-linux-android' }}
+
+      - name: Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="$(jq -r .version package.json)-build.${GITHUB_RUN_NUMBER}"; fi
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        env:
+          KEYSTORE_BASE64: ${{ github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+          INYON_VERSION: ${{ steps.version.outputs.name }}
+          INYON_VERSION_CODE: ${{ github.run_number }}
+          INYON_ABIS: ${{ matrix.abi }}
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          export INYON_KEYSTORE="$RUNNER_TEMP/sign.p12"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            # the Capacitor app's key, so this one installs over it
+            echo "$KEYSTORE_BASE64" | base64 -d > "$INYON_KEYSTORE"
+            export INYON_KEYSTORE_PASSWORD="$RELEASE_KEYSTORE_PASSWORD" INYON_KEY_ALIAS="$RELEASE_KEY_ALIAS" INYON_KEY_PASSWORD="$RELEASE_KEY_PASSWORD"
+          else
+            # pull requests and forks: a throwaway key, so the emulator can still install it
+            export INYON_KEYSTORE_PASSWORD=throwaway INYON_KEY_ALIAS=throwaway INYON_KEY_PASSWORD=throwaway
+            keytool -genkeypair -keystore "$INYON_KEYSTORE" -storetype PKCS12 -storepass throwaway -alias throwaway \
+              -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Inyon pull request" > /dev/null 2>&1
+          fi
+          start=$(date +%s)
+          apps/app/android/build.sh
+          echo "built in $(( $(date +%s) - start )) s"
+          rm -f "$INYON_KEYSTORE"
+          cp apps/app/android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/inyon-app.apk"
+
+      - name: Check the signature and the package
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/apksigner" verify --print-certs "$RUNNER_TEMP/inyon-app.apk" | grep -iE "signer|certificate" | grep -viE "warning"
+          "$bt/aapt2" dump badging "$RUNNER_TEMP/inyon-app.apk" | grep -E "^package:|sdkVersion|native-code"
+          "$bt/aapt2" dump badging "$RUNNER_TEMP/inyon-app.apk" | grep -q "package: name='tech.abhashchakraborty.inyon' versionCode='${{ github.run_number }}'"
+
+      - name: Size
+        run: |
+          apk="$RUNNER_TEMP/inyon-app.apk"
+          {
+            echo "## The app from 1.0, ${{ matrix.abi }}"
+            echo
+            echo "| what | bytes |"
+            echo "|---|---|"
+            echo "| release APK | $(stat -c %s "$apk") |"
+            unzip -lv "$apk" | awk 'NR>3 && $1 ~ /^[0-9]+$/ && $8 != "" {printf "| %s (%s compressed) | %s |\n", $8, $3, $1}' | sort -t'|' -k3 -n -r | head -8
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: inyon-app-${{ steps.version.outputs.name }}-${{ matrix.abi }}
+          path: ${{ runner.temp }}/inyon-app.apk
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-mapping-${{ steps.version.outputs.name }}-${{ matrix.abi }}
+          path: apps/app/android/app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: ignore
+
+  # The x86_64 build on an emulator: it starts, the phone core comes up, nothing crashes; then what
+  # it costs while hidden, next to the Capacitor APK measured on the same emulator.
+  app-smoke:
+    needs: [apk, app-apk]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OUT: ${{ github.workspace }}/app-smoke
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Version
+        id: version
+        run: echo "name=${{ needs.apk.outputs.version }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inyon-app-${{ steps.version.outputs.name }}-x86_64
+          path: ${{ runner.temp }}/app
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inyon-${{ steps.version.outputs.name }}
+          path: ${{ runner.temp }}/capacitor
+      - name: Test the smoke script's checks
+        run: bash .github/scripts/app-smoke.test.sh
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Start the app on an emulator
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
+          script: .github/scripts/app-smoke.sh "${{ runner.temp }}/app/inyon-app.apk" "${{ runner.temp }}/capacitor/inyon.apk"
+      - name: Verdict
+        run: |
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          v=$(cat "$OUT/verdict" 2>/dev/null || echo none)
+          case "$v" in
+            pass) echo "The app from 1.0 started cleanly with its phone core." ;;
+            none) echo "::warning::The emulator never came up, so the app from 1.0 was not smoke tested." ;;
+            *) echo "::error::$v"; exit 1 ;;
+          esac
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: app-smoke-${{ steps.version.outputs.name }}
+          path: app-smoke/
+          if-no-files-found: ignore
+
+  # Releases the APK once the checks are in: push to main refreshes android-latest, a v* tag gets
+  # its own release. The SSH plugin's tests must pass and the smoke job must not have seen a crash.
+  publish:
+    needs: [apk, smoke, ssh-plugin]
+    if: >-
+      !cancelled() && github.event_name == 'push' &&
+      needs.apk.result == 'success' && needs.ssh-plugin.result == 'success' &&
+      needs.smoke.outputs.crashed != 'yes'
+    runs-on: ubuntu-24.04
+    # uploads to the release; it installs only Ubuntu's minisign package, to sign, and runs no
+    # dependencies
+    permissions:
+      contents: write
+    steps:
+      # for .github/scripts/list-apk.sh
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inyon-${{ needs.apk.outputs.version }}
+          path: ${{ runner.temp }}/apk
+
+      # signs the checksum list again after the APK is added to it (see node.yml)
+      - if: startsWith(github.ref, 'refs/tags/v')
+        run: sudo apt-get update -q > /dev/null && sudo apt-get install -y -q minisign > /dev/null
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.apk.outputs.version }}
+          KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          # the release key; the list on the release must already carry its signature
+          PUBKEY: RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6
+        run: |
+          apk="$RUNNER_TEMP/inyon-$VERSION.apk"
+          cp "$RUNNER_TEMP/apk/inyon.apk" "$apk"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # a tag with a hyphen is a test build, published as a pre-release (as in node.yml)
+            pre=(); [[ "$GITHUB_REF_NAME" == *-* ]] && pre=(--prerelease)
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" "${pre[@]}" --title "Inyon $VERSION" --generate-notes
+            gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
+            # list the APK in SHA256SUMS too, next to the files node.yml attached, and sign the
+            # list again: the installers and `inyon update` check the signature before trusting
+            # it. Only a list node.yml signed is signed again (list-apk.sh checks), so the wait
+            # also covers node.yml uploading the list and its signature one after the other.
+            # Without the key the list stays as node.yml signed it.
+            sums="$RUNNER_TEMP/sums"
+            if [ -z "$KEY" ]; then
+              echo "::warning::MINISIGN_SECRET_KEY isn't set, so SHA256SUMS keeps its signature and the APK isn't listed in it"
+              exit 0
+            fi
+            for i in $(seq 1 30); do
+              rm -rf "$sums" && mkdir -p "$sums"
+              gh release download "$GITHUB_REF_NAME" -p SHA256SUMS -p SHA256SUMS.minisig -p "inyon-$VERSION.apk" -D "$sums" 2>/dev/null || true
+              [ -f "$sums/SHA256SUMS" ] && [ -f "$sums/SHA256SUMS.minisig" ] &&
+                minisign -V -q -m "$sums/SHA256SUMS" -x "$sums/SHA256SUMS.minisig" -P "$PUBKEY" >/dev/null 2>&1 && break
+              sleep 20
+            done
+            if [ ! -f "$sums/SHA256SUMS" ]; then
+              echo "::warning::The release has no SHA256SUMS yet, so the APK isn't listed in it"
+              exit 0
+            fi
+            .github/scripts/list-apk.sh "$sums" "$apk" "$sums/inyon-$VERSION.apk"
+            gh release upload "$GITHUB_REF_NAME" "$sums/SHA256SUMS" "$sums/SHA256SUMS.minisig" --clobber
+          else
+            gh release delete android-latest --yes --cleanup-tag 2>/dev/null || true
+            gh release create android-latest "$apk" --prerelease --target "$GITHUB_SHA" \
+              --title "Latest Android build ($VERSION)" \
+              --notes "Built from $GITHUB_SHA on main. Install over the previous build; tagged releases are the stable ones."
+          fi

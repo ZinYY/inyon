@@ -1,0 +1,111 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Would you like to make the following edits?",
+          "Description: Apply proposed file edits",
+          "Destination:",
+          "/home/me/play/notes2",
+          ".txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for these files",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Edit notes2.txt?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Would you like to make the following edits?",
+          "Description: Apply proposed file edits",
+          "Destination:",
+          "/home/me/play/notes2",
+          ".txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for these files",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Edit notes2.txt?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 119,
+      "prompt": {
+        "body": [
+          "Would you like to make the following edits?",
+          "Description: Apply proposed file edits",
+          "Destination:",
+          "/home/me/play/notes2",
+          ".txt"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, proceed",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, and don't ask again for these files",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, and tell Codex what to do differently",
+            "selected": false
+          }
+        ],
+        "footer": "Press enter to confirm or esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Edit notes2.txt?"
+  },
+  "browsing": null
+}

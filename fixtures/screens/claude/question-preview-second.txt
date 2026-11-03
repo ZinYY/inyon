@@ -1,0 +1,24 @@
+[90m[47m❯ [30mUse the AskUserQuestion tool once: one question "Which layout?" with three options (Grid, List, Cards). Give each option a short description and a preview [39m
+  [30mfield holding a 6-line ASCII mockup drawn with box characters. Do nothing else.[39m
+
+[90m[49m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[37m[44m ☐ Layout [39m[49m
+
+[1m[30mWhich layout?[0m
+
+ [90m 1.[39m Grid                         [90m┌──────────────────────────────────────────┐[39m
+[34m❯[90m 2.[1m[34m List[0m                         [90m│ [39m┌──────────────────────────┐[90m             │[39m
+ [90m 3.[39m Cards                        [90m│ [39m│ ● Item one          ... │[90m              │[39m
+                                  [90m│ [39m├──────────────────────────┤[90m             │[39m
+                                  [90m│ [39m│ ● Item two          ... │[90m              │[39m
+                                  [90m│ [39m├──────────────────────────┤[90m             │[39m
+                                  [90m│ [39m│ ● Item three        ... │[90m              │[39m
+                                  [90m│ [39m└──────────────────────────┘[90m             │[39m
+                                  [90m└──────────────────────────────────────────┘[39m
+
+                                  [34mNotes:[39m [3m[90mpress n to add notes[0m
+
+[90m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m  Chat about this
+
+[90mEnter to select · ↑/↓ to navigate · n to add notes · Esc to cancel[39m

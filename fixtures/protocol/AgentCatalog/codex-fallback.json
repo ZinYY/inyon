@@ -1,0 +1,63 @@
+{
+  "models": [
+    {
+      "id": "gpt-6.1-sol",
+      "label": "GPT-6.1-Sol",
+      "note": "Latest workhorse for coding and everyday work",
+      "context": 272000
+    },
+    {
+      "id": "gpt-6-astra",
+      "label": "GPT-6-Astra",
+      "note": "Frontier intelligence for the hardest work",
+      "context": 272000
+    },
+    {
+      "id": "gpt-6-sol",
+      "label": "GPT-6-Sol",
+      "note": "Previous generation workhorse",
+      "context": 272000
+    },
+    {
+      "id": "gpt-6-luna",
+      "label": "GPT-6-Luna",
+      "note": "Fast and affordable",
+      "context": 272000,
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "label": "GPT-5.6-Sol",
+      "note": "Older generation workhorse",
+      "context": 272000
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "label": "GPT-5.6-Terra",
+      "note": "Older balanced model",
+      "context": 272000
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "label": "GPT-5.6-Luna",
+      "note": "Older fast model",
+      "context": 272000,
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    }
+  ],
+  "source": "fallback",
+  "updatedAt": 0,
+  "error": "Codex has not cached its model list yet"
+}

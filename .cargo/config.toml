@@ -1,0 +1,4 @@
+# The phone core runs as wasm in the browser, where getrandom only uses crypto.getRandomValues when
+# told to (the wasm_js feature in crates/inyon-link/Cargo.toml is the other half).
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", 'getrandom_backend="wasm_js"']

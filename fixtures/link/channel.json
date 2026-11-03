@@ -1,0 +1,152 @@
+{
+  "about": "The encrypted JSON channel after the phone-machine handshake in noise.json: each message is cut into 60000-byte chunks, each chunk is sent as one Noise transport message whose plaintext is a flag byte (1 on the last chunk, else 0) and the chunk. Frames are listed in send order per direction; long frames by length and sha256.",
+  "handshake": "phone-machine",
+  "phone_is": "initiator",
+  "chunk": 60000,
+  "max_message": 16777216,
+  "close_codes": {
+    "bad_message": 4400,
+    "too_large": 4413,
+    "bad_handshake": 4401,
+    "refused": 4403,
+    "handshake_timeout": 4408
+  },
+  "messages": [
+    {
+      "from": "phone",
+      "body": {
+        "text": "{\"t\":\"hello\",\"id\":1}"
+      },
+      "body_len": 20,
+      "body_sha256": "da378ce4e71ec755a6c2e1b79c45c34c11550180428d1b2cfdaf2b0c2e5a43e2",
+      "frames": [
+        {
+          "final": true,
+          "len": 37,
+          "sha256": "c2a49c139bae2d7c972aae20034f6944b700c97dc73fdb8b4923b3241fc62842",
+          "hex": "e3585d8108696d9897252699255517b21caaab30b29ce12f9fd7a6473660a50a657dad3daa"
+        }
+      ]
+    },
+    {
+      "from": "machine",
+      "body": {
+        "text": "{\"t\":\"ok\",\"id\":1}"
+      },
+      "body_len": 17,
+      "body_sha256": "1c1635fdb5341f8ed29072a70bb4f8c68ce5fc592593c8c272fcf50dc1cee0b3",
+      "frames": [
+        {
+          "final": true,
+          "len": 34,
+          "sha256": "a461bd1e6f93f7f21e2aac75f7a0b3d5bb12f1727789973fc402815fe1b91470",
+          "hex": "60464ed53c7a1b0768343fc2c0573a0d0182460dba51d5bb99a908a1771edeb18c68"
+        }
+      ]
+    },
+    {
+      "from": "machine",
+      "body": {
+        "prefix": "{\"t\":\"chat.reset\",\"text\":\"",
+        "fill": "abé€🙂",
+        "count": 9000,
+        "suffix": "\"}"
+      },
+      "body_len": 99028,
+      "body_sha256": "8451f974f31777ccb4b1c0582d85d344fe5125b695df91ffd839bf9c8373ae28",
+      "frames": [
+        {
+          "final": false,
+          "len": 60017,
+          "sha256": "d868c19940451ad52d6bb7ba6112f0043978079bd7c246ac084cb1bbee8d2ef7"
+        },
+        {
+          "final": true,
+          "len": 39045,
+          "sha256": "7c468669353b96372b9fb290d8e4aa285f8f462cbf29d80e3602c7c29c818ca5"
+        }
+      ]
+    },
+    {
+      "from": "phone",
+      "body": {
+        "prefix": "\"",
+        "fill": "p",
+        "count": 59998,
+        "suffix": "\""
+      },
+      "body_len": 60000,
+      "body_sha256": "d4377357117ef64d56b9700257c26d795602853c5c130687c400c7ce08af0e94",
+      "frames": [
+        {
+          "final": true,
+          "len": 60017,
+          "sha256": "07101ad55a93a92cfe81a49c882ccc81f2e382aac526f5b542a71a0f0f0780a1"
+        }
+      ]
+    },
+    {
+      "from": "machine",
+      "body": {
+        "prefix": "\"",
+        "fill": "m",
+        "count": 119998,
+        "suffix": "\""
+      },
+      "body_len": 120000,
+      "body_sha256": "8d82e759b9f026cda8fc6f34191b6d208f3fbe151d13f2c6289e75433d537792",
+      "frames": [
+        {
+          "final": false,
+          "len": 60017,
+          "sha256": "127bfd6472146ee3e66b4debe4eaecd653cdb1d623fd5aa095a0973d61bf3a92"
+        },
+        {
+          "final": true,
+          "len": 60017,
+          "sha256": "0df922e67a6a27aeb0b52c324f6a6925808d1baed0c1cdf227e5500fc02664be"
+        }
+      ]
+    },
+    {
+      "from": "phone",
+      "body": {
+        "prefix": "\"",
+        "fill": "q",
+        "count": 59999,
+        "suffix": "\""
+      },
+      "body_len": 60001,
+      "body_sha256": "253db3622c793c20ad0e97395aca3c20453c75dbaeff90d5914d8bc6598d2606",
+      "frames": [
+        {
+          "final": false,
+          "len": 60017,
+          "sha256": "c9111b63c53436650fe4f4fc93fcc82576089ed8deab253c4d3f2aba43833f52"
+        },
+        {
+          "final": true,
+          "len": 18,
+          "sha256": "2b3e18bdcff9853c5998d79cd1a35111aadd6daebe76a0d9bbfa0a7f16d4fc5e",
+          "hex": "0c9f4b9189fd9196c0332723446869c8f891"
+        }
+      ]
+    },
+    {
+      "from": "phone",
+      "body": {
+        "text": "{}"
+      },
+      "body_len": 2,
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "frames": [
+        {
+          "final": true,
+          "len": 19,
+          "sha256": "b91d0e0d53760dddf1e655bdf457cc6ed43480e5a4a5ba95243e17be8da87f40",
+          "hex": "c54a30fbfda3d41a8cc8c1246843e572df45cb"
+        }
+      ]
+    }
+  ]
+}

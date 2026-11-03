@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A shared list</title>
+<link rel="stylesheet" href="../../kit/blueprint.css">
+<script src="../../kit/lucide.min.js"></script><script src="../../kit/data.js"></script>
+<script src="../../kit/kit.js"></script><script src="../../kit/menus.js"></script><script src="../../kit/shell.js"></script>
+<style>
+  .lst { padding: 20px 24px 40px; max-width: 720px; display: grid; gap: 14px; }
+  .lst .add { display: flex; gap: 8px; }
+  .lst .items { padding: 6px; }
+  .lst .it { font-size: 14.5px; }
+  .lst .it.done .t { text-decoration: line-through; color: var(--fg-3); }
+  .lst .it .who { margin-left: auto; font: 12px var(--mono); color: var(--fg-3); display: inline-flex; gap: 5px; align-items: center; }
+  .lst .it .who svg { width: 13px; height: 13px; }
+  @media (max-width: 640px) { .lst { padding: 4px 12px 24px; } }
+</style>
+</head><body>
+<div id="app"></div>
+<template id="notes">
+  <p>One shared list. Ticks and new items work offline and sync when the signal comes back.</p>
+  <ol><li>An edit waiting to sync shows a clock instead of a name (2.4).</li><li>Right-click or long-press an item for the same menu as its ⋯ button.</li><li>Two people's offline edits merge per item in 2.5; the history button shows who did what.</li></ol>
+</template>
+<script>
+let items = [['Oat milk', 'Jonas', false], ['Eggs', 'Mira', true], ['Rice', '', false, true], ['Tomatoes', 'Ada', false], ['Coffee', 'Jonas', true]];
+const itemMenu = (t) => [{ label: 'Edit…', icon: 'pencil' }, { label: 'Move to list', icon: 'arrow-right-left', sub: DATA.items.map((l) => ({ label: l.title })) }, { label: 'Quantity', icon: 'hash', sub: ['1', '2', '3', '6'].map((n) => ({ label: n })) }, { sep: true }, { label: 'Remove', icon: 'trash-2', danger: true, onSelect: () => K.undo(`Removed ${t}`) }];
+const render = () => items.map(([t, who, done, pending], i) => `<div class="row it${done ? ' done' : ''}" data-row="i${i}" data-i="${i}" tabindex="0" role="button" aria-pressed="${done}">
+  <input type="checkbox" ${done ? 'checked' : ''} aria-label="Tick ${t}" tabindex="-1"><span class="t">${K.esc(t)}</span>
+  <span class="who">${pending ? `${K.icon('clock')} waiting` : who ? K.esc(who) : ''}</span>
+  <button class="icon-btn sm" data-more aria-label="More for ${t}">${K.icon('ellipsis')}</button></div>`).join('');
+K.shell.mount({
+  active: 'l1', nav: 'lists', phoneTitle: 'Big shop',
+  actions: `<button class="btn sm ghost" data-act="history">${K.icon('history')} History</button><button class="btn sm ghost" data-act="share">${K.icon('users')} Share</button>`,
+  phoneActions: `<button class="icon-btn" data-act="share" aria-label="Share">${K.icon('users')}</button>`,
+  main: `<div class="scroll" style="flex:1"><div class="lst">
+    <form class="add" onsubmit="event.preventDefault()"><input class="input" id="new" placeholder="Add an item" aria-label="Add an item"><button class="btn primary" id="addBtn">${K.icon('plus')} Add</button></form>
+    <div class="card sm items" id="items" data-keynav>${render()}</div>
+  </div></div>`,
+  onMount(root) {
+    const box = K.$('#items', root);
+    const redraw = () => { box.innerHTML = render(); K.icons(box); };
+    box.addEventListener('click', (e) => {
+      const r = e.target.closest('.it'); if (!r) return; const i = +r.dataset.i;
+      if (e.target.closest('[data-more]')) return K.menu.open(e.target.closest('[data-more]'), itemMenu(items[i][0]), { align: 'end' });
+      items[i][2] = !items[i][2]; items[i][1] = 'You'; redraw();
+    });
+    K.ctx.register('it', (el) => itemMenu(items[+el.dataset.i][0]));
+    new MutationObserver(() => K.$$('.it', box).forEach((r) => (r.dataset.ctx = 'it'))).observe(box, { childList: true }); K.$$('.it', box).forEach((r) => (r.dataset.ctx = 'it'));
+    K.$('#addBtn', root).onclick = () => { const v = K.$('#new', root).value.trim(); if (!v) return K.toast('Type an item first'); items.unshift([v, '', false, true]); K.$('#new', root).value = ''; redraw(); };
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-act]')?.dataset.act;
+      if (a === 'share') K.sheet.open({ title: 'Share Big shop', icon: 'users', body: DATA.people.map((p) => `<div class="row" style="justify-content:space-between">${K.esc(p.name)}<span class="toggle" aria-checked="${p.id !== 'p3'}" aria-label="Share with ${p.name}"></span></div>`).join(''), actions: [{ label: 'Done', kind: 'primary', toast: false }] });
+      if (a === 'history') K.sheet.open({ title: 'History', icon: 'history', body: '<div class="row">Jonas ticked Coffee · 2m</div><div class="row">Mira ticked Eggs · 1h</div><div class="row">You added Rice · waiting for signal</div>', actions: [{ label: 'Close', kind: 'ghost', toast: false }] });
+    }, true);
+  },
+});
+</script>
+</body></html>

@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "exportedAt": 1800000000000,
+  "appVersion": "0.24.0",
+  "records": {
+    "hosts": "[{\"id\":\"box\",\"name\":\"box\",\"kind\":\"ssh\",\"target\":\"me@box\",\"hostKey\":\"SHA256:fixture\"}]",
+    "names": "{\"box $1\":\"api\"}",
+    "settings": "{\"autoResume\":true}"
+  },
+  "local": {
+    "inyon.keepAlive": "0",
+    "inyon.settings.v2": "{\"theme\":\"dark\",\"notifyDone\":false}"
+  },
+  "secrets": {
+    "phone-key": "fixture-only, not a key",
+    "server:box": "fixture-only, not a password"
+  }
+}

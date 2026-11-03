@@ -1,0 +1,4 @@
+[install]
+# Capacitor points Gradle and Swift at its packages inside node_modules; hoisted, those paths stay
+# the same from one version to the next
+linker = "hoisted"

@@ -1,0 +1,15 @@
+ ▐▛███▛█   Claude Code v2.1.296
+● Held peer message — from uds:/run/user/1001/cc-socks/49259.sock [verified pid 49259] (peer claims name: Inyon development); preview: «Test
+  message …» — not delivered to Claude (1 held).
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ Held message from another session
+ Another Claude session sent a message: from uds:/run/user/1001/cc-socks/49259.sock [verified pid 49259] (peer claims name: Inyon development)
+ The sending session's permission mode class doesn't match this session's, so it wasn't delivered automatically.
+ Message body (this is what will be delivered):
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ │ Test message from the Inyon development session: please reply with only
+ │ …[1 line, 163 chars total — full body will be delivered on approve]
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ ❯ Deny — drop it and tell the sender it was declined
+   Deliver this message to Claude
+

@@ -1,0 +1,3060 @@
+{
+  "claude": {
+    "kind": "claude",
+    "install": {
+      "cmd": "curl -fsSL https://claude.ai/install.sh | bash",
+      "docs": "https://docs.claude.com/en/docs/claude-code/setup"
+    },
+    "latest": {
+      "npm": "@anthropic-ai/claude-code"
+    },
+    "update": "claude update",
+    "login": "claude /login",
+    "version": "claude --version",
+    "authFiles": [
+      "~/.claude/.credentials.json",
+      "~/.claude.json"
+    ],
+    "name": "Claude Code",
+    "vendor": "Anthropic",
+    "comm": [
+      "claude"
+    ],
+    "launch": "claude",
+    "replyFont": "serif",
+    "spinner": [
+      "·",
+      "✢",
+      "✳",
+      "✶",
+      "✻",
+      "✽",
+      "✻",
+      "✶",
+      "✳",
+      "✢"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#FAF9F5",
+        "panel": "#FFFFFF",
+        "raised": "#F4F2EC",
+        "hover": "#F0EEE7",
+        "line": "#E8E5DC",
+        "lineStrong": "#D9D5C9",
+        "fg": "#1F1E1D",
+        "fg2": "#5C5B56",
+        "fg3": "#6A6862",
+        "accent": "#B85A38",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#F5E6DE",
+        "accentText": "#A8502F",
+        "bubble": "#EFEDE4",
+        "code": "#F4F2EC"
+      },
+      "dark": {
+        "bg": "#262624",
+        "panel": "#30302E",
+        "raised": "#2A2927",
+        "hover": "#33322F",
+        "line": "#3B3A37",
+        "lineStrong": "#4A4844",
+        "fg": "#F4F3EE",
+        "fg2": "#C3C1B8",
+        "fg3": "#A6A39A",
+        "accent": "#D97757",
+        "accentFg": "#1F1E1D",
+        "accentSoft": "#3E2C25",
+        "accentText": "#E8957A",
+        "bubble": "#1A1918",
+        "code": "#1F1E1D"
+      }
+    },
+    "chat": true,
+    "shell": true,
+    "models": [
+      {
+        "id": "opus",
+        "label": "Opus 5.5",
+        "note": "Default · 1M context",
+        "context": 1000000,
+        "defaultEffort": "high"
+      },
+      {
+        "id": "sonnet",
+        "label": "Sonnet 5.5",
+        "note": "Faster, cheaper",
+        "defaultEffort": "medium"
+      },
+      {
+        "id": "haiku",
+        "label": "Haiku 5.5",
+        "note": "Quick edits"
+      },
+      {
+        "id": "claude-fable-5-1",
+        "label": "Fable 5.1",
+        "note": "Most capable"
+      }
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "modes": [
+      {
+        "id": "default",
+        "label": "Ask each time"
+      },
+      {
+        "id": "acceptEdits",
+        "label": "Accept edits"
+      },
+      {
+        "id": "plan",
+        "label": "Plan"
+      },
+      {
+        "id": "auto",
+        "label": "Auto"
+      },
+      {
+        "id": "bypassPermissions",
+        "label": "Bypass"
+      }
+    ],
+    "commands": [
+      {
+        "name": "/add-dir",
+        "description": "Add a new working directory",
+        "source": "built-in"
+      },
+      {
+        "name": "/advisor",
+        "description": "Let Claude consult a stronger model at key moments",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/agents",
+        "description": "Manage subagents",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/artifacts",
+        "description": "Browse your published and shared artifacts",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/autocompact",
+        "description": "Set how full the context gets before auto-summarizing",
+        "source": "built-in"
+      },
+      {
+        "name": "/background",
+        "description": "Send this session to the background and free the terminal",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/branch",
+        "description": "Create a branch of the current conversation at this point",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/btw",
+        "description": "Ask a quick side question without interrupting",
+        "source": "built-in"
+      },
+      {
+        "name": "/cd",
+        "description": "Move this session to a new working directory",
+        "source": "built-in"
+      },
+      {
+        "name": "/clear",
+        "description": "Start a new session with empty context",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/color",
+        "description": "Set the prompt bar color for this session",
+        "source": "built-in"
+      },
+      {
+        "name": "/compact",
+        "description": "Free up context by summarizing the conversation so far",
+        "source": "built-in"
+      },
+      {
+        "name": "/config",
+        "description": "Open settings",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/context",
+        "description": "Visualize current context usage",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/copy",
+        "description": "Copy Claude's last response",
+        "source": "built-in"
+      },
+      {
+        "name": "/diff",
+        "description": "Toggle the diff panel showing uncommitted changes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/doctor",
+        "description": "Health-check your Claude Code setup",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/effort",
+        "description": "Set effort level for model usage",
+        "source": "built-in"
+      },
+      {
+        "name": "/export",
+        "description": "Export the current conversation",
+        "source": "built-in"
+      },
+      {
+        "name": "/fast",
+        "description": "Toggle fast mode",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/focus",
+        "description": "Toggle focus view",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/fork",
+        "description": "Copy this conversation into a new background session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/goal",
+        "description": "Set a goal Claude checks before stopping",
+        "source": "built-in"
+      },
+      {
+        "name": "/help",
+        "description": "Show help and available commands",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/hooks",
+        "description": "View hook configurations",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/init",
+        "description": "Create a CLAUDE.md with codebase documentation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/insights",
+        "description": "Report analyzing your Claude Code sessions",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/list-agents",
+        "description": "List subagents and sessions you can message",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/loop",
+        "description": "Run a prompt or command on a recurring interval",
+        "source": "built-in"
+      },
+      {
+        "name": "/mcp",
+        "description": "Manage MCP servers",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/memory",
+        "description": "Edit CLAUDE.md files and memory settings",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/model",
+        "description": "Set the AI model",
+        "source": "built-in"
+      },
+      {
+        "name": "/output-style",
+        "description": "List output styles or switch to one",
+        "source": "built-in"
+      },
+      {
+        "name": "/permissions",
+        "description": "Manage allow and deny tool permission rules",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plan",
+        "description": "Enable plan mode or view the current plan",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plugin",
+        "description": "Manage Claude Code plugins",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/recap",
+        "description": "Generate a one-line session recap now",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/release-notes",
+        "description": "View release notes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/reload-plugins",
+        "description": "Activate pending plugin changes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/reload-skills",
+        "description": "Pick up skills changed on disk",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/remote-control",
+        "description": "Control this session from your phone or claude.ai/code",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rename",
+        "description": "Rename the current conversation",
+        "source": "built-in"
+      },
+      {
+        "name": "/resume",
+        "description": "Resume a previous conversation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/review",
+        "description": "Review a pull request",
+        "source": "built-in"
+      },
+      {
+        "name": "/rewind",
+        "description": "Restore code and/or conversation to an earlier point",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/schedule",
+        "description": "Create or run scheduled cloud agents",
+        "source": "built-in"
+      },
+      {
+        "name": "/security-review",
+        "description": "Security review of pending changes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/simplify",
+        "description": "Review changed code for cleanups",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/skills",
+        "description": "List available skills",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/status",
+        "description": "Version, model, account and connectivity",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/statusline",
+        "description": "Set up Claude Code's status line",
+        "source": "built-in"
+      },
+      {
+        "name": "/subtask",
+        "description": "Send a subagent off with your full context",
+        "source": "built-in"
+      },
+      {
+        "name": "/tasks",
+        "description": "View and manage everything running in the background",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/teleport",
+        "description": "Send this session to the cloud, or resume one",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/theme",
+        "description": "Change the theme",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/usage",
+        "description": "Session cost, plan usage and activity stats",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/usage-credits",
+        "description": "Configure usage credits",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/workflows",
+        "description": "Browse running and completed workflows",
+        "source": "built-in",
+        "instant": true
+      }
+    ],
+    "conversations": [
+      "/resume"
+    ],
+    "configFiles": [
+      {
+        "path": "~/.claude/settings.json",
+        "label": "User settings",
+        "format": "json"
+      },
+      {
+        "path": "~/.claude/CLAUDE.md",
+        "label": "User memory",
+        "format": "md"
+      },
+      {
+        "path": "{cwd}/.claude/settings.json",
+        "label": "Project settings",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/.claude/settings.local.json",
+        "label": "Local project settings",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/CLAUDE.md",
+        "label": "Project memory",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)claude(\\s|$)",
+      "@anthropic-ai\\/claude-code\\/"
+    ],
+    "set": {
+      "model": "/model {id}",
+      "effort": "/effort {level}",
+      "goal": "/goal {text}",
+      "clearGoal": "/goal clear",
+      "compact": "/compact",
+      "clear": "/clear",
+      "rc": "/remote-control",
+      "ultracode": {
+        "on": "/effort ultracode on",
+        "off": "/effort ultracode off"
+      }
+    }
+  },
+  "codex": {
+    "kind": "codex",
+    "install": {
+      "cmd": "curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh",
+      "npm": "@openai/codex",
+      "docs": "https://developers.openai.com/codex/cli"
+    },
+    "latest": {
+      "npm": "@openai/codex"
+    },
+    "update": "codex update",
+    "login": "codex login",
+    "version": "codex --version",
+    "authFiles": [
+      "~/.codex/auth.json"
+    ],
+    "name": "Codex",
+    "vendor": "OpenAI",
+    "comm": [
+      "codex"
+    ],
+    "launch": "codex",
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#FFFFFF",
+        "panel": "#FFFFFF",
+        "raised": "#F7F7F8",
+        "hover": "#F2F2F3",
+        "line": "#E5E5E5",
+        "lineStrong": "#D4D4D4",
+        "fg": "#0D0D0D",
+        "fg2": "#4D4D4D",
+        "fg3": "#6E6E6E",
+        "accent": "#2F6FEB",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#E8F0FE",
+        "accentText": "#1F5FD6",
+        "bubble": "#F3F3F3",
+        "code": "#F7F7F8"
+      },
+      "dark": {
+        "bg": "#0D0D0D",
+        "panel": "#171717",
+        "raised": "#141414",
+        "hover": "#1C1C1C",
+        "line": "#2A2A2A",
+        "lineStrong": "#3A3A3A",
+        "fg": "#ECECEC",
+        "fg2": "#B8B8B8",
+        "fg3": "#8F8F8F",
+        "accent": "#63A8F8",
+        "accentFg": "#00002E",
+        "accentSoft": "#14233A",
+        "accentText": "#8CC0FF",
+        "bubble": "#1F1F1F",
+        "code": "#111111"
+      }
+    },
+    "chat": true,
+    "shell": true,
+    "models": [
+      {
+        "id": "gpt-6.1-sol",
+        "label": "GPT-6.1-Sol",
+        "note": "Latest workhorse for coding and everyday work",
+        "context": 272000
+      },
+      {
+        "id": "gpt-6-astra",
+        "label": "GPT-6-Astra",
+        "note": "Frontier intelligence for the hardest work",
+        "context": 272000
+      },
+      {
+        "id": "gpt-6-sol",
+        "label": "GPT-6-Sol",
+        "note": "Previous generation workhorse",
+        "context": 272000
+      },
+      {
+        "id": "gpt-6-luna",
+        "label": "GPT-6-Luna",
+        "note": "Fast and affordable",
+        "context": 272000,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "id": "gpt-5.6-sol",
+        "label": "GPT-5.6-Sol",
+        "note": "Older generation workhorse",
+        "context": 272000
+      },
+      {
+        "id": "gpt-5.6-terra",
+        "label": "GPT-5.6-Terra",
+        "note": "Older balanced model",
+        "context": 272000
+      },
+      {
+        "id": "gpt-5.6-luna",
+        "label": "GPT-5.6-Luna",
+        "note": "Older fast model",
+        "context": 272000,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra"
+    ],
+    "modes": [
+      {
+        "id": "default",
+        "label": "Ask for approval"
+      },
+      {
+        "id": "auto-review",
+        "label": "Approve for me"
+      },
+      {
+        "id": "read-only",
+        "label": "Read only"
+      },
+      {
+        "id": "full-access",
+        "label": "Full access"
+      },
+      {
+        "id": "plan",
+        "label": "Plan"
+      }
+    ],
+    "commands": [
+      {
+        "name": "/model",
+        "description": "Choose model and reasoning effort",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/permissions",
+        "description": "Choose what Codex is allowed to do",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plan",
+        "description": "Switch to Plan mode",
+        "source": "built-in"
+      },
+      {
+        "name": "/goal",
+        "description": "Set or view the goal for a long-running task",
+        "source": "built-in"
+      },
+      {
+        "name": "/new",
+        "description": "Start a new chat",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rename",
+        "description": "Rename the current thread",
+        "source": "built-in"
+      },
+      {
+        "name": "/resume",
+        "description": "Resume a saved chat",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/fork",
+        "description": "Fork the current chat",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/side",
+        "description": "Start a side conversation in an ephemeral fork",
+        "source": "built-in"
+      },
+      {
+        "name": "/compact",
+        "description": "Summarize the conversation to free up context",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/recap",
+        "description": "Summarize the current conversation now",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/review",
+        "description": "Review your current changes and find issues",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/diff",
+        "description": "Show the git diff, including untracked files",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mention",
+        "description": "Mention a file",
+        "source": "built-in"
+      },
+      {
+        "name": "/init",
+        "description": "Create an AGENTS.md file with instructions",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/status",
+        "description": "Session configuration and token usage",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/usage",
+        "description": "Account usage, or use a usage limit reset",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/ps",
+        "description": "List background terminals",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/stop",
+        "description": "Stop all background terminals",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mcp",
+        "description": "List MCP tools",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/skills",
+        "description": "Use skills for specific tasks",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/memories",
+        "description": "Configure memory use and generation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/hooks",
+        "description": "View and manage lifecycle hooks",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plugins",
+        "description": "Browse plugins",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/agents",
+        "description": "Open the agent command center",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/subagents",
+        "description": "Switch between this session's subagents",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/worktree",
+        "description": "Start or continue in a new worktree",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/cd",
+        "description": "Change the working directory",
+        "source": "built-in"
+      },
+      {
+        "name": "/pwd",
+        "description": "Show the working directory",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/copy",
+        "description": "Copy the last response",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/export",
+        "description": "Export the conversation as markdown",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/approve",
+        "description": "Approve one retry of a recent auto-review denial",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/experimental",
+        "description": "Toggle experimental features",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/archive",
+        "description": "Archive this session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/delete",
+        "description": "Permanently delete this session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/clear",
+        "description": "Clear the terminal and start a new chat",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/feedback",
+        "description": "Send logs to maintainers",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/logout",
+        "description": "Log out of Codex",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/exit",
+        "description": "Exit Codex",
+        "source": "built-in",
+        "instant": true
+      }
+    ],
+    "conversations": [
+      "/resume"
+    ],
+    "configFiles": [
+      {
+        "path": "~/.codex/config.toml",
+        "label": "Config",
+        "format": "toml"
+      },
+      {
+        "path": "~/.codex/AGENTS.md",
+        "label": "Global instructions",
+        "format": "md"
+      },
+      {
+        "path": "{cwd}/AGENTS.md",
+        "label": "Project instructions",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)codex(\\s|$)",
+      "@openai\\/codex"
+    ],
+    "set": {
+      "model": "/model {id}",
+      "effort": "/effort {level}",
+      "goal": "/goal {text}",
+      "clearGoal": "/goal clear",
+      "compact": "/compact",
+      "clear": "/new"
+    }
+  },
+  "opencode": {
+    "kind": "opencode",
+    "install": {
+      "cmd": "curl -fsSL https://opencode.ai/install | bash",
+      "docs": "https://opencode.ai/docs"
+    },
+    "latest": {
+      "npm": "opencode-ai"
+    },
+    "update": "opencode upgrade",
+    "login": "opencode auth login",
+    "version": "opencode --version",
+    "authFiles": [
+      "~/.local/share/opencode/auth.json"
+    ],
+    "name": "OpenCode",
+    "vendor": "sst",
+    "comm": [
+      "opencode"
+    ],
+    "launch": "opencode --hostname 127.0.0.1 --port 0",
+    "replyFont": "mono",
+    "spinner": [
+      "▁",
+      "▃",
+      "▄",
+      "▅",
+      "▆",
+      "▇",
+      "▆",
+      "▅",
+      "▄",
+      "▃"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#FBFAF8",
+        "panel": "#FFFFFF",
+        "raised": "#F4F2EF",
+        "hover": "#EFEDE9",
+        "line": "#E4E1DB",
+        "lineStrong": "#D3CFC6",
+        "fg": "#14171C",
+        "fg2": "#4A5260",
+        "fg3": "#5F6774",
+        "accent": "#B45A18",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#FBE9DA",
+        "accentText": "#A4500F",
+        "bubble": "#F1EEE9",
+        "code": "#F4F2EF"
+      },
+      "dark": {
+        "bg": "#0B0D10",
+        "panel": "#151820",
+        "raised": "#11141A",
+        "hover": "#1A1E26",
+        "line": "#262B33",
+        "lineStrong": "#333944",
+        "fg": "#E6E8EB",
+        "fg2": "#B4BAC4",
+        "fg3": "#8B93A0",
+        "accent": "#F5A35C",
+        "accentFg": "#1A1206",
+        "accentSoft": "#2E2116",
+        "accentText": "#F7B57C",
+        "bubble": "#1B1F27",
+        "code": "#0F1216"
+      }
+    },
+    "chat": true,
+    "shell": true,
+    "models": [],
+    "efforts": [],
+    "modes": [
+      {
+        "id": "build",
+        "label": "Build"
+      },
+      {
+        "id": "plan",
+        "label": "Plan"
+      }
+    ],
+    "commands": [
+      {
+        "name": "/agents",
+        "description": "Switch agent",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/compact",
+        "description": "Compact session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/connect",
+        "description": "Connect provider",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/copy",
+        "description": "Copy session transcript",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/debug",
+        "description": "View debug info",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/diff",
+        "description": "Open diff viewer",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/editor",
+        "description": "Open editor",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/exit",
+        "description": "Exit the app",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/export",
+        "description": "Export session transcript",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/fork",
+        "description": "Fork session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/help",
+        "description": "Help",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/init",
+        "description": "guided AGENTS.md setup",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mcps",
+        "description": "Toggle MCPs",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/models",
+        "description": "Switch model",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/move",
+        "description": "Move to another project dir",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/new",
+        "description": "New session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/redo",
+        "description": "Redo the last undone message",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rename",
+        "description": "Rename session",
+        "source": "built-in"
+      },
+      {
+        "name": "/review",
+        "description": "review changes [commit|branch|pr], defaults to uncommitted",
+        "source": "built-in"
+      },
+      {
+        "name": "/sessions",
+        "description": "Switch session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/skills",
+        "description": "Skills",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/status",
+        "description": "View status",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/themes",
+        "description": "Switch theme",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/thinking",
+        "description": "Collapse thinking",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/timeline",
+        "description": "Jump to message",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/timestamps",
+        "description": "Show timestamps",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/undo",
+        "description": "Undo previous message",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/update",
+        "description": "Update OpenCode",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/variants",
+        "description": "Switch model variant",
+        "source": "built-in",
+        "instant": true
+      }
+    ],
+    "conversations": [
+      "/sessions"
+    ],
+    "configFiles": [
+      {
+        "path": "~/.config/opencode/opencode.json",
+        "label": "Config",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/opencode.json",
+        "label": "Project config",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/AGENTS.md",
+        "label": "Project instructions",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)opencode(\\s|$)",
+      "opencode-ai"
+    ],
+    "set": {
+      "model": "/model {id}",
+      "effort": "/effort {level}",
+      "compact": "/compact",
+      "clear": "/new"
+    }
+  },
+  "copilot": {
+    "kind": "copilot",
+    "install": {
+      "cmd": "curl -fsSL https://gh.io/copilot-install | bash",
+      "npm": "@github/copilot",
+      "docs": "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli"
+    },
+    "latest": {
+      "npm": "@github/copilot"
+    },
+    "update": "copilot update",
+    "login": "copilot login --device-code",
+    "version": "copilot --version",
+    "authFiles": [
+      "~/.copilot/config.json"
+    ],
+    "name": "GitHub Copilot",
+    "vendor": "GitHub",
+    "comm": [
+      "copilot"
+    ],
+    "launch": "copilot",
+    "replyFont": "sans",
+    "spinner": [
+      "◐",
+      "◓",
+      "◑",
+      "◒"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#FBFAFE",
+        "panel": "#FFFFFF",
+        "raised": "#F4F2FB",
+        "hover": "#EFEDF8",
+        "line": "#E3E0F0",
+        "lineStrong": "#D2CEE6",
+        "fg": "#17151F",
+        "fg2": "#4E4A61",
+        "fg3": "#6B6782",
+        "accent": "#6E5CE6",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#ECE8FD",
+        "accentText": "#5A48D1",
+        "bubble": "#F0EEF8",
+        "code": "#F4F2FB"
+      },
+      "dark": {
+        "bg": "#0E0D14",
+        "panel": "#18171F",
+        "raised": "#14131B",
+        "hover": "#1E1D27",
+        "line": "#2A2836",
+        "lineStrong": "#383547",
+        "fg": "#ECEBF5",
+        "fg2": "#BEBBD0",
+        "fg3": "#918EA6",
+        "accent": "#8B7CF6",
+        "accentFg": "#14121F",
+        "accentSoft": "#231F3D",
+        "accentText": "#A99EFA",
+        "bubble": "#201F2B",
+        "code": "#111018"
+      }
+    },
+    "chat": true,
+    "shell": true,
+    "models": [
+      {
+        "id": "auto",
+        "label": "Auto"
+      }
+    ],
+    "efforts": [],
+    "modes": [
+      {
+        "id": "default",
+        "label": "Manual approval"
+      },
+      {
+        "id": "allow-all",
+        "label": "Full access"
+      }
+    ],
+    "commands": [
+      {
+        "name": "/model",
+        "description": "Choose a model",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/permissions",
+        "description": "Change permissions",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plan",
+        "description": "Plan before implementing",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/autopilot",
+        "description": "Run autonomously",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/usage",
+        "description": "Show usage",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/context",
+        "description": "Show context",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/compact",
+        "description": "Compact conversation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/login",
+        "description": "Sign in",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/clear",
+        "description": "Clear conversation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/agent",
+        "description": "Choose an agent",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/skills",
+        "description": "Manage skills",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mcp",
+        "description": "Manage MCP servers",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plugin",
+        "description": "Manage plugins",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/tasks",
+        "description": "View tasks",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/diff",
+        "description": "View changes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/review",
+        "description": "Review changes",
+        "source": "built-in"
+      },
+      {
+        "name": "/security-review",
+        "description": "Review security",
+        "source": "built-in"
+      },
+      {
+        "name": "/lsp",
+        "description": "Manage language servers",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/sandbox",
+        "description": "Manage sandbox",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/add-dir",
+        "description": "Add a workspace directory",
+        "source": "built-in"
+      },
+      {
+        "name": "/list-dirs",
+        "description": "List workspace directories",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/cwd",
+        "description": "Change working directory",
+        "source": "built-in"
+      },
+      {
+        "name": "/resume",
+        "description": "Resume a session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rename",
+        "description": "Rename this session",
+        "source": "built-in"
+      },
+      {
+        "name": "/fork",
+        "description": "Fork this session",
+        "source": "built-in"
+      },
+      {
+        "name": "/copy",
+        "description": "Copy a response",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rewind",
+        "description": "Rewind conversation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/help",
+        "description": "Show help",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/version",
+        "description": "Show version",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/memory",
+        "description": "Manage memory",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/instructions",
+        "description": "Show instructions",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/limits",
+        "description": "Show limits",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/user",
+        "description": "Show account",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/new",
+        "description": "Start a session",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/settings",
+        "description": "Manage settings",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/subagents",
+        "description": "Manage subagents",
+        "source": "built-in",
+        "instant": true
+      }
+    ],
+    "conversations": [
+      "/resume",
+      "/switch"
+    ],
+    "configFiles": [
+      {
+        "path": "{cwd}/AGENTS.md",
+        "label": "Project instructions",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)copilot(\\s|$)",
+      "@github\\/copilot"
+    ],
+    "set": {
+      "model": "/model {id}",
+      "compact": "/compact",
+      "clear": "/clear"
+    }
+  },
+  "gemini": {
+    "kind": "gemini",
+    "install": {
+      "npm": "@google/gemini-cli",
+      "docs": "https://github.com/google-gemini/gemini-cli"
+    },
+    "latest": {
+      "npm": "@google/gemini-cli"
+    },
+    "login": "gemini",
+    "version": "gemini --version",
+    "authFiles": [
+      "~/.gemini/oauth_creds.json",
+      "~/.gemini/google_accounts.json"
+    ],
+    "name": "Gemini CLI (legacy)",
+    "vendor": "Google",
+    "comm": [
+      "gemini"
+    ],
+    "launch": "gemini",
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#F8FAFD",
+        "panel": "#FFFFFF",
+        "raised": "#F0F4F9",
+        "hover": "#E9EEF6",
+        "line": "#DDE3EA",
+        "lineStrong": "#C7D0DB",
+        "fg": "#1F1F1F",
+        "fg2": "#444746",
+        "fg3": "#5F6368",
+        "accent": "#1A73E8",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#E8F0FE",
+        "accentText": "#1558B0",
+        "bubble": "#E9EEF6",
+        "code": "#F0F4F9"
+      },
+      "dark": {
+        "bg": "#131314",
+        "panel": "#1E1F20",
+        "raised": "#1A1B1C",
+        "hover": "#252629",
+        "line": "#2E3033",
+        "lineStrong": "#3C4043",
+        "fg": "#E3E3E3",
+        "fg2": "#C4C7C5",
+        "fg3": "#9AA0A6",
+        "accent": "#8AB4F8",
+        "accentFg": "#131314",
+        "accentSoft": "#1F2A3C",
+        "accentText": "#A8C7FA",
+        "bubble": "#282A2C",
+        "code": "#18191A"
+      }
+    },
+    "chat": true,
+    "models": [
+      {
+        "id": "gemini-2.5-pro",
+        "label": "Gemini 2.5 Pro"
+      },
+      {
+        "id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash"
+      }
+    ],
+    "efforts": [],
+    "modes": [],
+    "commands": [
+      {
+        "name": "/model",
+        "description": "Choose a Gemini model",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/compress",
+        "description": "Replace the context with a summary",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/clear",
+        "description": "Clear the screen and conversation",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/memory",
+        "description": "Manage GEMINI.md memory",
+        "source": "built-in"
+      },
+      {
+        "name": "/stats",
+        "description": "Session statistics and token usage",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/tools",
+        "description": "List available tools",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mcp",
+        "description": "List MCP servers and tools",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/chat",
+        "description": "Save, resume and list conversation checkpoints",
+        "source": "built-in"
+      },
+      {
+        "name": "/restore",
+        "description": "Restore files to before a tool ran",
+        "source": "built-in"
+      },
+      {
+        "name": "/help",
+        "description": "Show help",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/quit",
+        "description": "Exit Gemini CLI",
+        "source": "built-in",
+        "instant": true
+      }
+    ],
+    "configFiles": [
+      {
+        "path": "~/.gemini/settings.json",
+        "label": "Settings",
+        "format": "json"
+      },
+      {
+        "path": "~/.gemini/GEMINI.md",
+        "label": "Global memory",
+        "format": "md"
+      },
+      {
+        "path": "{cwd}/GEMINI.md",
+        "label": "Project memory",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)gemini(\\s|$)",
+      "@google\\/gemini-cli"
+    ],
+    "set": {
+      "compact": "/compress",
+      "clear": "/clear"
+    }
+  },
+  "antigravity": {
+    "kind": "antigravity",
+    "install": {
+      "cmd": "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+      "docs": "https://antigravity.google/docs/cli/install"
+    },
+    "update": "agy update",
+    "login": "agy",
+    "version": "agy --version",
+    "authFiles": [
+      "~/.gemini/antigravity-cli/antigravity-oauth-token"
+    ],
+    "name": "Antigravity CLI",
+    "vendor": "Google",
+    "comm": [
+      "agy"
+    ],
+    "launch": "agy",
+    "replyFont": "sans",
+    "spinner": [
+      "⣾",
+      "⣽",
+      "⣻",
+      "⢿",
+      "⡿",
+      "⣟",
+      "⣯",
+      "⣷"
+    ],
+    "skin": {
+      "light": {
+        "bg": "#F8FAFD",
+        "panel": "#FFFFFF",
+        "raised": "#F0F4F9",
+        "hover": "#E9EEF6",
+        "line": "#DDE3EA",
+        "lineStrong": "#C7D0DB",
+        "fg": "#1F1F1F",
+        "fg2": "#444746",
+        "fg3": "#5F6368",
+        "accent": "#1A73E8",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#E8F0FE",
+        "accentText": "#1A5FD1",
+        "bubble": "#E9EEF6",
+        "code": "#F0F4F9"
+      },
+      "dark": {
+        "bg": "#131314",
+        "panel": "#1E1F20",
+        "raised": "#1A1B1C",
+        "hover": "#252629",
+        "line": "#2E3033",
+        "lineStrong": "#3C4043",
+        "fg": "#E3E3E3",
+        "fg2": "#C4C7C5",
+        "fg3": "#9AA0A6",
+        "accent": "#8AB4F8",
+        "accentFg": "#131314",
+        "accentSoft": "#1F2A3C",
+        "accentText": "#A8C7FA",
+        "bubble": "#282A2C",
+        "code": "#18191A"
+      }
+    },
+    "chat": true,
+    "models": [
+      {
+        "id": "gemini-3.8-flash",
+        "label": "Gemini 3.8 Flash",
+        "note": "Default · 1M context",
+        "context": 1048576
+      },
+      {
+        "id": "gemini-3.7-flash",
+        "label": "Gemini 3.7 Flash",
+        "context": 1048576
+      },
+      {
+        "id": "gemini-3.6-flash",
+        "label": "Gemini 3.6 Flash",
+        "context": 1048576
+      },
+      {
+        "id": "gemini-3.1-pro",
+        "label": "Gemini 3.1 Pro",
+        "note": "Low or high effort",
+        "context": 1048576
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6",
+        "note": "Thinking"
+      },
+      {
+        "id": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6",
+        "note": "Thinking"
+      },
+      {
+        "id": "gpt-oss-120b-medium",
+        "label": "GPT-OSS 120B"
+      }
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "modes": [
+      {
+        "id": "default",
+        "label": "Ask each time"
+      },
+      {
+        "id": "acceptEdits",
+        "label": "Accept edits"
+      },
+      {
+        "id": "plan",
+        "label": "Plan"
+      }
+    ],
+    "commands": [
+      {
+        "name": "/add-dir",
+        "description": "Add a directory to the workspace",
+        "source": "built-in"
+      },
+      {
+        "name": "/agents",
+        "description": "List available custom agents",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/artifact",
+        "description": "View and review artifacts",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/btw",
+        "description": "Ask a side question without interrupting the current task",
+        "source": "built-in"
+      },
+      {
+        "name": "/changelog",
+        "description": "Show release notes and changes",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/clear",
+        "description": "Clear conversation and start a new one (also /new)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/codesearch",
+        "description": "Search code in the workspace (also /cs, /search)",
+        "source": "built-in"
+      },
+      {
+        "name": "/config",
+        "description": "Open settings panel (also /settings)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/context",
+        "description": "Visualize current context usage",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/copy",
+        "description": "Copy the last response; '/copy n' for the n-th, '/copy btw' for the side answer",
+        "source": "built-in"
+      },
+      {
+        "name": "/credits",
+        "description": "Show remaining G1 credits and purchase link",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/diff",
+        "description": "View uncommitted changes and per-turn diffs",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/effort",
+        "description": "Set the reasoning effort",
+        "source": "built-in"
+      },
+      {
+        "name": "/exit",
+        "description": "Exit the CLI (also /quit)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/feedback",
+        "description": "Submit feedback to improve the agent",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/fork",
+        "description": "Branch the conversation at this point (also /branch)",
+        "source": "built-in"
+      },
+      {
+        "name": "/help",
+        "description": "Show available commands and keybindings",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/hooks",
+        "description": "Manage hook configurations for tool events",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/keybindings",
+        "description": "Set custom keybindings",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/logout",
+        "description": "Log out",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/mcp",
+        "description": "Manage MCP servers",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/model",
+        "description": "Set a model, or run a single prompt on another model",
+        "source": "built-in"
+      },
+      {
+        "name": "/open",
+        "description": "Open a file or view opened/edited files",
+        "source": "built-in"
+      },
+      {
+        "name": "/permissions",
+        "description": "Manage tool permissions",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/plugin",
+        "description": "Manage, discover, install, uninstall, enable and disable plugins",
+        "source": "built-in"
+      },
+      {
+        "name": "/remote-control",
+        "description": "Turn on remote control for this session (off to disable)",
+        "source": "built-in"
+      },
+      {
+        "name": "/rename",
+        "description": "Rename the current conversation",
+        "source": "built-in"
+      },
+      {
+        "name": "/resume",
+        "description": "Browse and resume past conversations (also /switch)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/rewind",
+        "description": "Rewind the conversation to a previous message (also /undo)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/skills",
+        "description": "List available skills",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/statusline",
+        "description": "Toggle the status line",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/tasks",
+        "description": "View background tasks",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/title",
+        "description": "Toggle custom terminal window title",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/usage",
+        "description": "View model quota usage (also /quota)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/voice",
+        "description": "Dictate a prompt using your microphone (also /record)",
+        "source": "built-in",
+        "instant": true
+      },
+      {
+        "name": "/goal",
+        "description": "Run until the specified goal is completely finished",
+        "source": "built-in"
+      },
+      {
+        "name": "/schedule",
+        "description": "Run an instruction on a recurring schedule or as a one-time timer",
+        "source": "built-in"
+      },
+      {
+        "name": "/browser",
+        "description": "Invoke a browser agent for web tasks",
+        "source": "built-in"
+      },
+      {
+        "name": "/plan",
+        "description": "Plan carefully before executing a task",
+        "source": "built-in"
+      },
+      {
+        "name": "/grill-me",
+        "description": "Interview me to align on a plan",
+        "source": "built-in"
+      },
+      {
+        "name": "/teamwork-preview",
+        "description": "Invoke a team of agents to tackle large projects",
+        "source": "built-in"
+      },
+      {
+        "name": "/learn",
+        "description": "Capture reusable skills or rules from recent work",
+        "source": "built-in"
+      },
+      {
+        "name": "/boost",
+        "description": "Invoke the Boost multi-agent orchestrator for complex tasks",
+        "source": "built-in"
+      },
+      {
+        "name": "/agy-customizations",
+        "description": "Guide to the Antigravity customization system",
+        "source": "built-in"
+      },
+      {
+        "name": "/antigravity-guide",
+        "description": "Guide, quick reference and sitemap for Google Antigravity",
+        "source": "built-in"
+      }
+    ],
+    "conversations": [
+      "/resume",
+      "/switch"
+    ],
+    "configFiles": [
+      {
+        "path": "~/.gemini/antigravity-cli/settings.json",
+        "label": "Settings",
+        "format": "json"
+      },
+      {
+        "path": "~/.gemini/config/mcp_config.json",
+        "label": "MCP servers",
+        "format": "json"
+      },
+      {
+        "path": "~/.gemini/config/hooks.json",
+        "label": "Hooks",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/.agents/hooks.json",
+        "label": "Project hooks",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/AGENTS.md",
+        "label": "Project instructions",
+        "format": "md"
+      }
+    ],
+    "args": [
+      "(^|\\/)agy(\\s|$)"
+    ],
+    "set": {
+      "model": "/model {id}",
+      "effort": "/effort {level}",
+      "goal": "/goal {text}",
+      "clear": "/clear",
+      "rc": "/remote-control"
+    }
+  },
+  "cursor": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.cursor/cli-config.json",
+        "label": "Config",
+        "format": "json"
+      }
+    ],
+    "kind": "cursor",
+    "install": {
+      "cmd": "curl https://cursor.com/install -fsS | bash",
+      "docs": "https://cursor.com/docs/cli/overview"
+    },
+    "update": "cursor-agent update",
+    "login": "cursor-agent login",
+    "version": "cursor-agent --version",
+    "authFiles": [
+      "~/.config/cursor/auth.json"
+    ],
+    "name": "Cursor CLI",
+    "vendor": "Cursor",
+    "comm": [
+      "cursor-agent"
+    ],
+    "launch": "cursor-agent",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#1B1913",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#ECEBE7",
+        "accentText": "#1B1913"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#EDECEC",
+        "accentFg": "#14120B",
+        "accentSoft": "#2A2924",
+        "accentText": "#EDECEC"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?cursor-agent(?:\\s|$)",
+      "\\/cursor-agent\\/versions\\/[^/\\s]+\\/index\\.js"
+    ],
+    "set": {}
+  },
+  "grok": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.grok/config.toml",
+        "label": "Config",
+        "format": "toml"
+      }
+    ],
+    "kind": "grok",
+    "install": {
+      "cmd": "curl -fsSL https://x.ai/cli/install.sh | bash",
+      "docs": "https://docs.x.ai/build/overview"
+    },
+    "update": "grok update",
+    "login": "grok login --device-auth",
+    "version": "grok --version",
+    "authFiles": [
+      "~/.grok/auth.json"
+    ],
+    "name": "Grok Build",
+    "vendor": "xAI",
+    "comm": [
+      "grok"
+    ],
+    "launch": "grok",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#0A0A0A",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#EDEDED",
+        "accentText": "#0A0A0A"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#F5F5F5",
+        "accentFg": "#0A0A0A",
+        "accentSoft": "#262626",
+        "accentText": "#F5F5F5"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?grok(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "pi": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "pi",
+    "install": {
+      "cmd": "curl -fsSL https://pi.dev/install.sh | sh",
+      "npm": "@earendil-works/pi-coding-agent",
+      "docs": "https://pi.dev"
+    },
+    "latest": {
+      "npm": "@earendil-works/pi-coding-agent"
+    },
+    "update": "pi update",
+    "login": "pi",
+    "version": "pi --version",
+    "authFiles": [
+      "~/.pi/agent/auth.json"
+    ],
+    "name": "Pi",
+    "vendor": "Earendil",
+    "comm": [
+      "pi"
+    ],
+    "launch": "pi",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#B4483A",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#FBE6E2",
+        "accentText": "#A63F32"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#F09082",
+        "accentFg": "#1F1A19",
+        "accentSoft": "#33221F",
+        "accentText": "#F4A99D"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?pi(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "amp": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "amp",
+    "install": {
+      "cmd": "curl -fsSL https://ampcode.com/install.sh | bash",
+      "npm": "@ampcode/cli",
+      "docs": "https://ampcode.com/manual"
+    },
+    "latest": {
+      "npm": "@ampcode/cli"
+    },
+    "login": "amp login",
+    "version": "amp --version",
+    "authFiles": [
+      "~/.local/share/amp/secrets.json"
+    ],
+    "name": "Amp",
+    "vendor": "Amp",
+    "comm": [
+      "amp"
+    ],
+    "launch": "amp",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#C8352A",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#FDE5E2",
+        "accentText": "#B8301F"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#F36B5F",
+        "accentFg": "#1A0F0E",
+        "accentSoft": "#35201D",
+        "accentText": "#F68D83"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?amp(?:\\s|$)",
+      "@ampcode\\/cli\\/"
+    ],
+    "set": {}
+  },
+  "goose": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "goose",
+    "install": {
+      "cmd": "curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash",
+      "docs": "https://goose-docs.ai/docs/getting-started/installation"
+    },
+    "update": "goose update",
+    "login": "goose configure",
+    "version": "goose --version",
+    "authFiles": [
+      "~/.config/goose/config.yaml"
+    ],
+    "name": "goose",
+    "vendor": "Agentic AI Foundation",
+    "comm": [
+      "goose"
+    ],
+    "launch": "goose",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#101010",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#ECECEC",
+        "accentText": "#101010"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#F2F2F2",
+        "accentFg": "#101010",
+        "accentSoft": "#262626",
+        "accentText": "#F2F2F2"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?goose(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "hermes": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "hermes",
+    "install": {
+      "cmd": "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash",
+      "docs": "https://hermes-agent.nousresearch.com/docs/getting-started/installation"
+    },
+    "update": "hermes update",
+    "login": "hermes setup",
+    "version": "hermes --version",
+    "authFiles": [
+      "~/.hermes/auth.json",
+      "~/.hermes/.env"
+    ],
+    "name": "Hermes Agent",
+    "vendor": "Nous Research",
+    "comm": [
+      "hermes"
+    ],
+    "launch": "hermes",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#8B6508",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#F7EFD6",
+        "accentText": "#7A5807"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#FFD700",
+        "accentFg": "#14120A",
+        "accentSoft": "#2F2A12",
+        "accentText": "#FFE14D"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?hermes(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "kimi": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.kimi-code/config.toml",
+        "label": "Config",
+        "format": "toml"
+      }
+    ],
+    "kind": "kimi",
+    "install": {
+      "cmd": "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
+      "npm": "@moonshot-ai/kimi-code",
+      "docs": "https://moonshotai.github.io/kimi-code/en/guides/getting-started"
+    },
+    "latest": {
+      "npm": "@moonshot-ai/kimi-code"
+    },
+    "update": "kimi upgrade",
+    "login": "kimi login",
+    "version": "kimi --version",
+    "authFiles": [
+      "~/.kimi-code/credentials/kimi-code.json"
+    ],
+    "name": "Kimi Code",
+    "vendor": "Moonshot AI",
+    "comm": [
+      "kimi"
+    ],
+    "launch": "kimi",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#0F6FDB",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#E3F0FF",
+        "accentText": "#0B63C7"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#4DA3FF",
+        "accentFg": "#0A1220",
+        "accentSoft": "#14243A",
+        "accentText": "#7DBBFF"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?kimi(?:\\s|$)",
+      "@moonshot-ai\\/kimi-code\\/"
+    ],
+    "set": {}
+  },
+  "kiro": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "kiro",
+    "install": {
+      "cmd": "curl -fsSL https://cli.kiro.dev/install | bash",
+      "docs": "https://kiro.dev/docs/cli/"
+    },
+    "update": "kiro-cli update --non-interactive",
+    "login": "kiro-cli login --use-device-flow",
+    "version": "kiro-cli --version",
+    "authFiles": [
+      "~/.local/share/kiro-cli/data.sqlite3"
+    ],
+    "name": "Kiro CLI",
+    "vendor": "AWS",
+    "comm": [
+      "kiro-cli",
+      "kiro-cli-chat"
+    ],
+    "launch": "kiro-cli",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#8A3FF5",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#F0E7FF",
+        "accentText": "#7A30E6"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#B489FF",
+        "accentFg": "#160A2A",
+        "accentSoft": "#2A1C45",
+        "accentText": "#C6A6FF"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?kiro-cli(?:\\s|$)",
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?kiro-cli-chat(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "qwen": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.qwen/settings.json",
+        "label": "Settings",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/QWEN.md",
+        "label": "Project memory",
+        "format": "md"
+      }
+    ],
+    "kind": "qwen",
+    "install": {
+      "cmd": "curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash",
+      "npm": "@qwen-code/qwen-code",
+      "docs": "https://github.com/QwenLM/qwen-code#installation"
+    },
+    "latest": {
+      "npm": "@qwen-code/qwen-code"
+    },
+    "update": "qwen update",
+    "login": "qwen",
+    "version": "qwen --version",
+    "authFiles": [
+      "~/.qwen/settings.json"
+    ],
+    "name": "Qwen Code",
+    "vendor": "Alibaba",
+    "comm": [
+      "qwen"
+    ],
+    "launch": "qwen",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#615CED",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#ECEBFD",
+        "accentText": "#5550E0"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#9A97F5",
+        "accentFg": "#11103A",
+        "accentSoft": "#24234A",
+        "accentText": "#B3B1F8"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?qwen(?:\\s|$)",
+      "qwen-code\\/lib\\/cli-entry\\.js",
+      "@qwen-code\\/qwen-code\\/"
+    ],
+    "set": {}
+  },
+  "qoder": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [],
+    "kind": "qoder",
+    "install": {
+      "cmd": "curl -fsSL https://qoder.com/install | bash",
+      "npm": "@qoder-ai/qodercli",
+      "docs": "https://docs.qoder.com/cli/installation"
+    },
+    "latest": {
+      "npm": "@qoder-ai/qodercli"
+    },
+    "update": "qodercli update",
+    "login": "qodercli login",
+    "version": "qodercli --version",
+    "authFiles": [
+      "~/.qoder/.auth/user"
+    ],
+    "name": "Qoder CLI",
+    "vendor": "Qoder",
+    "comm": [
+      "qodercli",
+      "qoder"
+    ],
+    "launch": "qodercli",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#15803D",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#DFF7E7",
+        "accentText": "#13773A"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#2ADB5C",
+        "accentFg": "#0A1A0F",
+        "accentSoft": "#13301C",
+        "accentText": "#5EE585"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?qodercli(?:\\s|$)",
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?qoder(?:\\s|$)"
+    ],
+    "set": {}
+  },
+  "codebuddy": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.codebuddy/settings.json",
+        "label": "Settings",
+        "format": "json"
+      },
+      {
+        "path": "{cwd}/CODEBUDDY.md",
+        "label": "Project memory",
+        "format": "md"
+      }
+    ],
+    "kind": "codebuddy",
+    "install": {
+      "npm": "@tencent-ai/codebuddy-code",
+      "docs": "https://www.codebuddy.ai/docs/cli/installation"
+    },
+    "latest": {
+      "npm": "@tencent-ai/codebuddy-code"
+    },
+    "update": "codebuddy update",
+    "login": "codebuddy",
+    "version": "codebuddy --version",
+    "authFiles": [
+      "~/.codebuddy/.credentials.json"
+    ],
+    "name": "CodeBuddy Code",
+    "vendor": "Tencent",
+    "comm": [
+      "codebuddy"
+    ],
+    "launch": "codebuddy",
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#6C4DFF",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#EEEAFF",
+        "accentText": "#5B3BF0"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#9C86FF",
+        "accentFg": "#140E33",
+        "accentSoft": "#251E4A",
+        "accentText": "#B4A3FF"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?codebuddy(?:\\s|$)",
+      "@tencent-ai\\/codebuddy-code\\/"
+    ],
+    "set": {}
+  }
+}

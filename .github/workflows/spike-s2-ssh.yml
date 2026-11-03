@@ -1,0 +1,147 @@
+name: Spike S2 (russh on Android)
+
+# Tests spikes/s2-ssh-android against a throwaway sshd on the runner, builds it for Android
+# (arm64 for size, x86_64 for the emulator) and runs the x86_64 build on an emulator against the
+# same sshd. Spike branch only; never runs on main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [r0-android]
+    paths: ['spikes/s2-ssh-android/**', '.github/workflows/spike-s2-ssh.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spike-s2-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: spikes/s2-ssh-android
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            spikes/s2-ssh-android/target
+          key: spike-s2-test-${{ hashFiles('spikes/s2-ssh-android/Cargo.lock') }}
+          restore-keys: spike-s2-test-
+      - run: rustup component add clippy rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - name: Start sshd
+        run: |
+          if [ ! -x /usr/sbin/sshd ]; then sudo apt-get update -q && sudo apt-get install -y -q openssh-server; fi
+          ./start-sshd.sh "$RUNNER_TEMP/sshd" 2222
+          /usr/sbin/sshd -V 2>&1 | head -1 || true
+      - name: Tests
+        run: cargo test -- --nocapture 2>&1 | tee "$RUNNER_TEMP/test.txt"
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Tests on x86_64 Linux against $(ssh -V 2>&1)"
+            echo '```'
+            grep -E '^test |test result|login with|sessions opened|11th session' "$RUNNER_TEMP/test.txt" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: sshd logs
+        if: failure()
+        run: cat "$RUNNER_TEMP"/sshd/sshd-*.log || true
+
+  android:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-linux-android, x86_64-linux-android]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            spikes/s2-ssh-android/target
+          key: spike-s2-${{ matrix.target }}-${{ hashFiles('spikes/s2-ssh-android/Cargo.lock') }}
+          restore-keys: spike-s2-${{ matrix.target }}-
+      - run: rustup target add ${{ matrix.target }}
+      - name: NDK toolchain
+        run: |
+          bin="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          t=${{ matrix.target }}
+          T=$(echo "$t" | tr 'a-z-' 'A-Z_')
+          {
+            echo "CC_${t//-/_}=$bin/${t}26-clang"
+            echo "AR_${t//-/_}=$bin/llvm-ar"
+            echo "CARGO_TARGET_${T}_LINKER=$bin/${t}26-clang"
+          } >> "$GITHUB_ENV"
+          echo "NDK: $ANDROID_NDK_LATEST_HOME"
+      - name: Build
+        run: |
+          start=$(date +%s)
+          cargo build --release --target ${{ matrix.target }} --examples
+          echo "release build took $(( $(date +%s) - start )) s"
+          # the tests too, so they can run on the emulator (debug, with panics that unwind)
+          cargo test --no-run --target ${{ matrix.target }} --message-format=json 2>/dev/null \
+            | jq -r 'select(.profile.test == true and .target.kind[0] == "test") | .executable' > "$RUNNER_TEMP/tests.txt"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp target/${{ matrix.target }}/release/examples/exec target/${{ matrix.target }}/release/examples/baseline "$RUNNER_TEMP/out/"
+          while read -r f; do [ -n "$f" ] && cp "$f" "$RUNNER_TEMP/out/test-$(basename "$f" | sed 's/-[0-9a-f]*$//')"; done < "$RUNNER_TEMP/tests.txt"
+          ls -l "$RUNNER_TEMP/out"
+      - name: Sizes
+        run: |
+          o="$RUNNER_TEMP/out"
+          exec_b=$(stat -c %s "$o/exec"); base_b=$(stat -c %s "$o/baseline")
+          {
+            echo "## ${{ matrix.target }} (release, stripped, opt-level z, LTO)"
+            echo
+            echo "| binary | bytes | gzip -9 |"
+            echo "|---|---|---|"
+            echo "| exec (russh client + tokio) | $exec_b | $(gzip -9c "$o/exec" | wc -c) |"
+            echo "| baseline (tokio only) | $base_b | $(gzip -9c "$o/baseline" | wc -c) |"
+            echo "| russh's share | $((exec_b - base_b)) | |"
+            echo
+            file "$o/exec"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: spike-s2-${{ matrix.target }}
+          path: ${{ runner.temp }}/out/
+
+  # The x86_64 Android build on an emulator, against the runner's sshd (10.0.2.2 from inside)
+  emulator:
+    needs: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: spike-s2-x86_64-linux-android
+          path: ${{ runner.temp }}/bin
+      - name: Enable KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Start sshd
+        run: ./start-sshd.sh "$RUNNER_TEMP/sshd" 2222
+      - name: Run on an emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
+          script: spikes/s2-ssh-android/ci-emulator.sh "${{ runner.temp }}/bin" "${{ runner.temp }}/sshd"

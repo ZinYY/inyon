@@ -1,0 +1,15 @@
+{
+  "model": "gpt-6-sol",
+  "modelId": "gpt-6-sol",
+  "effort": "medium",
+  "credits": {
+    "unlimited": true
+  },
+  "contextUsed": 1024,
+  "contextSize": 272000,
+  "contextPct": 0.3764705882352941,
+  "fiveHour": {
+    "pct": 0.5
+  },
+  "updatedAt": 1792038612000
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "t": "sub.overview"
+  },
+  {
+    "t": "sub.chat",
+    "host": "local",
+    "pane": "%12"
+  },
+  {
+    "t": "unsub.chat",
+    "host": "local",
+    "pane": "%12"
+  },
+  {
+    "t": "chat.more",
+    "host": "local",
+    "pane": "%12",
+    "before": 1
+  },
+  {
+    "t": "draft",
+    "host": "local",
+    "pane": "%12",
+    "text": "half typed"
+  },
+  {
+    "t": "term.open",
+    "id": "t1",
+    "host": "local",
+    "pane": "%12",
+    "cols": 100,
+    "rows": 40
+  },
+  {
+    "t": "term.in",
+    "id": "t1",
+    "d": "ls\r"
+  },
+  {
+    "t": "term.resize",
+    "id": "t1",
+    "cols": 80,
+    "rows": 24
+  },
+  {
+    "t": "term.close",
+    "id": "t1"
+  },
+  {
+    "t": "ping"
+  }
+]

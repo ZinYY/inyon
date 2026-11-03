@@ -1,0 +1,1547 @@
+{
+ "about": "What a hub answers to each request against fixtures/pages/site. Lay the site out as `setup` says (lay_out in crates/inyon-core/src/features/pages_core_tests.rs), serve it as the page context.site with the context below (key, now, epochs, phones from tokens.json), accept the Host context.host over plain http and refuse context.wrongHost, and send each request as raw bytes (a client would resolve the dot segments itself). The response must have exactly this status and these headers, apart from ignoredHeaders. body: null is empty, {file} is that file under fixtures/pages, {page} is errorPages[status].",
+ "setup": {
+  "copy": "site",
+  "to": "<dir>/site",
+  "outside": {
+   "secret.html": "<!doctype html><title>Outside</title><p>Outside the site: never served.</p>\n"
+  },
+  "outsideDir": "<dir>/outside",
+  "symlinks": {
+   "inside-link.html": "index.html",
+   "outside-link.html": "../outside/secret.html",
+   "outside-dir": "../outside",
+   "dot-link.txt": ".draft.md"
+  },
+  "mtimeMs": 1792233600000
+ },
+ "context": {
+  "host": "hub.test:4777",
+  "wrongHost": "evil.test",
+  "origin": "http://hub.test:4777",
+  "site": {
+   "h": "local",
+   "s": "fixture"
+  },
+  "now": 1792320000000
+ },
+ "ignoredHeaders": [
+  "date",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive"
+ ],
+ "errorPages": {
+  "403": "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Link expired</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:32rem;padding:24px}h1{font-size:18px;margin:0 0 4px}p{margin:0;opacity:.7}</style><main><h1>Link expired</h1><p>Open the page again from Inyon.</p></main></html>\n",
+  "404": "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Not found</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:32rem;padding:24px}h1{font-size:18px;margin:0 0 4px}p{margin:0;opacity:.7}</style><main><h1>Not found</h1><p>This page has no file at that address.</p></main></html>\n",
+  "405": "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Read only</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:32rem;padding:24px}h1{font-size:18px;margin:0 0 4px}p{margin:0;opacity:.7}</style><main><h1>Read only</h1><p>Pages can be read, nothing else.</p></main></html>\n",
+  "413": "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Too big</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:32rem;padding:24px}h1{font-size:18px;margin:0 0 4px}p{margin:0;opacity:.7}</style><main><h1>Too big</h1><p>This file is too big to show here.</p></main></html>\n",
+  "421": "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Wrong address</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:32rem;padding:24px}h1{font-size:18px;margin:0 0 4px}p{margin:0;opacity:.7}</style><main><h1>Wrong address</h1><p>This hub doesn't answer to that address. If it's yours, add it to INYON_ALLOWED_HOSTS on the hub.</p></main></html>\n"
+ },
+ "cases": [
+  {
+   "name": "no slash after the token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "no slash after the token, with a query",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo?theme=dark",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/?theme=dark"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "a query a URL parser would rewrite is dropped",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo?q='x'",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "a query with a percent escape is dropped too (a parser makes them)",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo?q=%27x%27",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "root",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "root, HEAD",
+   "request": {
+    "method": "HEAD",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "root with a query",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/?theme=light",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "index.html by name",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "stylesheet",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/style.css",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/css;charset=utf-8",
+     "etag": "\"3d-1a149727400\""
+    },
+    "body": {
+     "file": "site/style.css"
+    }
+   }
+  },
+  {
+   "name": "folder without its slash",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub/"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "folder",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"b4-1a149727400\""
+    },
+    "body": {
+     "file": "site/sub/index.html"
+    }
+   }
+  },
+  {
+   "name": "image",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/img/dot.png",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "image/png",
+     "etag": "\"46-1a149727400\""
+    },
+    "body": {
+     "file": "site/img/dot.png"
+    }
+   }
+  },
+  {
+   "name": "markdown is plain text",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/notes.md",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/plain;charset=utf-8",
+     "etag": "\"41-1a149727400\""
+    },
+    "body": {
+     "file": "site/notes.md"
+    }
+   }
+  },
+  {
+   "name": "progress.json is never cached",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/progress.json",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "application/json;charset=utf-8"
+    },
+    "body": {
+     "file": "site/progress.json"
+    }
+   }
+  },
+  {
+   "name": "progress.json ignores If-None-Match",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/progress.json",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "*"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "application/json;charset=utf-8"
+    },
+    "body": {
+     "file": "site/progress.json"
+    }
+   }
+  },
+  {
+   "name": "If-None-Match matches",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "\"1a9-1a149727400\""
+    }
+   },
+   "response": {
+    "status": 304,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "If-None-Match matches weakly, in a list",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "\"nope\", W/\"1a9-1a149727400\""
+    }
+   },
+   "response": {
+    "status": 304,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "If-None-Match on the root",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "\"1a9-1a149727400\""
+    }
+   },
+   "response": {
+    "status": 304,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "If-None-Match differs",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "\"0-0\""
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "HEAD with a matching If-None-Match",
+   "request": {
+    "method": "HEAD",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777",
+     "if-none-match": "\"1a9-1a149727400\""
+    }
+   },
+   "response": {
+    "status": 304,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "the marker",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/.inyon-page.json",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a dot file",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/.draft.md",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a dot file, encoded",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/%2edraft.md",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a dot folder",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/.hidden/note.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "dot segments inside the site resolve",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub/../index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "encoded dot segments inside the site resolve",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub/%2e%2e/notes.md",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/plain;charset=utf-8",
+     "etag": "\"41-1a149727400\""
+    },
+    "body": {
+     "file": "site/notes.md"
+    }
+   }
+  },
+  {
+   "name": "a single dot segment",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/./sub/./",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"b4-1a149727400\""
+    },
+    "body": {
+     "file": "site/sub/index.html"
+    }
+   }
+  },
+  {
+   "name": "dot segments climbing out of the token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/../index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "encoded dot segments climbing out of the token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/%2e%2E/index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "an encoded slash",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub%2findex.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "an encoded backslash",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/sub%5cindex.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "an encoded NUL",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html%00",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a bad escape",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/%zz",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "invalid UTF-8",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/%ff.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "an empty segment",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo//index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a file with a slash after it",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a missing file",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/nope.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a folder with no index.html",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/empty/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a folder with no index.html, no slash",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/empty",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 301,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "location": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/empty/"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "a file in that folder",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/empty/data.json",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "application/json;charset=utf-8",
+     "etag": "\"39-1a149727400\""
+    },
+    "body": {
+     "file": "site/empty/data.json"
+    }
+   }
+  },
+  {
+   "name": "a symlink to a file inside the site",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/inside-link.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "a symlink to a file outside the site",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/outside-link.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a symlink to a folder outside the site",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/outside-dir/secret.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a symlink to a folder outside the site, no slash",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/outside-dir",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a symlink to a dot file inside the site",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/dot-link.txt",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "a cookie and a bearer change nothing",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777",
+     "cookie": "inyon_session=x.y",
+     "authorization": "Bearer abc"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "a cookie does not open a bad token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzMTY0MDAwMDAsInYiOjN9._5slUOVG6qbSqBBSU5oKzdIr2D94FNBN8Zl9f6pl35o/",
+    "headers": {
+     "host": "hub.test:4777",
+     "cookie": "inyon_session=x.y"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "a phone token, phone still paired",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 200,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDEifQ.UAzWmcAi8Xcmr6dZOK8kKKALn3xU45CMfox_zxT_RFM/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-cache",
+     "content-type": "text/html;charset=utf-8",
+     "etag": "\"1a9-1a149727400\""
+    },
+    "body": {
+     "file": "site/index.html"
+    }
+   }
+  },
+  {
+   "name": "a phone token, phone unpaired",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjMsInAiOiJwaDkifQ.B-HsX3Te6MjSVv3QQ4AWYPmg8hsOwdBjfvwPqOnMTO0/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "expired token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzMTY0MDAwMDAsInYiOjN9._5slUOVG6qbSqBBSU5oKzdIr2D94FNBN8Zl9f6pl35o/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "expired token, HEAD",
+   "request": {
+    "method": "HEAD",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzMTY0MDAwMDAsInYiOjN9._5slUOVG6qbSqBBSU5oKzdIr2D94FNBN8Zl9f6pl35o/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": null
+   }
+  },
+  {
+   "name": "revoked token",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjJ9.ZGVYOdYFAnTyhjcjRpyLx8_NpVWTCyycMJbCaS_t3Ac/index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "payload changed",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTI0NDYwMDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "mac changed",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVA/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "not a token",
+   "request": {
+    "method": "GET",
+    "target": "/v/garbage/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "no token",
+   "request": {
+    "method": "GET",
+    "target": "/v/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 403,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 403
+    }
+   }
+  },
+  {
+   "name": "a site this hub does not serve",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; script-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/ 'unsafe-inline'; style-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/ 'unsafe-inline'; img-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/ data: blob:; font-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/ data:; media-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/; connect-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/; frame-src http://hub.test:4777/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZ29uZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjB9.VK6CJnSoQ3-kl49yjq1W72IEwcTzz1G9i4PoGbPv-R4/; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 404
+    }
+   }
+  },
+  {
+   "name": "POST",
+   "request": {
+    "method": "POST",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 405,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8",
+     "allow": "GET, HEAD"
+    },
+    "body": {
+     "page": 405
+    }
+   }
+  },
+  {
+   "name": "OPTIONS",
+   "request": {
+    "method": "OPTIONS",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/index.html",
+    "headers": {
+     "host": "hub.test:4777"
+    }
+   },
+   "response": {
+    "status": 405,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8",
+     "allow": "GET, HEAD"
+    },
+    "body": {
+     "page": 405
+    }
+   }
+  },
+  {
+   "name": "a Host the hub does not answer to",
+   "request": {
+    "method": "GET",
+    "target": "/v/v1.eyJoIjoibG9jYWwiLCJzIjoiZml4dHVyZSIsIngiOjE3OTIzNTk2MDAwMDAsInYiOjN9.zd5PRxfsIYkv5npt-hR2UUSShYp29H2696mH4trGNVo/",
+    "headers": {
+     "host": "evil.test"
+    }
+   },
+   "response": {
+    "status": 421,
+    "headers": {
+     "content-security-policy": "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src 'none'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'",
+     "access-control-allow-origin": "*",
+     "referrer-policy": "no-referrer",
+     "x-content-type-options": "nosniff",
+     "x-dns-prefetch-control": "off",
+     "cache-control": "no-store",
+     "content-type": "text/html;charset=utf-8"
+    },
+    "body": {
+     "page": 421
+    }
+   }
+  }
+ ]
+}

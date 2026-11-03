@@ -1,0 +1,6 @@
+{"body":{"error":"Not signed in"},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"as":"anon","method":"GET","path":"/api/hub/update"},"status":401}
+{"step":"the app asks whether the hub can update (this hub is a development build, which updates with git and cargo)"}
+{"body":{"canUpdate":false,"checkedAt":"<time>","current":"<version>","reason":"This hub is a development build from <repo>. To update it, run git pull and cargo build there, then restart the hub."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"GET","path":"/api/hub/update"},"status":200}
+{"body":{"canUpdate":false,"checkedAt":"<time>","current":"<version>","reason":"This hub is a development build from <repo>. To update it, run git pull and cargo build there, then restart the hub."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"GET","path":"/api/hub/update?refresh=1"},"status":200}
+{"step":"the app starts an update anyway"}
+{"body":{"error":"This hub is a development build from <repo>. To update it, run git pull and cargo build there, then restart the hub."},"headers":{"content-type":"application/json;charset=utf-8"},"rest":{"method":"POST","path":"/api/hub/update"},"status":409}

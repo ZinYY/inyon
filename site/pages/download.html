@@ -1,0 +1,46 @@
+<main id="main" class="page">
+  <section class="hero" style="text-align:left;padding-bottom:12px">
+    <p class="eyebrow">Download · Inyon {{version}}</p>
+    <h1 style="font-size:clamp(2.2rem,5vw,3.4rem)">Download Inyon</h1>
+    <p class="lede" style="margin:0">Every file here is copied from the latest release. The release's signed <code>SHA256SUMS</code> is checked first, then every program and the APK against it, before anything is published.</p>
+  </section>
+
+  <section class="section" style="padding-top:28px">
+    <div class="grid two">
+      <div class="card">
+        <p class="label">Phone</p>
+        <h2>Android app</h2>
+        <p>Open the APK on your phone to install it. Later versions install over it, and the app tells you when one is out.</p>
+        <a class="btn" href="{{apk}}">Download the APK</a>
+        <p class="meta">{{apk-meta}}</p>
+      </div>
+      <div class="card">
+        <p class="label">Computer</p>
+        <h2>The one-line installer</h2>
+        <p>Downloads the right files for your system, checks them, and sets up the background service.</p>
+        <p class="os">macOS or Linux</p>
+        <div class="cmd"><code>curl -fsSL https://inyon.tech/get.sh | sh</code><button type="button">Copy</button></div>
+        <p class="os">Windows, in PowerShell</p>
+        <div class="cmd"><code>irm https://inyon.tech/get.ps1 | iex</code><button type="button">Copy</button></div>
+        <p class="os">Or with npm, then run <code>inyon setup</code></p>
+        <div class="cmd"><code>npm install -g @abhash-chakraborty/inyon</code><button type="button">Copy</button></div>
+        <p class="meta"><a href="/docs/install/">What the installer does →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section prose" style="padding-top:40px">
+    <h2 id="files" style="margin-top:0">Every file</h2>
+    <p>From 0.19 a computer needs one file, <code>inyon</code>, and from 0.21 a hub does too. The <code>inyon-engine</code> files are there for older versions of <code>inyon</code>, which fetch them as they update. Most people never download these by hand; the installer does it.</p>
+    {{downloads}}
+    <p>The <code>inyon-skill-*.tar.gz</code> files are <a href="/docs/skills/">agent skills</a>, such as Blueprint for plan pages. Install one with <code>inyon skill add &lt;name&gt;</code>, or unpack it into your agent's skills folder.</p>
+    <h2 id="verify">Checking a download</h2>
+    <p>The release's list of checksums is signed with <a class="ext" href="https://jedisct1.github.io/minisign/">minisign</a>. Check the list's signature against Inyon's release key, then the files you downloaded against the list:</p>
+    <div class="code"><span class="lang">shell</span><button class="copy" type="button" aria-label="Copy">Copy</button><pre><code>curl -fsSLO https://inyon.tech/download/SHA256SUMS
+curl -fsSLO https://inyon.tech/download/SHA256SUMS.minisig
+minisign -Vm SHA256SUMS -P RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6
+sha256sum --ignore-missing -c SHA256SUMS</code></pre></div>
+    <p>On macOS, use <code>shasum -a 256 -c</code> in place of <code>sha256sum -c</code>. Releases before 0.14 have no signature; their lists are on GitHub.</p>
+    <p>Older versions, release notes and the source are on <a class="ext" href="{{github}}/releases">GitHub releases</a>. The <a href="/docs/changelog/">changelog</a> lists what changed in each one.</p>
+  </section>
+</main>

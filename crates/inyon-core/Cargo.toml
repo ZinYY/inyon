@@ -1,0 +1,37 @@
+[package]
+name = "inyon-core"
+version.workspace = true
+description = "The hub's agent readers: screens, transcripts and tmux output read into Inyon's wire types (ported from the Bun hub, removed in 0.23)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.23"
+# futures without a runtime: the core's tasks run on whichever single-threaded executor the
+# platform installs (tokio's LocalSet in the hub, the browser's event loop on the phone)
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+# signs the links Pages hands out (features/pages_core), as the Bun hub signs them
+hmac = "0.13"
+indexmap = { version = "2.10", features = ["serde"] }
+inyon-protocol = { path = "../inyon-protocol", features = ["detect"] }
+# a page's research/*.md notes, shown as pages in the viewer (features/notes)
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "unicode-script"] }
+serde = { version = "1.0", features = ["derive"] }
+# objects keep the order their keys came in, as JavaScript's do (tool inputs, hashed records)
+serde_json = { version = "1.0", features = ["preserve_order", "unbounded_depth"] }
+sha2 = "0.11"
+
+[features]
+# hooks the hub's tests in other crates use to set a pane up or drop a connection; never in a release
+testing = []
+
+[dev-dependencies]
+# the tests' executor, with paused time as the fake clock
+tokio = { version = "1.47", features = ["rt", "time", "macros", "test-util"] }
+
+# the lazy DFA, literal prefilters and the one-pass engine on native builds; without them every
+# pattern runs on the slowest engine. The wasm build leaves them out to stay small.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+regex = { version = "1.12", default-features = false, features = ["perf"] }

@@ -1,0 +1,13 @@
+#!/bin/sh
+# A git that doesn't know some rev-parse options, for tests. Git before 2.31 prints an option it
+# doesn't know (--path-format=absolute) back on stdout and still exits 0; git before 2.5 does the
+# same with --git-common-dir. OLD_GIT_UNKNOWN lists the options to treat that way. Put this folder
+# first on PATH, or run the script by its path; it hands everything else to the real git.
+unknown=" ${OLD_GIT_UNKNOWN:---path-format=absolute} "
+here=$(cd "$(dirname "$0")" && pwd)
+PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx -e "$here" -e "$here/" | paste -sd: -)
+for a do
+  shift
+  case "$unknown" in *" $a "*) printf '%s\n' "$a" ;; *) set -- "$@" "$a" ;; esac
+done
+exec git "$@"

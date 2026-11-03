@@ -1,0 +1,62 @@
+name: hub image
+
+# Builds the hub's container (deploy/hub, which Railway and Render build from this repo) for amd64
+# and arm64, and runs its contract test against real containers. Nothing is published: the hosts
+# build the Dockerfile themselves.
+#   pull request or push to main touching deploy/ or render.yaml -> build and test
+#   a release's build finishing                                -> the same, against that release
+# The Dockerfile names a release, and a release pull request names one that isn't out yet. Then the
+# run before the release says so and passes, and the run after the release checks it.
+on:
+  pull_request:
+    paths: ['deploy/**', 'render.yaml', '.github/workflows/deploy-hub.yml']
+  push:
+    branches: [main]
+    paths: ['deploy/**', 'render.yaml', '.github/workflows/deploy-hub.yml']
+  workflow_run:
+    workflows: [inyon]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-hub-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    # after node.yml, only for a release tag pushed (not a run started by hand on a v* branch)
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # after a release, the tagged commit, whose Dockerfile names that release
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Is its release out?
+        id: release
+        env:
+          AFTER_RELEASE: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          version=$(sed -n 's/^ARG INYON_VERSION=//p' deploy/hub/Dockerfile)
+          if curl -fsIL -o /dev/null "https://github.com/Abhash-Chakraborty/inyon/releases/download/v$version/SHA256SUMS"; then
+            echo out=true >> "$GITHUB_OUTPUT"
+          elif [ "$AFTER_RELEASE" = true ]; then
+            echo "::error::The release build finished, but v$version has no SHA256SUMS. Does the Dockerfile name this release?"
+            exit 1
+          else
+            echo "::notice::v$version isn't published yet, so there's nothing to build; the run after the release checks it."
+            echo out=false >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.release.outputs.out == 'true'
+        run: docker build -t inyon-hub-contract:test deploy/hub
+      - if: steps.release.outputs.out == 'true'
+        run: deploy/hub/test/contract.sh inyon-hub-contract:test

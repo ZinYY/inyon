@@ -1,0 +1,15 @@
+[
+  {
+    "id": "ph1",
+    "name": "Nothing Phone",
+    "pairedAt": 1791900000000,
+    "lastSeen": 1792038600000,
+    "thisPhone": true
+  },
+  {
+    "id": "ph2",
+    "name": "Pixel",
+    "pairedAt": 1791000000000,
+    "lastSeen": 1791500000000
+  }
+]

@@ -1,0 +1,152 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Where should the live name show?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Heading (Recommended)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "On each row",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Rename the page too",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Session name",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "PR 81",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Where should the live name show?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Where should the live name show?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Heading (Recommended)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "On each row",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Rename the page too",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Session name",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "PR 81",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Where should the live name show?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 200,
+      "prompt": {
+        "body": [
+          "Where should the live name show?"
+        ],
+        "wholeLines": true,
+        "options": [
+          {
+            "n": 1,
+            "label": "Heading (Recommended)",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "On each row",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Rename the page too",
+            "selected": false
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Session name",
+            "done": false,
+            "current": true
+          },
+          {
+            "label": "PR 81",
+            "done": false,
+            "current": false
+          },
+          {
+            "label": "Submit",
+            "done": false,
+            "current": false
+          }
+        ],
+        "footer": "Enter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Where should the live name show?"
+  }
+}

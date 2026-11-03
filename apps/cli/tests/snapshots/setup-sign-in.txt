@@ -1,0 +1,22 @@
+  ◆
+  ╰─●    inyon x.y.z
+1 Role  ·  2 Network  ·  3 Background  ·  4 Sign in  ·  5 Summary
+Signing in
+
+ The hub signs you in from a browser.
+ Setup prints its address and a one-time code; open the address and enter the
+ code to choose a password.
+ `inyon hub code` shows the code again.
+
+
+
+
+
+
+
+
+
+
+
+
+Enter next  ·  ← back  ·  Esc quit

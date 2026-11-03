@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan</title>
+<meta name="description" content="One sentence on what this plan changes.">
+<link rel="icon" href="kit/icon.svg">
+<link rel="stylesheet" href="kit/blueprint.css">
+<script src="kit/lucide.min.js"></script><script src="kit/data.js"></script>
+<script src="kit/kit.js"></script><!-- mockups --><script src="mockups/screens.js"></script><!-- /mockups -->
+<style>
+  body { background: var(--bg); }
+  .doc { max-width: 960px; margin: 0 auto; padding: 28px 16px 120px; }
+  .doc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
+  .doc-top b { font-size: 14px; }
+  .doc-top .sp { flex: 1; }
+  .doc-top a.btn { text-decoration: none; }
+  .eyebrow { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-3); margin: 0 0 12px; }
+  .doc h1 { font-size: 44px; line-height: 1.05; font-weight: 600; letter-spacing: -.035em; margin: 0 0 14px; max-width: 14em; }
+  .lede { font-size: 17px; line-height: 1.55; color: var(--fg-2); max-width: 42em; margin: 0 0 20px; }
+  .doc h2 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 64px 0 14px; padding-top: 24px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+  .doc h2 .n { font: 500 13px var(--mono); color: var(--fg-3); margin-right: 10px; vertical-align: 3px; }
+  .doc h3 { font-size: 17px; font-weight: 600; margin: 28px 0 8px; }
+  .doc p, .doc li { font-size: 15px; line-height: 1.62; color: var(--fg-2); }
+  .doc p { margin: 0 0 12px; max-width: 46em; }
+  .doc ul, .doc ol { margin: 0 0 14px; padding-left: 22px; } .doc li { margin: 4px 0; }
+  .doc b, .doc strong { color: var(--fg); font-weight: 600; }
+  .doc code { font: 13px/1.4 var(--mono); background: var(--code); padding: 1px 5px; border-radius: 5px; color: var(--fg); }
+  .doc a { color: var(--fg); text-underline-offset: 3px; }
+  .tw { overflow-x: auto; margin: 10px 0 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .doc th, .doc td { text-align: left; padding: 10px 14px; vertical-align: top; border-top: 1px solid var(--line); line-height: 1.5; color: var(--fg-2); }
+  .doc th { color: var(--fg-3); font: 500 12px var(--mono); letter-spacing: .05em; text-transform: uppercase; border-top: 0; background: var(--raised); }
+  .doc td:first-child { color: var(--fg); font-weight: 500; white-space: nowrap; }
+  .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 32px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); margin: 28px 0 0; }
+  .toc a { display: flex; gap: 10px; padding: 6px 0; font-size: 14px; color: var(--fg-2); text-decoration: none; }
+  .toc a:hover { color: var(--fg); }
+  .toc a span { font: 12px var(--mono); color: var(--fg-3); width: 20px; padding-top: 2px; }
+  .links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .links a { text-decoration: none; }
+  .fig { margin: 18px 0 8px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--raised); }
+  .fig img { display: block; width: 100%; height: auto; }
+  .cap { font-size: 13px; color: var(--fg-3); margin: 0 0 20px; }
+  .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font: 500 12px var(--mono); white-space: nowrap; background: var(--accent-soft); color: var(--fg); }
+  .tag.ok { color: var(--ok); background: var(--diff-add); } .tag.warn { color: var(--warn); background: var(--warn-soft); } .tag.bad { color: var(--danger); background: var(--diff-del); }
+  .call { border: 1px solid var(--line); border-left: 3px solid var(--fg); border-radius: 0 14px 14px 0; background: var(--panel); padding: 14px 18px; margin: 16px 0; }
+  .call p:last-child { margin: 0; }
+  .short { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .short li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); margin: 0; }
+  .short li svg { width: 18px; height: 18px; color: var(--fg); margin-top: 3px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 18px 0; }
+  .stat { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .stat b { display: block; font: 600 24px var(--sans); letter-spacing: -.02em; color: var(--fg); }
+  .stat span { font-size: 13px; color: var(--fg-3); }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 18px 0; }
+  .gal a { display: block; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); text-decoration: none; transition: transform var(--dur-small) var(--ease), border-color var(--dur-small) var(--ease); }
+  .gal a:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+  .gal .im { aspect-ratio: 16 / 10; background: var(--raised); display: grid; place-items: center; overflow: hidden; }
+  .gal .im img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .gal .im .ph { font: 12px var(--mono); color: var(--fg-3); }
+  .gal .tx { padding: 10px 12px 12px; }
+  .gal .tx b { font-size: 14px; display: flex; justify-content: space-between; gap: 8px; color: var(--fg); }
+  .gal .tx b span { font: 12px var(--mono); color: var(--fg-3); font-weight: 400; }
+  .gal .tx p { font-size: 13px; margin: 4px 0 0; color: var(--fg-3); line-height: 1.45; }
+  .gal-h { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-3); margin: 22px 0 -6px; }
+  .rel { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); margin: 12px 0; overflow: hidden; }
+  .rel > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; }
+  .rel > summary::-webkit-details-marker { display: none; }
+  .rel > summary:hover { background: var(--hover); }
+  .rel .v { font: 600 15px var(--mono); color: var(--fg); }
+  .rel .v small { display: block; font: 12px var(--mono); color: var(--fg-3); }
+  .rel .t { font-weight: 600; font-size: 15px; color: var(--fg); }
+  .rel .t small { display: block; font-weight: 400; font-size: 13px; color: var(--fg-3); margin-top: 2px; }
+  .rel .chev { transition: transform var(--dur-small) var(--ease); color: var(--fg-3); }
+  .rel[open] .chev { transform: rotate(90deg); }
+  .rel .bd { padding: 4px 18px 16px 94px; border-top: 1px solid var(--line); }
+  .rel .bd h4 { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-3); margin: 14px 0 6px; }
+  .rel .bd ul { margin: 0; }
+  .phase-h { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-3); margin: 26px 0 4px; }
+  .dec { display: grid; gap: 10px; }
+  .dec .card { padding: 14px 16px; border-radius: 14px; }
+  .dec .card h4 { margin: 0 0 4px; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dec .card p { margin: 0; font-size: 14px; }
+  .foot { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--fg-3); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .prog { margin: 32px 0 0; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); overflow: hidden; }
+  .prog-h { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
+  .prog-h h2 { all: unset; font-size: 17px; font-weight: 600; color: var(--fg); }
+  .prog-h .upd { margin-left: auto; font: 12px var(--mono); color: var(--fg-3); }
+  .prog-now { display: flex; align-items: center; gap: 10px; padding: 0 18px 14px; font-size: 14px; color: var(--fg-2); }
+  .prog-bar { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; display: flex; }
+  .prog-bar i { display: block; height: 100%; background: var(--ok); transition: width var(--dur-move) var(--ease); }
+  .prog-bar i.doing { background: var(--warn); }
+  .prog-total { padding: 0 18px 16px; display: grid; gap: 6px; }
+  .prog-total span { font: 12px var(--mono); color: var(--fg-3); }
+  .prog-rel { border-top: 1px solid var(--line); }
+  .prog-rel > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 54px 1fr 120px 74px 18px; gap: 12px; align-items: center; padding: 11px 18px; }
+  .prog-rel > summary::-webkit-details-marker { display: none; }
+  .prog-rel > summary:hover { background: var(--hover); }
+  .prog-rel .v { font: 600 14px var(--mono); color: var(--fg); }
+  .prog-rel .t { font-size: 14px; color: var(--fg); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prog-rel .c { font: 12px var(--mono); color: var(--fg-3); text-align: right; }
+  .prog-rel .chev { color: var(--fg-3); transition: transform var(--dur-small) var(--ease); }
+  .prog-rel[open] .chev { transform: rotate(90deg); }
+  .prog-tasks { list-style: none; margin: 0; padding: 2px 18px 12px 84px; display: grid; gap: 2px; }
+  .prog-tasks li { display: grid; grid-template-columns: 76px 1fr; gap: 10px; align-items: baseline; font-size: 14px; color: var(--fg-2); margin: 0; padding: 4px 0; }
+  .prog-tasks li small { display: block; color: var(--fg-3); font-size: 13px; }
+  .prog-tasks a { font-size: 13px; }
+  .st { display: inline-flex; align-items: center; gap: 5px; font: 500 12px var(--mono); color: var(--fg-3); white-space: nowrap; }
+  .st::before { content: ''; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; }
+  .st.doing { color: var(--warn); } .st.doing::before { background: currentColor; animation: breathe 1.6s var(--ease) infinite; }
+  .st.done { color: var(--ok); } .st.done::before { background: currentColor; }
+  .st.blocked { color: var(--danger); } .st.blocked::before { background: currentColor; }
+  .prog-log { border-top: 1px solid var(--line); padding: 12px 18px 16px; }
+  .prog-log h3 { margin: 0 0 8px; font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-3); }
+  .prog-log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+  .prog-log li { display: grid; grid-template-columns: 92px 1fr; gap: 10px; font-size: 13px; color: var(--fg-2); margin: 0; }
+  .prog-log li time { font: 12px var(--mono); color: var(--fg-3); }
+  @media (max-width: 700px) { .prog-rel > summary { grid-template-columns: 44px 1fr 56px 18px; } .prog-rel .c { display: none; } .prog-tasks { padding-left: 18px; } .prog-tasks li { grid-template-columns: 1fr; gap: 2px; } }
+  @media (max-width: 700px) {
+    .doc h1 { font-size: 34px; } .doc-top .links a { display: none; } .toc { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .rel > summary { grid-template-columns: 52px 1fr auto; } .rel .bd { padding-left: 18px; }
+    .doc td:first-child { white-space: normal; }
+  }
+</style>
+</head><body>
+<!-- Blueprint plan page. Replace every sample sentence (the "Pantry" app) with your project's own,
+     keep the section order unless the plan needs a different one, and number the h2s to match the TOC.
+     The mockups markers wrap what links to the screens; new-site.mjs --no-mockups removes those parts. -->
+<article class="doc">
+  <div class="doc-top"><span id="logo"></span><b id="brand"></b><span class="sp"></span>
+    <div class="links"><!-- mockups --><a class="btn sm" href="mockups/index.html"><i data-lucide="layout-template"></i>Screens</a><!-- /mockups --><a class="btn sm" href="matrix.html"><i data-lucide="table-2"></i>Feature matrix</a>
+    <button class="icon-btn" id="theme" aria-label="Switch theme" data-tip="Switch theme"><i data-lucide="sun-moon"></i></button></div>
+  </div>
+
+  <p class="eyebrow">Plan · 1 March 2027 · from 2.3</p>
+  <h1>Shared lists that work offline</h1>
+  <p class="lede">Pantry lists sync only while you have signal, so the shop is where they break. This plan makes every list work offline on the phone, merges edits when you're back, and adds recipes that fill a list for you.</p>
+  <div class="links"><!-- mockups --><a class="btn primary" href="mockups/index.html"><i data-lucide="layout-template"></i>Open the screens</a><!-- /mockups --><a class="btn" href="matrix.html"><i data-lucide="table-2"></i>Feature by feature</a></div>
+
+  <section class="prog" id="progress" aria-live="polite">
+    <div class="prog-h"><h2>Where it stands</h2><span class="st doing" id="pgState">Working</span><span class="upd" id="pgUpd"></span></div>
+    <div class="prog-now"><i data-lucide="hammer"></i><span id="pgNow">Loading…</span></div>
+    <div class="prog-total"><div class="prog-bar"><i id="pgDone"></i><i class="doing" id="pgDoing"></i></div><span id="pgCount"></span></div>
+    <div id="pgRels"></div>
+    <div class="prog-log"><h3>Activity</h3><ol id="pgLog"></ol></div>
+  </section>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#short"><span>01</span>Short version</a>
+    <a href="#change"><span>02</span>What changes</a>
+    <a href="#how"><span>03</span>How it works</a>
+    <!-- mockups --><a href="#screens"><span>04</span>Screens</a><!-- /mockups -->
+    <a href="#releases"><span>05</span>Releases</a>
+    <a href="#risks"><span>06</span>Risks</a>
+    <a href="#decisions"><span>07</span>Decisions</a>
+  </nav>
+
+  <h2 id="short"><span class="n">01</span>Short version</h2>
+  <ul class="short">
+    <li><i data-lucide="wifi-off"></i><div><b>Lists work with no signal.</b> Every list lives on the phone first and syncs when it can.</div></li>
+    <li><i data-lucide="git-merge"></i><div><b>Edits merge, nothing is lost.</b> Two people ticking the same list offline both see the right result.</div></li>
+    <li><i data-lucide="book-open"></i><div><b>Recipes fill a list.</b> Pick three dinners and the missing ingredients land on the shop list.</div></li>
+  </ul>
+  <div class="stats">
+    <div class="stat"><b id="nFeatures">0</b><span>features mapped</span></div>
+    <!-- mockups --><div class="stat"><b id="nScreens">0</b><span>interactive screens</span></div><!-- /mockups -->
+    <div class="stat"><b>3</b><span>releases, 2.4 to 2.6</span></div>
+    <div class="stat"><b>0 s</b><span>wait at the shop</span></div>
+  </div>
+
+  <h2 id="change"><span class="n">02</span>What changes</h2>
+  <p>Today a list is a row on the server and the app shows a spinner until it loads. In a basement shop with no signal, people see an empty screen.</p>
+  <div class="tw"><table>
+    <tr><th>Today</th><th>After</th></tr>
+    <tr><td>Lists load from the server</td><td>Lists open from the phone's own copy, then catch up</td></tr>
+    <tr><td>Last write wins</td><td>Each tick and edit merges, per item</td></tr>
+    <tr><td>Recipes are links</td><td>Recipes have ingredients that can go on a list</td></tr>
+  </table></div>
+
+  <h2 id="how"><span class="n">03</span>How it works</h2>
+  <p>Put a figure here: a still WebP, or an animated SVG with the still inside it. Keep one idea per figure and take every label from the real system.</p>
+  <!-- <figure class="fig"><img src="figures/sync-anim.svg" alt="What the figure shows, in one sentence" width="1200" height="600" loading="lazy"></figure>
+  <p class="cap">One line that tells the figure's story on its own.</p> -->
+  <div class="call"><p><b>Trade-off:</b> the phone keeps a copy of every shared list, about 2 MB for a busy household.</p></div>
+
+  <!-- mockups -->
+  <h2 id="screens"><span class="n">04</span>Screens</h2>
+  <p>Every screen is real HTML you can click, right-click and long-press. Open them in the <a href="mockups/index.html">viewer</a> to switch between phone and desktop, light and dark, and to read the notes for each.</p>
+  <div id="gallery"></div>
+  <!-- /mockups -->
+
+  <h2 id="releases"><span class="n">05</span>Releases</h2>
+  <p>Each release ships on its own and can be rolled back. Open one for its scope and what "done" means.</p>
+  <div id="rels"></div>
+
+  <h2 id="risks"><span class="n">06</span>Risks</h2>
+  <div class="tw"><table>
+    <tr><th>Risk</th><th>What we do</th></tr>
+    <tr><td>Merge surprises</td><td>Property tests that replay random offline edits from two phones and compare the result</td></tr>
+    <tr><td>Storage on old phones</td><td>Archived lists stay on the server only</td></tr>
+  </table></div>
+
+  <h2 id="decisions"><span class="n">07</span>Decisions</h2>
+  <div class="phase-h">Made</div>
+  <div class="dec">
+    <div class="card"><h4><span class="tag ok">Decided</span>Phone first</h4><p>The phone's copy is the source of truth while offline.</p></div>
+  </div>
+  <div class="phase-h">Open</div>
+  <div class="dec">
+    <div class="card"><h4><span class="tag warn">Question</span>Recipe import</h4><p>Paste a link, or only recipes typed into Pantry?</p></div>
+  </div>
+
+  <div class="foot"><span id="footBrand"></span><span><!-- mockups --><a href="mockups/index.html">Screens</a> · <!-- /mockups --><a href="matrix.html">Feature matrix</a></span></div>
+</article>
+
+<script>
+(() => {
+  K.$('#logo').innerHTML = K.logo(22);
+  K.$('#brand').textContent = BRAND.name;
+  K.$('#footBrand').textContent = `${BRAND.name} plan`;
+  document.title = `${BRAND.name} plan`;
+  const stills = (t) => K.$$('img[data-still]').forEach((i) => (i.src = `shots/${i.dataset.still}-${t === 'dark' ? 'dd' : 'd'}.webp`));
+  K.$('#theme').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; K.setTheme(t); stills(t); };
+  document.addEventListener('bp:theme', (e) => stills(e.detail));
+
+  /* mockups */
+  // Screen gallery from the viewer's list; stills come from scripts/stills.mjs into shots/.
+  if (window.SCREENS) {
+  K.$('#nScreens').textContent = SCREENS.reduce((a, g) => a + g.items.length, 0);
+  K.$('#gallery').innerHTML = SCREENS.map((g) => `<div class="gal-h">${K.esc(g.group)}</div><div class="gal">${g.items.map((s) => `
+    <a href="mockups/index.html#${s.id}"><div class="im"><img data-still="${s.id}" src="shots/${s.id}-${document.documentElement.dataset.theme === 'dark' ? 'dd' : 'd'}.webp" alt="${K.esc(s.title)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'No still yet'}))"></div>
+    <div class="tx"><b>${K.esc(s.title)}<span>${K.esc(s.release || '')}</span></b><p>${K.esc(s.what)}</p></div></a>`).join('')}</div>`).join('');
+  }
+  /* /mockups */
+
+  // Releases: the plan's promise. progress.json tracks the work against the same ids (r).
+  const R = [
+    { phase: 'Offline' },
+    { v: '2.4', r: 'R1', t: 'Lists on the phone', s: 'Open any list with no signal',
+      scope: ['A local store for lists and items', 'Sync queue that drains when the network returns', 'An "offline" chip in the header'],
+      check: ['Airplane mode: open, tick and add items, then reconnect and see them on the web', 'Cold start under 300 ms with 50 lists'] },
+    { v: '2.5', r: 'R2', t: 'Merging edits', s: 'Two phones, one list, no lost ticks',
+      scope: ['Per-item merge instead of last write wins', 'A history sheet for each list'],
+      check: ['Property test: 10,000 random offline edit pairs converge'] },
+    { phase: 'Recipes' },
+    { v: '2.6', r: 'R3', t: 'Recipes fill a list', s: 'Pick dinners, get a shop list',
+      scope: ['Recipes with ingredients and servings', 'Add to list, skipping what the pantry already has'],
+      check: ['Three recipes with a shared ingredient add it once with the summed amount'] },
+  ];
+  K.$('#rels').innerHTML = R.map((x) => x.phase ? `<div class="phase-h">${x.phase}</div>` : `
+    <details class="rel"><summary><span class="v">${x.v}<small>${x.r}</small></span><span class="t">${x.t}<small>${x.s}</small></span><i data-lucide="chevron-right" class="chev"></i></summary>
+    <div class="bd"><h4>Scope</h4><ul>${x.scope.map((s) => `<li>${s}</li>`).join('')}</ul><h4>Done when</h4><ul>${x.check.map((s) => `<li>${s}</li>`).join('')}</ul></div></details>`).join('');
+  K.icons(document);
+  if (window.MATRIX) K.$('#nFeatures').textContent = MATRIX.length;
+})();
+</script>
+
+<script>
+/* Live progress. progress.json is rewritten as the work moves: fetch it every 20 seconds and when the
+   page comes back into view. Inyon can also push a fresh copy with {type:'bp-progress', data}; that
+   message counts only from the page this one is framed in. Everything in the file is shown as text. */
+(() => {
+  const open = new Set();
+  const esc = K.esc;
+  const ago = (t) => { const d = new Date(t); if (isNaN(d)) return ''; const m = Math.round((Date.now() - d) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : d.toLocaleDateString(); };
+  const lbl = { todo: 'To do', doing: 'Working', done: 'Done', blocked: 'Blocked' };
+  const st = (s) => (lbl[s] ? s : 'todo');
+  // Links on tasks: http(s), or relative to the site. Anything with another scheme (javascript:, data:) is dropped.
+  const safeHref = (u) => { if (typeof u !== 'string') return null; const s = u.replace(/[\x00-\x20\x7f]/g, ''); return /^https?:\/\//i.test(s) || !/^[a-z][a-z0-9+.-]*:/i.test(s) ? u : null; };
+  const pct = (a, b) => (b ? (a / b) * 100 : 0);
+  function render(d) {
+    if (!d || !Array.isArray(d.releases)) return;
+    const rels = d.releases.filter((r) => r && typeof r === 'object').map((r) => ({ ...r, tasks: Array.isArray(r.tasks) ? r.tasks.filter((t) => t && typeof t === 'object') : [] }));
+    const tasks = rels.flatMap((r) => r.tasks), n = tasks.length;
+    const done = tasks.filter((t) => t.status === 'done').length, doing = tasks.filter((t) => t.status === 'doing').length;
+    K.$('#pgDone').style.width = pct(done, n) + '%'; K.$('#pgDoing').style.width = pct(doing, n) + '%';
+    K.$('#pgCount').textContent = `${done} of ${n} tasks done · ${doing} in progress`;
+    K.$('#pgNow').textContent = typeof d.now === 'string' ? d.now : ''; K.$('#pgUpd').textContent = d.updated ? 'Updated ' + ago(d.updated) : '';
+    K.$$('#pgRels details[open]').forEach((x) => open.add(x.dataset.r)); K.$$('#pgRels details:not([open])').forEach((x) => open.delete(x.dataset.r));
+    K.$('#pgRels').innerHTML = rels.map((r) => { const dn = r.tasks.filter((t) => t.status === 'done').length;
+      return `<details class="prog-rel" data-r="${esc(r.r)}" ${open.has(String(r.r ?? '')) ? 'open' : ''}><summary><span class="v">${esc(r.v)}</span><span class="t">${esc(r.title)}</span><span class="c"><span class="prog-bar"><i style="width:${pct(dn, r.tasks.length)}%"></i></span></span><span class="st ${st(r.status)}">${dn}/${r.tasks.length}</span><i data-lucide="chevron-right" class="chev"></i></summary>
+      <ul class="prog-tasks">${r.tasks.map((t) => { const href = safeHref(t.link);
+        return `<li><span class="st ${st(t.status)}">${lbl[st(t.status)]}</span><span>${esc(t.title)}${t.note ? `<small>${esc(t.note)}</small>` : ''}${href ? ` <a href="${esc(href)}" target="_blank" rel="noopener noreferrer">link</a>` : ''}</span></li>`; }).join('')}</ul></details>`; }).join('');
+    K.$('#pgLog').innerHTML = (Array.isArray(d.log) ? d.log : []).slice(0, 40).filter((l) => l && typeof l === 'object').map((l) => `<li><time datetime="${esc(l.t)}">${esc(ago(l.t))}</time><span>${esc(l.text)}</span></li>`).join('');
+    if (!open.size) { const cur = rels.find((r) => r.status === 'doing') || rels[0]; const el = cur && K.$$('#pgRels details').find((x) => x.dataset.r === String(cur.r ?? '')); el && el.setAttribute('open', ''); }
+    const all = rels.length > 0 && rels.every((r) => r.status === 'done');
+    K.$('#pgState').textContent = all ? 'Done' : rels.some((r) => r.status === 'blocked') ? 'Blocked' : 'Working';
+    K.$('#pgState').className = 'st ' + (all ? 'done' : 'doing');
+    K.icons(K.$('#progress'));
+  }
+  async function load() {
+    let d; try { d = await (await fetch('progress.json', { cache: 'no-store' })).json(); } catch { return; }
+    render(d);
+  }
+  window.addEventListener('message', (e) => { if (K.fromParent(e) && e.data.type === 'bp-progress') render(e.data.data); });
+  load(); setInterval(load, 20000); document.addEventListener('visibilitychange', () => !document.hidden && load());
+})();
+</script>
+<script src="matrix-data.js" onload="K.$('#nFeatures').textContent = MATRIX.length"></script>
+</body></html>

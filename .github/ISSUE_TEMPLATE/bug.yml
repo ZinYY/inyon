@@ -1,0 +1,55 @@
+name: Bug
+description: Something in Inyon doesn't work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem? Don't open an issue. Report it privately instead (see SECURITY.md).
+        Leave out tokens, pairing codes, IP addresses and anything else you wouldn't post publicly.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see it again
+      placeholder: |
+        1. Start Claude Code in a tmux pane
+        2. Open the session in the app
+        3. ...
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Android app
+        - Web app (from a hub, or a copy you host)
+        - Hub in a browser
+        - inyon on a computer
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "`inyon --version`, the app version from Settings, and the agent with its version"
+      placeholder: inyon 0.20.1, app 0.20.1, Claude Code 2.1.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: The computer's OS and `tmux -V`, and the phone or browser
+      placeholder: Ubuntu 24.04, tmux 3.4, Pixel 8 on Android 15
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: "The output of `inyon doctor --json` and `inyon logs -n 100` (any system). Screenshots help for anything on screen."

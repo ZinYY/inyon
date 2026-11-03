@@ -1,0 +1,108 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "prompt": {
+        "body": [
+          "Implement this plan?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, implement this plan",
+            "detail": "Switch to Default and start coding",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, clear context and implement",
+            "detail": "Start a fresh thread (current context: 2% used)",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, stay in Plan mode",
+            "detail": "Continue planning with the model",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Implement this plan?"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "prompt": {
+        "body": [
+          "Implement this plan?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, implement this plan",
+            "detail": "Switch to Default and start coding",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, clear context and implement",
+            "detail": "Start a fresh thread (current context: 2% used)",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, stay in Plan mode",
+            "detail": "Continue planning with the model",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Implement this plan?"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 90,
+      "prompt": {
+        "body": [
+          "Implement this plan?"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Yes, implement this plan",
+            "detail": "Switch to Default and start coding",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Yes, clear context and implement",
+            "detail": "Start a fresh thread (current context: 2% used)",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "No, stay in Plan mode",
+            "detail": "Continue planning with the model",
+            "selected": false
+          }
+        ],
+        "footer": "enter select · esc back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Implement this plan?"
+  },
+  "browsing": null
+}

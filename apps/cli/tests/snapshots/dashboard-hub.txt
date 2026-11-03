@@ -1,0 +1,20 @@
+  ◆
+  ╰─●    inyon x.y.z
+────────────────────────────────────────────────────────────────────────────────
+Hub: the server phones sign in to             No phones paired yet
+machine k7m2p9x4w1q8z3v6
+
+● hub  running · 0.13.0
+
+
+                                              Machines on this hub (2)
+                                                laptop
+                                                build-box
+
+
+                                              No agents running in tmux
+
+
+Log: nothing yet
+
+q quit · r refresh · s setup · p pair

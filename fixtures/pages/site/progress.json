@@ -1,0 +1,12 @@
+{
+ "updated": "2026-10-19T12:00+00:00",
+ "now": "Writing the sub page",
+ "releases": [
+  { "v": "0.1", "r": "R1", "title": "Fixture", "status": "doing", "tasks": [
+   { "id": "a", "title": "Index page", "status": "done" },
+   { "id": "b", "title": "Sub page", "status": "doing" },
+   { "id": "c", "title": "Images", "status": "todo" }
+  ] }
+ ],
+ "log": []
+}

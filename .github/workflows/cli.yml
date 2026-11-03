@@ -1,0 +1,266 @@
+name: inyon cli
+
+# Builds and tests the inyon command (apps/cli, Rust) on each system it ships for, and keeps the
+# binaries as artifacts named like the release files (inyon-<os>-<arch>, plus the gzipped copy).
+# Only rustup and cargo as the runners ship them; the Linux builds are static (musl) so one file
+# runs on glibc and Alpine alike, and Windows on ARM is cross-built on the x64 runner. node.yml
+# calls this workflow, so a release tag builds the command and the engine in one run.
+on:
+  # a push to main runs this through node.yml, which publishes what it builds
+  pull_request:
+    # the protocol crate's tests also read packages/protocol and fixtures/;
+    # `inyon docs` carries site/docs inside the binary; the new app's terminal is bundled from
+    # the web app's terminal files and the workspace's packages
+    paths: ['apps/cli/**', 'apps/app/**', 'site/docs/**', 'crates/**', 'packages/protocol/**', 'installers/**', 'fixtures/**', 'apps/web/scripts/phone-core.ts', 'apps/web/vite.config.ts', 'apps/web/src/components/terminal/**', 'apps/web/src/lib/renderer.ts', 'bun.lock', '.cargo/**', 'Cargo.toml', 'Cargo.lock', 'rustfmt.toml', '.github/workflows/cli.yml']
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/cli
+
+env:
+  # the Dioxus CLI that builds apps/app; it has to match the dioxus crate's version
+  DX_VERSION: 0.7.10
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup component add clippy rustfmt
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # the wire types against the TypeScript ones, the protocol samples and the shared fixtures
+      - run: cargo test -p inyon-protocol
+      # the link against the TS link's bytes (fixtures/link); it also has to build as wasm, which
+      # is how the phone core will run it
+      - run: cargo test -p inyon-link
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo check --target wasm32-unknown-unknown -p inyon-link
+      # the machine side (from 0.19): files, answers and wire messages as the Bun engine had them
+      - run: cargo test -p inyon-engine
+      # the hub's readers (from 0.20): every shared screen capture read as the TS hub reads it
+      # (fixtures/expected), plus the TS tests ported; like the link, they build as wasm too
+      - run: cargo test -p inyon-core
+      - run: cargo check --target wasm32-unknown-unknown -p inyon-core
+      # the hub core's native side: real processes and terminals, and the core's actions, mirror
+      # and transcript tail against them, each tmux test on a server in a folder of its own
+      - run: command -v tmux || { sudo apt-get update -q && sudo apt-get install -y -q tmux; }
+      - run: cargo test -p inyon-backends
+      # the API every hub serves (from 0.23 its own crate): the core routes and the app's
+      # WebSocket clients, which the phone app will run as wasm, so it builds as wasm too
+      - run: cargo test -p inyon-api
+      - run: cargo check --target wasm32-unknown-unknown -p inyon-api
+      # the app's view model (from 1.0): the web app's chat, overview and notice logic with its
+      # tests ported, and the splices the chat list updates by; the app runs it as wasm too
+      - run: cargo test -p inyon-chat-core
+      - run: cargo check --target wasm32-unknown-unknown -p inyon-chat-core
+      # the hub in Rust (from 0.20): its routes, sockets, sign-in and updates, as the Bun hub's
+      # tests had them
+      - run: cargo test -p inyon-hub
+      # the new app (apps/app): its view model and state natively, its browser build through clippy
+      - run: cargo test -p inyon-app
+      - run: cargo clippy -p inyon-app --target wasm32-unknown-unknown --features web -- -D warnings
+      # the Android app (from 1.0): the phone core in-process, its notifications and the SSH bridge
+      # to Kotlin, natively; the Android build itself is android.yml's
+      - run: cargo test -p inyon-app --features phone
+      - run: cargo clippy -p inyon-app --features phone --all-targets -- -D warnings
+
+  # the new app the hub serves at /next, built once with dx (wasm is the same on every system) and
+  # handed to each build below, then signed in to and looked at in Chromium behind a stand-in hub
+  app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install dx
+        working-directory: ${{ runner.temp }}
+        run: |
+          base="https://github.com/DioxusLabs/dioxus/releases/download/v$DX_VERSION"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSLO "$base/dx-x86_64-unknown-linux-gnu.sha256"
+          # the file lists the .tar.gz and the .zip
+          grep ' dx-x86_64-unknown-linux-gnu.tar.gz$' dx-x86_64-unknown-linux-gnu.sha256 | sha256sum -c
+          mkdir -p dx && tar xzf dx-x86_64-unknown-linux-gnu.tar.gz -C dx
+          echo "$RUNNER_TEMP/dx" >> "$GITHUB_PATH"
+      - run: rustup target add wasm32-unknown-unknown
+      # build.sh bundles the terminal's xterm.js with Bun, from the workspace's packages
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: apps/app/build.sh
+      - run: ls -l apps/app/dist apps/app/dist/assets
+      - run: bunx tsc --noEmit
+        working-directory: apps/app
+      - run: bunx playwright install --with-deps chromium
+      - run: bun apps/app/e2e/overview.ts
+        env:
+          SHOTS: ${{ runner.temp }}/shots
+      - run: bun apps/app/e2e/machines.ts
+        env:
+          SHOTS: ${{ runner.temp }}/shots
+      - run: bun apps/app/e2e/pages.ts
+        env:
+          SHOTS: ${{ runner.temp }}/shots
+      - run: bun apps/app/e2e/settings.ts
+        env:
+          SHOTS: ${{ runner.temp }}/shots
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        with:
+          name: app-screenshots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-dist
+          path: apps/app/dist
+          if-no-files-found: error
+
+  # the phone core in Rust (from 0.23): crates/inyon-phone as wasm with wasm-bindgen's JavaScript
+  # side, started and called the way the web app calls it, then the browser copy built on it
+  phone:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - uses: ./.github/actions/phone-core
+      - run: cargo test -p inyon-phone
+      # the native side the Android app runs it on (sockets, HTTP, files)
+      - run: cargo test -p inyon-phone --features native
+      - run: cargo clippy -p inyon-phone --features native --all-targets -- -D warnings
+      # the computer the wasm core pairs with in its tests
+      - run: cargo build -p inyon-cli
+      - run: bun scripts/phone-core.ts
+        working-directory: apps/web
+      - run: bun test crates/inyon-phone/js
+        working-directory: .
+        env:
+          INYON_BIN: ${{ github.workspace }}/target/debug/inyon
+      # the same under the name an inyon from 0.12 to 0.22 starts it by, which runs the engine
+      - name: The phone against the program named inyon-engine
+        working-directory: .
+        run: |
+          ln -s "$GITHUB_WORKSPACE/target/debug/inyon" "$RUNNER_TEMP/inyon-engine"
+          INYON_BIN="$RUNNER_TEMP/inyon-engine" bun test crates/inyon-phone/js
+      - run: bunx tsc --noEmit
+        working-directory: apps/web
+      - run: bun --bun vite build --outDir dist-hosted
+        working-directory: apps/web
+        env:
+          VITE_INYON_HOSTED: '1'
+
+  build:
+    needs: [app]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, target: x86_64-unknown-linux-musl, name: inyon-linux-x64 }
+          - { runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl, name: inyon-linux-arm64 }
+          - { runner: macos-15, target: aarch64-apple-darwin, name: inyon-darwin-arm64 }
+          # GitHub has no Intel Mac runners left in the queue; the Apple silicon one builds the
+          # Intel file and runs its tests under Rosetta
+          - { runner: macos-15, target: x86_64-apple-darwin, name: inyon-darwin-x64, rosetta: true }
+          - { runner: windows-latest, target: x86_64-pc-windows-msvc, name: inyon-windows-x64.exe }
+          # cross-built on the x64 runner; its tests can't run there
+          - { runner: windows-latest, target: aarch64-pc-windows-msvc, name: inyon-windows-arm64.exe, cross: true }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup target add ${{ matrix.target }}
+      - name: musl toolchain
+        if: ${{ contains(matrix.target, 'musl') }}
+        # the TLS library has C in it, which needs a compiler that targets musl
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q musl-tools
+          echo "CC_$(echo '${{ matrix.target }}' | tr '-' '_')=musl-gcc" >> "$GITHUB_ENV"
+      - name: Rosetta
+        if: ${{ matrix.rosetta }}
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Test
+        if: ${{ !matrix.cross }}
+        run: cargo test --target ${{ matrix.target }} -p inyon-cli -p inyon-engine
+      # Windows has no hub; the others run its tests on their own system too (sockets, file limits)
+      - name: Test the hub
+        if: ${{ !matrix.cross && !startsWith(matrix.runner, 'windows') }}
+        run: cargo test --target ${{ matrix.target }} -p inyon-api -p inyon-hub
+      # the hub in Rust (INYON_HUB_IMPL=rust) carries the web app, embedded from apps/web/dist
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: ${{ !startsWith(matrix.runner, 'windows') }}
+        with:
+          bun-version: 1.4.2
+      - name: Build the web app
+        if: ${{ !startsWith(matrix.runner, 'windows') }}
+        working-directory: .
+        run: bun install --frozen-lockfile && bun run --cwd apps/web build
+        env:
+          # a hub's copy never runs the phone core (vite.config.ts)
+          VITE_INYON_PHONE_CORE: none
+      # the hub serves the new app at /next from apps/app/dist (built once above)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: ${{ !startsWith(matrix.runner, 'windows') }}
+        with:
+          name: app-dist
+          path: apps/app/dist
+      - run: cargo build --release --target ${{ matrix.target }}
+        env:
+          INYON_BUILD_COMMIT: ${{ github.sha }}
+          # Windows has no hub, so no request to survive a panic in: abort is smaller
+          CARGO_PROFILE_RELEASE_PANIC: ${{ startsWith(matrix.runner, 'windows') && 'abort' || 'unwind' }}
+      - name: Name the binary
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          # the workspace keeps one target/ at the repository root
+          src="$GITHUB_WORKSPACE/target/${{ matrix.target }}/release/inyon"
+          [[ "${{ matrix.target }}" == *windows* ]] && src="$src.exe"
+          cp "$src" "$RUNNER_TEMP/out/${{ matrix.name }}"
+          ls -l "$RUNNER_TEMP/out"
+      - name: Gzip it
+        if: ${{ !startsWith(matrix.runner, 'windows') }}
+        run: gzip -9 -k "$RUNNER_TEMP/out/${{ matrix.name }}"
+      - name: Gzip it (Windows)
+        if: ${{ startsWith(matrix.runner, 'windows') }}
+        shell: pwsh
+        run: |
+          $f = Join-Path $env:RUNNER_TEMP "out/${{ matrix.name }}"
+          $src = [IO.File]::OpenRead($f)
+          $dst = [IO.File]::Create("$f.gz")
+          $gz = New-Object IO.Compression.GZipStream($dst, [IO.Compression.CompressionLevel]::Optimal)
+          try { $src.CopyTo($gz) } finally { $gz.Dispose(); $dst.Dispose(); $src.Dispose() }
+      - name: Version
+        if: ${{ !matrix.cross }}
+        shell: bash
+        run: '"$RUNNER_TEMP/out/${{ matrix.name }}" version'
+      # the app's window in WebView2, which no other test opens
+      - name: The app's window
+        if: ${{ startsWith(matrix.runner, 'windows') && !matrix.cross }}
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/windows-app-check.ps1 -Exe (Join-Path $env:RUNNER_TEMP "out/${{ matrix.name }}")
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ runner.temp }}/out/${{ matrix.name }}*
+          if-no-files-found: error

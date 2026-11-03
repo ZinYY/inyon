@@ -1,0 +1,113 @@
+{
+  "about": "Relay transport: on the machine socket (/m/<id>) binary frames carry a 4-byte big-endian session number then the bytes; phones open /p/<id>. The machine proves its id by signing \"tether-relay-auth:<nonce>\", or \"tether-relay-auth:v2:<origin>:<nonce>\" when the challenge has v: 2, with the origin of the address it dialed.",
+  "frames": [
+    {
+      "sid": 0,
+      "data": "",
+      "framed": "00000000"
+    },
+    {
+      "sid": 1,
+      "data": "010203",
+      "framed": "00000001010203"
+    },
+    {
+      "sid": 70000,
+      "data": "cdf43ecdd08fb0629d990b57c148ccd4bc1443d5",
+      "framed": "00011170cdf43ecdd08fb0629d990b57c148ccd4bc1443d5"
+    },
+    {
+      "sid": 4294967295,
+      "data": "ff",
+      "framed": "ffffffffff"
+    }
+  ],
+  "auth": [
+    {
+      "seed": "8c0e780902dfd6d338a26b1d95598508d32d0eaf01816072eca3c7dbe91fd317",
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "nonce": "abc123",
+      "message": "7465746865722d72656c61792d617574683a616263313233",
+      "signature": "fe22d5922b6d9dbcdc40ded738277a616845a6987c0eb41c2846578dbbb43fe640b639601606f2e58d99eca0accff0cce34323a40bd2788b5e076e569103810b"
+    },
+    {
+      "seed": "8c0e780902dfd6d338a26b1d95598508d32d0eaf01816072eca3c7dbe91fd317",
+      "id": "foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+      "nonce": "b9f7c1d2e3a4f5061728394a5b6c7d8e",
+      "message": "7465746865722d72656c61792d617574683a6239663763316432653361346635303631373238333934613562366337643865",
+      "signature": "4dd479267d279cfe09c5093ef74a0c78eb4f1416a84e3cdda132c66d03f483692a69973e9f0035f5d243fe961913518d548f5bac60a15804ac6475c284ae8a0e"
+    }
+  ],
+  "auth_v2": [
+    {
+      "seed": "8c0e780902dfd6d338a26b1d95598508d32d0eaf01816072eca3c7dbe91fd317",
+      "origin": "https://relay.example",
+      "nonce": "abc123",
+      "message": "7465746865722d72656c61792d617574683a76323a68747470733a2f2f72656c61792e6578616d706c653a616263313233",
+      "signature": "9076d0327d1fc34205b8342e84cc12e96a940599a75d45e3cb3fbe0945a1f233d51255671eca611fd1050a347bc75eef84f4616ebf2a03fc0b4987a7fc9c050a"
+    },
+    {
+      "seed": "8c0e780902dfd6d338a26b1d95598508d32d0eaf01816072eca3c7dbe91fd317",
+      "origin": "https://relay.example",
+      "nonce": "b9f7c1d2e3a4f5061728394a5b6c7d8e",
+      "message": "7465746865722d72656c61792d617574683a76323a68747470733a2f2f72656c61792e6578616d706c653a6239663763316432653361346635303631373238333934613562366337643865",
+      "signature": "6442128b0e3005580c388765b786db57dfcf98b95f4a856c0fd167250579de4487b065c532707b09c28adf6e4be4d17782786f849186d49ffbabbd0bdbafed0e"
+    }
+  ],
+  "origins": [
+    {
+      "relay": "https://relay.example",
+      "origin": "https://relay.example"
+    },
+    {
+      "relay": "https://Relay.Example:443/base/",
+      "origin": "https://relay.example"
+    },
+    {
+      "relay": "wss://relay.example:8443/m/x",
+      "origin": "https://relay.example:8443"
+    },
+    {
+      "relay": "http://127.0.0.1:80",
+      "origin": "http://127.0.0.1"
+    },
+    {
+      "relay": "ws://user@relay.example:9000?x",
+      "origin": "http://relay.example:9000"
+    },
+    {
+      "relay": "ftp://relay.example",
+      "origin": null
+    },
+    {
+      "relay": "https://",
+      "origin": null
+    }
+  ],
+  "paths": {
+    "machine": "/m/foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato",
+    "phone": "/p/foa6ziweemwzu78whep9d993xt8pbi4f9cizpkmzq6aqrmirgato"
+  },
+  "ws_urls": [
+    {
+      "relay": "https://relay.example",
+      "path": "/m/x",
+      "url": "wss://relay.example/m/x"
+    },
+    {
+      "relay": "https://relay.example/",
+      "path": "/p/x",
+      "url": "wss://relay.example/p/x"
+    },
+    {
+      "relay": "http://127.0.0.1:8080//",
+      "path": "/m/x",
+      "url": "ws://127.0.0.1:8080/m/x"
+    },
+    {
+      "relay": "https://relay.example/base/",
+      "path": "/p/x",
+      "url": "wss://relay.example/base/p/x"
+    }
+  ]
+}

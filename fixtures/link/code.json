@@ -1,0 +1,123 @@
+{
+  "about": "Short pairing codes: an 8-character Crockford base32 ID and 6 digits. scrypt(secret, \"inyon-pair-id:v2\", N=16384, r=8, p=1, 32 bytes) is the seed of the throwaway identity the machine publishes its record under. parse lists what parseShortCode reads from typed text (null: not a code).",
+  "scrypt": {
+    "salt": "inyon-pair-id:v2",
+    "n": 16384,
+    "r": 8,
+    "p": 1,
+    "len": 32
+  },
+  "codes": [
+    {
+      "id": "K7Q4MX2T",
+      "code": "493812",
+      "formatted": "K7Q4-MX2T",
+      "secret": "K7Q4MX2T:493812",
+      "seed": "8f818254cfe75fc72342a67d6e6c56dfbdf225ca69cbd37e4b9e8ceaf071fe50",
+      "machine_id": "36dztu7b7pgb4kh1n854k4prefu9pwc5spim3h7g8n48cexkxamy"
+    },
+    {
+      "id": "00000000",
+      "code": "000000",
+      "formatted": "0000-0000",
+      "secret": "00000000:000000",
+      "seed": "fb421afc6809de2a0f1aa4bd38f629064cfa38ac66c3ce1c1b64d7ac13ff0c5c",
+      "machine_id": "5p1gomksqsbtckg93bx3wtz76stgoohqw9396cpbip1bz8afrkqy"
+    },
+    {
+      "id": "ZZZZZZZZ",
+      "code": "999999",
+      "formatted": "ZZZZ-ZZZZ",
+      "secret": "ZZZZZZZZ:999999",
+      "seed": "fb149507cfdd91eb2d0f5a79846a913ff635f6775b616409fbeb1d652d0b32b4",
+      "machine_id": "edrtyeecgezsya15rhdro3nfptz5kmyqmga1whkzwueyr6hh1f4y"
+    },
+    {
+      "id": "9ABHJKMN",
+      "code": "012345",
+      "formatted": "9ABH-JKMN",
+      "secret": "9ABHJKMN:012345",
+      "seed": "80cc33bff48e0c6c121b22e33736fc2553ea88188bec8e4b79a5400c3a13e396",
+      "machine_id": "ig9g7gfd6mu7en5nzncmgu4arza6reunepz3sa1goxkjce7pnrdo"
+    }
+  ],
+  "parse": [
+    {
+      "text": "K7Q4-MX2T 493812",
+      "result": {
+        "id": "K7Q4MX2T",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "k7q4-mx2t 493 812",
+      "result": {
+        "id": "K7Q4MX2T",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "K7Q4 MXOI 493812",
+      "result": {
+        "id": "K7Q4MX01",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "K7Q4MX2T493812",
+      "result": {
+        "id": "K7Q4MX2T",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "  k7q4  mx2t : 493-812  ",
+      "result": {
+        "id": "K7Q4MX2T",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "K7Q4-MX2T,493812",
+      "result": {
+        "id": "K7Q4MX2T",
+        "code": "493812"
+      }
+    },
+    {
+      "text": "ilou-ILOU 000000",
+      "result": {
+        "id": "110V110V",
+        "code": "000000"
+      }
+    },
+    {
+      "text": "K7Q4-MX2T",
+      "result": null
+    },
+    {
+      "text": "K7Q4-MX2T 49381",
+      "result": null
+    },
+    {
+      "text": "K7Q4-MX2T 4938123",
+      "result": null
+    },
+    {
+      "text": "K7Q4-MX2 493812",
+      "result": null
+    },
+    {
+      "text": "K7Q!-MX2T 493812",
+      "result": null
+    },
+    {
+      "text": "inyon://pair?m=x",
+      "result": null
+    },
+    {
+      "text": "",
+      "result": null
+    }
+  ]
+}

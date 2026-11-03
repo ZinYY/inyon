@@ -1,0 +1,20 @@
+[application]
+name = "inyon-app"
+
+[web.app]
+title = "Inyon"
+# the hub serves this copy at /next while the React app keeps /
+base_path = "next"
+
+# smallest over fastest: the page waits for the whole download before it draws anything
+[web.wasm_opt]
+level = "z"
+
+# Android (android/build.sh): dx compiles the Rust, the app's own Gradle project packages it. The
+# identifier is the Capacitor app's, so this one installs over it.
+[bundle]
+identifier = "tech.abhashchakraborty.inyon"
+publisher = "Abhash Chakraborty"
+
+[android]
+min_sdk = 28

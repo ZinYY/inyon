@@ -1,0 +1,83 @@
+[
+  {
+    "t": "chat.live",
+    "key": "box:%3",
+    "items": [
+      {
+        "id": "msg_a2",
+        "kind": "text",
+        "text": "Looking at the router",
+        "turnId": "turn_2"
+      },
+      {
+        "id": "rs_1",
+        "kind": "thinking",
+        "text": "The route table lives in app.ts"
+      },
+      {
+        "id": "call_1",
+        "kind": "output",
+        "text": "PASS src/health.test.ts\n"
+      }
+    ]
+  },
+  {
+    "t": "chat.live",
+    "key": "box:%3",
+    "items": []
+  },
+  {
+    "t": "chat.progress",
+    "key": "local:%12",
+    "done": 1048576,
+    "total": 7340032
+  },
+  {
+    "t": "chat.draft",
+    "key": "local:%12",
+    "text": "half typed",
+    "source": "terminal",
+    "at": 1792038613000
+  },
+  {
+    "t": "chat.draft",
+    "key": "local:%12",
+    "text": "",
+    "source": "app",
+    "at": 1792038614000
+  },
+  {
+    "t": "term.data",
+    "id": "t1",
+    "d": "\u001b[32m$\u001b[0m ls\r\n"
+  },
+  {
+    "t": "term.exit",
+    "id": "t1"
+  },
+  {
+    "t": "term.exit",
+    "id": "t2",
+    "reason": "can't find pane: %99"
+  },
+  {
+    "t": "notify",
+    "host": "local",
+    "pane": "%12",
+    "kind": "waiting",
+    "title": "Claude Code needs you",
+    "body": "Bash: npm test",
+    "agent": "claude"
+  },
+  {
+    "t": "notify",
+    "host": "web1",
+    "pane": "",
+    "kind": "offline",
+    "title": "web1 is offline",
+    "body": "Connection timed out"
+  },
+  {
+    "t": "pong"
+  }
+]

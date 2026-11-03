@@ -1,0 +1,40 @@
+[1;2m› [0mReply with just: hi
+
+
+[2m• [0mhi
+
+[2m  Worked for 3s • 16:00
+[0m
+[2m• [0mModel changed to gpt-6-luna high for this session only
+
+[2m• [0mModel changed to gpt-6-luna medium for Plan mode.
+
+[2m• [0mModel changed to gpt-6-luna high for Default mode.
+
+
+[1;2m› [0mRun the shell command `sleep 20` in the foreground, then reply done.
+  second message queued
+
+
+[1m[38;5;2m•[0m [1mRan[0m [38;2;137;180;250msleep[38;2;205;214;244m 20[39m
+[2m  └ (no output)[0m
+
+[2m• [0mdone
+
+[2m  Worked for 23s • 16:03
+[0m
+
+[1;2m› [0mRun the shell command `sleep 20` in the foreground, then reply done.
+
+
+[1m[38;2;128;128;128m•[0m [2mWorking[0m [2m(7s • [0;1mesc[0;2m to interrupt) · 1 background terminal running · /ps to view · /stop to close[0m
+
+[2m• [0mQueued follow-up inputs
+[2m  ↳ [3msecond message queued[0m
+    [1mshift+←[0;2m edit last queued message[0m
+
+
+[1m›[0m [2mAsk Codex to do anything[0m
+
+  [38;2;246;226;183mGPT-6-Luna high[39m · [38;2;171;223;167m/tmp/tester-1001/-home-ubuntu-development-custom-tmux/7409eef9-d507-4808-a592-0bfabe896e3a/scratchp…
+[39m  [1m←[0m for agents · [1m?[0m for shortcuts

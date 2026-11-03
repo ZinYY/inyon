@@ -1,0 +1,24 @@
+[0;90;47m❯ [0;30;47mUse the Bash tool once to run: echo starting; sleep 12; dir /b; echo finished. Then write a three-sentence reply about what the folder seems to hold.[0m
+[0m
+[0;90m●[0m [0;1mBash[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0m
+[0;91m*[0m [0;91mPerambulating… [0;90m(1s)[0m
+[0;90m  ⎿  Tip: Use /memory to view and manage Claude memory[0m
+[0m                                                                                                                                                  [0;90m50896 tokens[0m
+[0;37m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0;90m❯[0m
+[0;37m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m  [0;1;38;5;111m🏠 HOME[0;90m  [0;1;34mHaiku 5.5[0;90m · medium                                                                                                                             [0;1;36mdemo[0m
+[0m  [0;90mcontext [0;32m█[0;90m░░░░░░░░░░░░░░░░░░░░░░░ [0;1;32m5%[0;90m  51k / 1M                                                              session $0.01 · 3m [0m
+[0m  [0;33m⏵⏵ auto mode on [0;90m(shift+tab to cycle) · ← 1 agent[0m

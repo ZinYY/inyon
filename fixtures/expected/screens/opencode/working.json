@@ -1,0 +1,42 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "activity": "Working",
+      "contextPct": 18,
+      "inputVisible": true,
+      "mode": "plan",
+      "model": "DeepSeek V4.1 Flash Free OpenCode · max                                                                     octui/t1",
+      "draft": "/tmp/tester-1001/-home-ubuntu-\n                                                                                                                   development-custom-tmux/7409eef9-d507-\n                                                                                                                   4808-a592-0bfabe896e3a/scratchpad/"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "contextUsed": 36898,
+      "contextPct": 18,
+      "costUsd": 0,
+      "activity": "Working",
+      "inputVisible": true,
+      "mode": "plan",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "contextUsed": 36898,
+      "contextPct": 18,
+      "costUsd": 0,
+      "activity": "Working",
+      "inputVisible": true,
+      "mode": "plan",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max"
+    }
+  }
+}

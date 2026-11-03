@@ -1,0 +1,19 @@
+[0;1;38;2;122;162;247mme@laptop[0m [0;1;36mC:\demo[0m
+[0;1;32m➜[0m [0;93mC:\Users\me\.local\bin\claude.exe [0;90m--model [0;37mhaiku[0m
+[0m
+[0;33m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m [0;1;33mAccessing[0m [0;1;33mworkspace:[0m
+[0m
+[0m [0;1mC:\demo[0m
+[0m
+[0m Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not,[0m
+[0m take a moment to review what's in this folder first.[0m
+[0m
+[0m Claude Code'll be able to read, edit, and execute files here.[0m
+[0m
+[0m [0;90mSecurity[0m [0;90mguide[0m
+[0m
+[0m [0;34m❯[0m [0;34mNo,[0m [0;34mexit[0m
+[0m   Yes, I trust this folder[0m
+[0m
+[0m [0;90mEnter[0m [0;90mto[0m [0;90mconfirm[0m [0;90m·[0m [0;90mEsc[0m [0;90mto[0m [0;90mcancel[0m

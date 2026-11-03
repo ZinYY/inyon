@@ -1,0 +1,42 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "draft": "Ask Codex to do anything",
+      "activity": "Working",
+      "since": 1792319874000,
+      "background": null
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "draft": "Ask Codex to do anything",
+      "activity": "Working",
+      "since": 1792319874000,
+      "background": null
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 67,
+      "inputVisible": true,
+      "model": "GPT-6.1-Sol",
+      "effort": "default",
+      "draft": "Ask Codex to do anything",
+      "activity": "Working",
+      "since": 1792319874000,
+      "background": null
+    }
+  },
+  "browsing": null
+}

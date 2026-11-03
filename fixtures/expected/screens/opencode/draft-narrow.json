@@ -1,0 +1,38 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "contextPct": 8,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max",
+      "draft": "second draft line"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "contextPct": 8,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max",
+      "draft": "second draft line"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "contextPct": 8,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "DeepSeek V4.1 Flash Free OpenCode",
+      "effort": "max",
+      "draft": "second draft line"
+    }
+  }
+}

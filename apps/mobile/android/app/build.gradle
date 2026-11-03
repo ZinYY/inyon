@@ -1,0 +1,102 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    namespace = "tech.abhashchakraborty.inyon"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "tech.abhashchakraborty.inyon"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode Integer.parseInt(System.getenv("INYON_VERSION_CODE") ?: "1")
+        versionName System.getenv("INYON_VERSION") ?: "0.1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // the app has no translations, so the libraries' strings in other languages are dead weight
+        resourceConfigurations += ["en"]
+        // CameraX's one native library; 32-bit x86 is only ever an old emulator
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // release builds are signed when CI provides a keystore (see .github/workflows/mobile.yml)
+    signingConfigs {
+        release {
+            if (System.getenv("INYON_KEYSTORE")) {
+                storeFile file(System.getenv("INYON_KEYSTORE"))
+                storePassword System.getenv("INYON_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("INYON_KEY_ALIAS")
+                keyPassword System.getenv("INYON_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (System.getenv("INYON_KEYSTORE")) signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    // what the Dioxus build (apps/app/android) uses too: the services, notifications, SSH and the
+    // launcher icons, kept free of Capacitor
+    sourceSets {
+        main {
+            java.srcDirs += 'src/shared/java'
+            res.srcDirs += 'src/shared/res'
+        }
+    }
+    packaging {
+        resources {
+            // gson, error_prone_annotations and jspecify (pulled in by the SSH and secrets libraries) all ship one
+            excludes += ['META-INF/versions/9/module-info.class']
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    // to ask whether the WebView keeps Capacitor's bridge to the app's own frame (WebMessageListener)
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    // sshlib's plain `tink` jar holds the same classes as security-crypto's `tink-android`, so only
+    // tink-android stays, pinned to the version sshlib is built against
+    implementation("org.connectbot:sshlib:$sshlibVersion") {
+        exclude group: 'com.google.crypto.tink', module: 'tink'
+    }
+    implementation "com.google.crypto.tink:tink-android:$tinkVersion"
+    implementation "androidx.security:security-crypto:$securityCryptoVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    // the pairing-code scanner: CameraX preview and frames, decoded by Play services' ML Kit
+    // barcode model (downloaded by Play services, so it isn't bundled in the APK)
+    implementation "androidx.camera:camera-camera2:$cameraxVersion"
+    implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
+    implementation "androidx.camera:camera-view:$cameraxVersion"
+    implementation "com.google.android.gms:play-services-mlkit-barcode-scanning:$mlkitBarcodeVersion"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'

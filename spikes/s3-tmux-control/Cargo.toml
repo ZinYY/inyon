@@ -1,0 +1,11 @@
+# Spike S3: a tmux control-mode client in Rust. Its own workspace, so it stays out of the root one.
+[package]
+name = "s3-tmux-control"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+# std only: the real crate (inyon-core) brings its own runtime, so the protocol part stays sans-io
+[dependencies]

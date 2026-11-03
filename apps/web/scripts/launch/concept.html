@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Launch concept</title>
+<style>
+  /* Inyon's grounds and the mark's two colours (styles.css); the page picks a scheme from the query */
+  :root { --ground: #e9e8e4; --tile: #1d1c1a; --glyph: #f1f0ec; --ink: #1d1c1a; --faint: #bdbcb5; }
+  :root[data-scheme='dark'] { --ground: #1b1a18; --tile: #2a2927; --glyph: #f1f0ec; --ink: #f1f0ec; --faint: #45433f; }
+  html, body { margin: 0; height: 100%; background: var(--ground); overflow: hidden; }
+  /* the overview the intro hands off into, as the app would show it */
+  #app { position: absolute; inset: 0; opacity: 0; }
+  #app img { width: 100%; height: 100%; display: block; }
+  #stage { position: absolute; inset: 0; display: grid; place-items: center; }
+  svg { width: 160px; height: 160px; overflow: visible; }
+  /* nothing shows until a concept starts */
+  body:not(.a):not(.b):not(.c) svg { opacity: 0; }
+  .ease { animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .spring { animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
+
+  /* ---- shared: the hand-off. The mark shrinks toward where the header shows it, the overview rises in ---- */
+  .go #stage { animation: handoff 420ms cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+  .go #app { animation: appin 320ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes handoff { to { transform: translate(-166px, -357px) scale(0.1625); } }
+  @keyframes appin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---- A. Cast: a box drops in, a light trails behind it and draws the line, the kite is where it lands ---- */
+  .a .tile { opacity: 0; animation: fade 160ms 760ms ease forwards; }
+  .a .node { transform-origin: 15.5px 51px; transform: translateY(-40px) scale(0.9); opacity: 0; animation: drop 360ms var(--e, cubic-bezier(0.2, 0.7, 0.2, 1)) forwards; }
+  @keyframes drop { 40% { opacity: 1; } to { opacity: 1; transform: none; } }
+  .a .line { stroke-dasharray: 46; stroke-dashoffset: 46; animation: draw 420ms 300ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  .a .light { opacity: 0; offset-path: path('M17.5 49.5C25 42 35 48 38.5 36.5'); offset-distance: 0%; animation: travel 420ms 300ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes travel { 10% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+  .a .kite { transform-origin: 41px 23px; opacity: 0; transform: scale(0.6) rotate(-12deg); animation: land 300ms 640ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes land { to { opacity: 1; transform: scale(1) rotate(-12deg); } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fade { to { opacity: 1; } }
+
+  /* ---- B. Bond: the kite hangs on a slack line, a pulse runs down it to the node and back; the line settles ---- */
+  .b .tile { opacity: 0; animation: fade 160ms 820ms ease forwards; }
+  .b .kite { transform-origin: 41px 23px; opacity: 0; transform: translateY(-14px) rotate(-12deg); animation: settle 420ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes settle { to { opacity: 1; transform: translateY(0) rotate(-12deg); } }
+  .b .line { stroke-dasharray: 46; stroke-dashoffset: -46; animation: draw 360ms 220ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  .b .node { transform-origin: 15.5px 51px; opacity: 0; transform: scale(0.4); animation: pop 240ms 540ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes pop { to { opacity: 1; transform: scale(1); } }
+  .b .light { opacity: 0; offset-path: path('M38.5 36.5C35 48 25 42 17.5 49.5'); animation: down 300ms 240ms linear forwards, up 300ms 760ms linear forwards; }
+  @keyframes down { 10% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+  @keyframes up { from { offset-distance: 100%; opacity: 0; } 10% { opacity: 1; } to { offset-distance: 0%; opacity: 0; } }
+
+  /* ---- C. Three points: machine, hub, phone light up in turn; the line joins them into the mark ---- */
+  .c .tile { opacity: 0; animation: fade 160ms 880ms ease forwards; }
+  .c .node { transform-origin: 15.5px 51px; opacity: 0; transform: scale(0.5); animation: pop 220ms 0ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  .c .mid { transform-origin: 29px 44px; opacity: 0; transform: scale(0.5); animation: pop 220ms 260ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards, out 200ms 760ms ease forwards; }
+  @keyframes out { to { opacity: 0; transform: scale(0.5); } }
+  .c .kite { transform-origin: 41px 23px; opacity: 0; transform: scale(0.5) rotate(-12deg); animation: land 260ms 520ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  .c .light { opacity: 0; }
+  .c .line { stroke-dasharray: 23 23; stroke-dashoffset: 46; animation: join 520ms 300ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+  @keyframes join { to { stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+  <div id="app"><img id="shot" alt="" /></div>
+  <div id="stage">
+    <svg viewBox="0 0 64 64" aria-hidden>
+      <path class="tile" d="M25 0H39C60 0 64 4 64 25V39C64 60 60 64 39 64H25C4 64 0 60 0 39V25C0 4 4 0 25 0Z" fill="var(--tile)" />
+      <g class="glyph">
+        <path class="kite" fill="var(--ink)" fill-rule="evenodd" d="M33.5 9H48.5A3.5 3.5 0 0 1 52 12.5V33.5A3.5 3.5 0 0 1 48.5 37H33.5A3.5 3.5 0 0 1 30 33.5V12.5A3.5 3.5 0 0 1 33.5 9ZM41 18.4A4.6 4.6 0 1 0 41 27.6A4.6 4.6 0 1 0 41 18.4Z" />
+        <path class="line" d="M38.5 36.5C35 48 25 42 17.5 49.5" fill="none" stroke="var(--ink)" stroke-width="3.8" stroke-linecap="round" />
+        <circle class="mid" cx="29" cy="44" r="3" fill="var(--ink)" />
+        <circle class="node" cx="15.5" cy="51" r="4" fill="var(--ink)" />
+        <circle class="light" r="2.6" fill="var(--ink)" />
+      </g>
+    </svg>
+  </div>
+  <script>
+    // ?c=a|b|c picks the concept, ?scheme=dark the ground; the runner sets the overview image and calls start()
+    const q = new URLSearchParams(location.search)
+    document.documentElement.dataset.scheme = q.get('scheme') === 'dark' ? 'dark' : 'light'
+    const concept = q.get('c') || 'a'
+    // once the tile is in, the glyph turns to the tile's own paper so the mark reads as the app icon
+    const onTile = { a: 760, b: 820, c: 880 }[concept]
+    window.start = (shot) => {
+      document.getElementById('shot').src = shot
+      document.body.classList.add(concept)
+      setTimeout(() => document.querySelector('.glyph').style.setProperty('--ink', 'var(--glyph)'), onTile)
+      setTimeout(() => document.body.classList.add('go'), onTile + 240)
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+
+[38;2;60;64;67m────────────────────────────────────────────────────────────[39m
+[1m[38;2;138;180;248m> Run the shell command: uname -a[0m
+
+[38;2;242;139;130m●[39m [1m[38;2;253;214;99mRan[0m [38;2;189;193;198m(uname -a)[39m [38;2;189;193;198mfailed[39m [38;2;189;193;198m(ctrl+o to expand)[39m
+
+[1m[38;2;138;180;248mCommand[0m
+[1m[38;2;138;180;248m  ⎿  [0m[38;2;189;193;198mUser declined the tool call[39m
+
+[38;2;60;64;67m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[38;2;138;180;248m>[39m
+[38;2;60;64;67m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1m[39mRewind Conversation[0m
+
+  Then say done.
+    [38;2;189;193;198m(19m ago)[39m
+
+  Write a 400-word short story about a lighthouse keeper. Do not use any tools.
+    [38;2;189;193;198m(16m ago)[39m
+
+  Then reply with just the word done.
+    [38;2;189;193;198m(16m ago)[39m
+
+  Run the shell command: ls -la
+    [38;2;189;193;198m(14m ago)[39m
+
+  /goal Reply with the word ready, then stop
+    [38;2;189;193;198m(12m ago)[39m
+
+  /goal Reply with the word set, then stop
+    [38;2;189;193;198m(7m ago)[39m
+
+  Run the shell command: uname -a
+    [38;2;189;193;198m(7m ago)[39m
+
+[38;2;138;180;248m> (current)[39m
+[38;2;154;160;166m  [2-9 of 9 items][39m
+
+[1mKeyboard: [0m[38;2;138;180;248m↑/↓[39m [38;2;154;160;166mNavigate[39m  [38;2;138;180;248menter[39m [38;2;154;160;166mSelect[39m  [38;2;138;180;248mesc[39m [38;2;154;160;166mCancel[39m
+
+                                                                                         [38;2;154;160;166mGemini 3.8 Flash · medium

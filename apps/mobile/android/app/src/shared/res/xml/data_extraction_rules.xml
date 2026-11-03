@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nothing of Inyon's leaves the phone in a backup or a transfer to a new phone (Android 12+):
+     the WebView's storage holds paired hubs and computers, and the secrets live under a Keystore
+     key that stays behind anyway, as does files/inyon-migrate.bin (sealed for the next app on this
+     phone, see MigrationExport). A new phone pairs again. allowBackup="false" covers Android 11
+     and older. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+    </device-transfer>
+</data-extraction-rules>

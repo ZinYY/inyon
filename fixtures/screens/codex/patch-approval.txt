@@ -1,0 +1,40 @@
+[1;2m› [0mCreate notes.txt containing the lines one, two and three. Then run wc -l on it, append a line four, and show the fin…
+[2m    four[0m
+[2m    + 2 lines (^t to expand)
+[0m
+[2m• [0m[38;2;166;227;161mwc -l notes.txt[39m reported [1m3[0m. Final file:
+
+  one
+  two
+  three
+  four
+
+[2m  Worked for 1m 38s • 22:48
+[0m
+
+[1;2m› [0mCreate notes2.txt with the lines one, two and three (use apply_patch for file changes). Then run wc -l on it, append
+  a line four with apply_patch, and show the final file.
+
+
+[2m• [0mI’ll use [38;2;166;227;161mapply_patch[39m for both file changes. The workspace is read-only, so the patch may require write approval.
+
+[2m• [0;1mAdded[0m notes2.txt ([38;5;2m+3[39m [38;5;1m-0[39m)
+[48;2;33;58;43m    [2m1 [0m[38;5;2m[48;2;33;58;43m+[38;2;205;214;244mone[39m
+    [2m2 [0m[38;5;2m[48;2;33;58;43m+[38;2;205;214;244mtwo[39m
+    [2m3 [0m[38;5;2m[48;2;33;58;43m+[38;2;205;214;244mthree[39m
+[2m[49m    + Show details
+[0m
+
+  [1mWould you like to make the following edits?[0m
+
+  Description: [3mApply proposed file edits[0m
+  Destination:
+  [1m/home/me/play/notes2[0m
+  [1m.txt[0m
+
+
+[1;7m› 1. Yes, proceed (y)
+[0m  2. Yes, and don't ask again for these files ([1ma[0m)
+  3. No, and tell Codex what to do differently ([1mesc[0m)
+
+  [2mPress [0;1menter[0;2m to confirm or [0;1mesc[0;2m to cancel

@@ -1,0 +1,33 @@
+{
+  "t": "chat.append",
+  "key": "box:%3",
+  "items": [
+    {
+      "kind": "user",
+      "uuid": "msg_u1",
+      "ts": "2026-10-15T11:00:02.500Z",
+      "text": "Add a /health route",
+      "images": 0,
+      "seq": 101
+    },
+    {
+      "kind": "assistant",
+      "uuid": "msg_a1",
+      "ts": "2026-10-15T11:00:09.000Z",
+      "msgId": "msg_a1",
+      "model": "gpt-6-luna",
+      "block": {
+        "type": "text",
+        "text": "Added GET /health returning {\"ok\":true}."
+      },
+      "seq": 102
+    },
+    {
+      "kind": "turn_end",
+      "uuid": "2026-10-15T11:00:10.500Z:task_complete:qpf3u",
+      "ts": "2026-10-15T11:00:10.500Z",
+      "durationMs": 8512.4,
+      "seq": 103
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "inputVisible": true,
+      "ultracode": false,
+      "mode": "bypass permissions",
+      "background": "1 shell",
+      "activity": "Perambulating… (1m · ↓ 100 tokens)"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "inputVisible": true,
+      "ultracode": false,
+      "mode": "bypass permissions",
+      "background": "1 shell",
+      "activity": "Perambulating… (1m · ↓ 100 tokens)"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 100,
+      "inputVisible": true,
+      "ultracode": false,
+      "mode": "bypass permissions",
+      "background": "1 shell",
+      "activity": "Perambulating… (1m · ↓ 100 tokens)"
+    }
+  }
+}

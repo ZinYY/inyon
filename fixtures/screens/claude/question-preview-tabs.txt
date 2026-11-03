@@ -1,0 +1,31 @@
+[90m[47m❯ [30mUse the AskUserQuestion tool once with TWO questions. Q1 header "Session name": "Where should the live name show?" with options "Heading (Recommended)", "On each row", "Rename the page too"; give [39m
+  [30mthe first two a preview field holding a 12-line ASCII mockup drawn with box characters, and every option a one-sentence description. Q2 header "PR 81": "What happens to the PR?" with three options,[39m
+  [30mdescriptions, no previews. Do nothing else.[39m
+
+[90m[49m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+← [37m[44m ☐ Session name [39m[49m ☐ PR 81  ✔ Submit  →
+
+[1m[30mWhere should the live name show?[0m
+
+[34m❯[90m 1.[1m[34m Heading (Recommended)[0m        [90m┌───────────────────────────────────────────┐[39m
+ [90m 2.[39m On each row                  [90m│ [39m┌──────────────────────────────────────┐[90m  │[39m
+ [90m 3.[39m Rename the page too          [90m│ [39m│ ☰  Sessions                      ⚙   │[90m │[39m
+                                  [90m│ [39m├──────────────────────────────────────┤[90m  │[39m
+                                  [90m│ [39m│                                      │[90m  │[39m
+                                  [90m│ [39m│  ┌────────────────────────────────┐  │[90m  │[39m
+                                  [90m│ [39m│  │ Fix login redirect loop        │  │[90m  │[39m
+                                  [90m│ [39m│  └────────────────────────────────┘  │[90m  │[39m
+                                  [90m│ [39m│  ─────────────────────────────────  │[90m   │[39m
+                                  [90m│ [39m│  ● Running   ·  12 min   ·  3 tools │[90m   │[39m
+                                  [90m│ [39m│                                      │[90m  │[39m
+                                  [90m│ [39m│  [ Stop ]          [ Open logs ]    │[90m   │[39m
+                                  [90m│ [39m│                                      │[90m  │[39m
+                                  [90m│ [39m└──────────────────────────────────────┘[90m  │[39m
+                                  [90m└───────────────────────────────────────────┘[39m
+
+                                  [34mNotes:[39m [3m[90mpress n to add notes[0m
+
+[90m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m  Chat about this
+
+[90mEnter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel[39m

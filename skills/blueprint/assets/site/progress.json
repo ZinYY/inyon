@@ -1,0 +1,26 @@
+{
+ "updated": "2027-03-01T09:00+00:00",
+ "now": "Planning is done; starting 2.4",
+ "releases": [
+  { "v": "2.4", "r": "R1", "title": "Lists on the phone", "status": "doing", "tasks": [
+   { "id": "r1-store", "title": "Local store for lists and items", "status": "done", "note": "SQLite on the phone, IndexedDB in the browser" },
+   { "id": "r1-sync", "title": "Sync queue that drains on reconnect", "status": "doing" },
+   { "id": "r1-chip", "title": "Offline chip in the header", "status": "todo" },
+   { "id": "r1-release", "title": "Release 2.4", "status": "todo" }
+  ] },
+  { "v": "2.5", "r": "R2", "title": "Merging edits", "status": "todo", "tasks": [
+   { "id": "r2-merge", "title": "Per-item merge", "status": "todo" },
+   { "id": "r2-history", "title": "History sheet", "status": "todo" },
+   { "id": "r2-release", "title": "Release 2.5", "status": "todo" }
+  ] },
+  { "v": "2.6", "r": "R3", "title": "Recipes fill a list", "status": "todo", "tasks": [
+   { "id": "r3-recipes", "title": "Recipes with ingredients", "status": "todo" },
+   { "id": "r3-add", "title": "Add to list, skipping the pantry", "status": "todo" },
+   { "id": "r3-release", "title": "Release 2.6", "status": "todo" }
+  ] }
+ ],
+ "log": [
+  { "t": "2027-03-01T09:00+00:00", "text": "2.4 · Local store for lists and items: done" },
+  { "t": "2027-03-01T08:30+00:00", "text": "Plan approved" }
+ ]
+}

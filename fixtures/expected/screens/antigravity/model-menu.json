@@ -1,0 +1,167 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Switch Model"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Gemini 3.8 Flash",
+            "detail": "current",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Gemini 3.7 Flash",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Gemini 3.6 Flash",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Gemini 3.1 Pro",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Claude Sonnet 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "Claude Opus 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "GPT-OSS 120B (Medium)",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Effort  enter Select  esc Go Back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Switch Model"
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Switch Model"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Gemini 3.8 Flash",
+            "detail": "current",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Gemini 3.7 Flash",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Gemini 3.6 Flash",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Gemini 3.1 Pro",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Claude Sonnet 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "Claude Opus 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "GPT-OSS 120B (Medium)",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Effort  enter Select  esc Go Back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Switch Model"
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 94,
+      "model": "Gemini 3.8 Flash",
+      "effort": "medium",
+      "prompt": {
+        "body": [
+          "Switch Model"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Gemini 3.8 Flash",
+            "detail": "current",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Gemini 3.7 Flash",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "Gemini 3.6 Flash",
+            "selected": false
+          },
+          {
+            "n": 4,
+            "label": "Gemini 3.1 Pro",
+            "selected": false
+          },
+          {
+            "n": 5,
+            "label": "Claude Sonnet 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 6,
+            "label": "Claude Opus 4.6 (Thinking)",
+            "selected": false
+          },
+          {
+            "n": 7,
+            "label": "GPT-OSS 120B (Medium)",
+            "selected": false
+          }
+        ],
+        "footer": "Keyboard: ↑/↓ Navigate  ←/→ Effort  enter Select  esc Go Back",
+        "multi": false,
+        "navigate": true
+      }
+    },
+    "summary": "Switch Model"
+  }
+}

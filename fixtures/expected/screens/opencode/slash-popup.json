@@ -1,0 +1,35 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "Space Bunny Free OpenCode",
+      "effort": "high",
+      "draft": "/und"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "Space Bunny Free OpenCode",
+      "effort": "high",
+      "draft": "/und"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "mode": "build",
+      "model": "Space Bunny Free OpenCode",
+      "effort": "high",
+      "draft": "/und"
+    }
+  }
+}

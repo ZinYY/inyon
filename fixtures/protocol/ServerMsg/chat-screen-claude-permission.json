@@ -1,0 +1,44 @@
+{
+  "t": "chat.screen",
+  "key": "local:%12",
+  "screen": {
+    "working": false,
+    "width": 100,
+    "prompt": {
+      "body": [
+        "Bash command",
+        "Tip: auto mode handles these prompts for you — choose \"switch to auto mode\" below",
+        "Write hello-inyon to out.txt",
+        "╌",
+        "echo hello-inyon > out.txt",
+        "╌",
+        "Do you want to proceed?"
+      ],
+      "wholeLines": true,
+      "options": [
+        {
+          "n": 1,
+          "label": "Yes",
+          "selected": true
+        },
+        {
+          "n": 2,
+          "label": "Yes, and always allow access to /tmp/tester-1001/-home-ubuntu-development-custom-tmux/7409eef9-d507-4808-a592-0bfabe896e3a/scratchpad/play from this project",
+          "selected": false
+        },
+        {
+          "n": 3,
+          "label": "Yes, and switch to auto mode · auto mode handles these prompts for you",
+          "selected": false
+        },
+        {
+          "n": 4,
+          "label": "No",
+          "selected": false
+        }
+      ],
+      "footer": "Esc to cancel · Tab to amend",
+      "multi": false
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "80": {
+    "screen": {
+      "working": true,
+      "width": 80,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Running command"
+    }
+  },
+  "120": {
+    "screen": {
+      "working": true,
+      "width": 120,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Running command"
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": true,
+      "width": 100,
+      "model": "Gemini 3.8 Flash",
+      "effort": "high",
+      "inputVisible": true,
+      "mode": "default",
+      "activity": "Running command"
+    }
+  }
+}

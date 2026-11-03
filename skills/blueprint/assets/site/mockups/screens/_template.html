@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen title</title>
+<link rel="stylesheet" href="../../kit/blueprint.css">
+<script src="../../kit/lucide.min.js"></script><script src="../../kit/data.js"></script>
+<script src="../../kit/kit.js"></script><script src="../../kit/menus.js"></script><script src="../../kit/shell.js"></script>
+<style>/* page styles, prefixed with the screen id */</style>
+</head><body>
+<div id="app"></div>
+<template id="notes">
+  <p>What this screen shows, in two sentences.</p>
+  <ol><li>Numbered design note: what it does, what changed from today, which release ships it.</li></ol>
+</template>
+<script>
+K.shell.mount({ active: 'l1', nav: 'lists', main: `<div style="padding:24px">Main</div>` });
+</script>
+</body></html>
