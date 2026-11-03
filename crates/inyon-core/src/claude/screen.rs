@@ -1350,6 +1350,12 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
             break;
         }
     }
+    // The spinner disappears during streamed text, but this hint stays until the turn ends.
+    // Reading it also prevents a long reply from flickering idle after the debounce expires.
+    if !state.working && lines[foot_at + 1..].iter().any(|l| l.trim() == "tab to queue message") {
+        state.working = true;
+        state.activity = Some("Working".into());
+    }
     if state.working && !queue.is_empty() {
         state.queue = Some(queue);
     }

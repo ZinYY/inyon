@@ -90,11 +90,22 @@ fn codex_streams_partial_text_without_a_daemon_and_keeps_markdown() {
 }
 
 #[test]
+fn codex_streams_while_its_spinner_is_hidden_during_token_output() {
+    let frame = screen_fixture("codex", "reply-streaming-no-spinner");
+    let r = screen_reply(&frame, AgentKind::Codex, Some(120)).unwrap();
+    assert!(r.whole);
+    assert_eq!(r.text, "Mac 的流式验证还没通过：刚才没有看到预期的实时消息。我正在对照");
+    let idle: Vec<String> = frame.into_iter().filter(|l| !l.contains("to queue message")).collect();
+    assert_eq!(screen_reply(&idle, AgentKind::Codex, Some(120)), None);
+}
+
+#[test]
 fn codex_tools_prompts_and_status_are_never_streamed_as_assistant_text() {
     for body in [
         "• Earlier reply\n\n• Ran echo secret\n  └ secret",
         "\x1b[2m•\x1b[0m \x1b[1mExplored\x1b[0m",
         "• Updated Plan\n  └ next step",
+        "\x1b[2m•\x1b[0m \x1b[1mUsed computer\x1b[0m",
         "• Queued follow-up inputs\n  ↳ later",
         "› A long prompt\n  with wrapped text",
     ] {

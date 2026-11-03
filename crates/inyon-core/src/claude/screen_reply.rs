@@ -107,9 +107,17 @@ fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenRep
     let lines: Vec<String> = captured.iter().map(|l| unstyle(l).text.trim_end().to_owned()).collect();
     let prompt = re!(r"^[›»](?:\s|$)");
     let input = lines.iter().rposition(|l| prompt.is_match(l))?;
-    let end = (0..input).rev().find(|&i| {
+    let spinner = (0..input).rev().find(|&i| {
         re!(r"^[•◦●○◉∙⋅\u{2800}-\u{28ff}]\s.*(?:esc to interrupt|ctrl\+c to interrupt)").is_match(&lines[i])
-    })?;
+    });
+    // Codex hides its spinner while it paints token deltas. The composer still says
+    // "tab to queue message", which distinguishes those frames from idle text and menus.
+    let end = match spinner {
+        Some(i) => i,
+        None if lines[input + 1..].iter().any(|l| l.trim() == "tab to queue message") =>
+            (0..input).rev().find(|&i| re!(r"^\s*\d+ background terminals? running\b").is_match(&lines[i])).unwrap_or(input),
+        None => return None,
+    };
     let echo = (0..end).rev().find(|&i| prompt.is_match(&lines[i]));
     let start = echo.map_or(0, |i| i + 1);
     let mark = (start..end).rev().find(|&i| lines[i].starts_with("• "));
@@ -122,7 +130,7 @@ fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenRep
         let text = lines[i].strip_prefix("• ")?;
         // Inspect the style of the heading after the bullet, which itself may be dim/bold.
         let raw = captured[i].split_once('•').map_or("", |(_, rest)| rest);
-        let tool = re!(r"^(Ran|Running|Explored|Exploring|Searched|Searching|Edited|Editing|Added|Deleted|Called|Calling|Updated Plan|Updated plan|Viewed|Opened|Spawned|Waiting for)\b").is_match(text)
+        let tool = re!(r"^(Ran|Running|Explored|Exploring|Searched|Searching|Edited|Editing|Added|Deleted|Called|Calling|Updated Plan|Updated plan|Viewed|Opened|Spawned|Waiting for|Used computer)\b").is_match(text)
             && (starts_bold(raw) || !captured[i].contains('\x1b'));
         if tool || re!(r"^(Queued follow-up inputs|Model changed|Context compacted|Conversation interrupted)\b").is_match(text) {
             return None;

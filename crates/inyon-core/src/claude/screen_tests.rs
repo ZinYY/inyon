@@ -208,6 +208,18 @@ mod other_agents {
         parse_screen(&screen_fixture("codex", name), Some(120), AgentKind::Codex)
     }
 
+    #[test]
+    fn codex_keeps_working_when_token_output_hides_the_spinner() {
+        let frame = screen_fixture("codex", "reply-streaming-no-spinner");
+        let s = parse_screen(&frame, Some(120), AgentKind::Codex);
+        assert!(s.working);
+        assert_eq!(s.activity.as_deref(), Some("Working"));
+        assert_eq!(s.model.as_deref(), Some("GPT-6-Astra"));
+        assert!(s.prompt.is_none());
+        let idle: Vec<String> = frame.into_iter().filter(|l| !l.contains("to queue message")).collect();
+        assert!(!parse_screen(&idle, Some(120), AgentKind::Codex).working);
+    }
+
     /// Codex folder trust menu (real capture, Codex 0.159, 156 columns)
     #[test]
     fn codex_folder_trust_menu() {

@@ -454,7 +454,7 @@ fn live_of(phone: &Phone) -> Option<Vec<inyon_protocol::LiveItem>> {
 #[test]
 fn codex_screen_text_grows_before_the_record_and_exact_deltas_take_priority() {
     run(|| async {
-        let frame = |text: &str| format!("› Explain streaming\n\n• {text}\n\n• Working (2s • esc to interrupt)\n\n› Ask Codex to do anything\n\n  GPT-6-Astra xhigh · ~/project\n  ? for shortcuts");
+        let frame = |text: &str| format!("› Explain streaming\n\n• {text}\n\n  1 background terminal running · /ps to view · /stop to close\n\n› Ask Codex to do anything\n\n  GPT-6-Astra xhigh · ~/project\n  tab to queue message");
         let screen = Rc::new(RefCell::new(frame("第一部分正在生成")));
         let s = screen.clone();
         let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %7\n{}", s.borrow())) } else { ok("") });
