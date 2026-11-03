@@ -569,6 +569,8 @@ pub fn codex_empty_conversation(lines: &[String], title: &str, cwd: Option<&str>
     if !clean.first().is_some_and(|l| l.starts_with(">_ OpenAI Codex (v")) { return false; }
     let Some(prompt) = clean.iter().rposition(|l| l.starts_with('›')) else { return false; };
     prompt >= 2 && clean[2..prompt].iter().all(|l| l == "To get started, describe a task or try one of these commands:"
+        // The tall 0.166 welcome screen draws its logo using only Braille cells.
+        || l.chars().all(|c| c.is_whitespace() || ('\u{2800}'..='\u{28ff}').contains(&c))
         || ["/init -", "/status -", "/permissions -", "/model -", "/review -"].iter().any(|p| l.starts_with(p))
         || re!(r"^• Model changed to (?:gpt-|codex-|o[134](?:-|\b))\S*(?: (?:none|minimal|low|medium|high|xhigh|ultra))? for this session only$").is_match(l))
 }

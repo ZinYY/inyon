@@ -902,6 +902,11 @@ fn windows_codex_short_footer_identifies_new_and_resumed_threads() {
     configured.extend((0..6).map(|_| "\u{1b}[0m".into()));
     assert_eq!(codex_footer_title(&configured, cwd).as_deref(), Some(""));
     assert!(codex_empty_conversation(&configured, "", cwd));
+    configured.insert(2, "⢸⣿⣿⣇ ⠸⣿⣿⣷⣦⣼⣿⣿      ⢸⣿⣿⠻⢿⣿⣿⡇ ⠘⣿⣿⣿".into());
+    assert!(codex_empty_conversation(&configured, "", cwd));
+    let mut answered = configured.clone();
+    answered.insert(2, "› Draw a logo".into());
+    assert!(!codex_empty_conversation(&answered, "", cwd), "a previous user prompt is still conversation content");
     configured.insert(3, "• Model changed to an ordinary answer".into());
     assert!(!codex_empty_conversation(&configured, "", cwd));
 }
