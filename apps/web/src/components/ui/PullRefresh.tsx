@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { haptic } from '../../lib/haptics.ts'
 import { Logo } from '../AppShell.tsx'
@@ -12,11 +12,33 @@ const MAX = 96
  * follows the finger and its line pays out as it comes, ticks once when the line is all out, and
  * reels in and out while `onRefresh` settles.
  */
-export function PullRefresh({ onRefresh, className, children }: { onRefresh: () => Promise<unknown>; className?: string; children: ReactNode }) {
+export function PullRefresh({ onRefresh, className, children, scrollKey, restoreReady = true }: { onRefresh: () => Promise<unknown>; className?: string; children: ReactNode; scrollKey?: string; restoreReady?: boolean }) {
   const box = useRef<HTMLDivElement>(null)
   const [pull, setPull] = useState(0)
   const [busy, setBusy] = useState(false)
   const live = useRef({ start: -1, pull: 0, armed: false, busy: false })
+
+  // These pages scroll inside a div, so browser history cannot restore their position.
+  // Wait for the page's data before restoring: the loading skeleton may be much shorter.
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el || !scrollKey || !restoreReady) return
+    const key = `inyon:scroll:${scrollKey}`
+    try {
+      const top = Number(sessionStorage.getItem(key))
+      if (Number.isFinite(top) && top >= 0) el.scrollTop = top
+    } catch { /* storage may be unavailable */ }
+    const save = () => {
+      try { sessionStorage.setItem(key, String(el.scrollTop)) } catch { /* keep scrolling */ }
+    }
+    el.addEventListener('scroll', save, { passive: true })
+    window.addEventListener('pagehide', save)
+    return () => {
+      save()
+      el.removeEventListener('scroll', save)
+      window.removeEventListener('pagehide', save)
+    }
+  }, [scrollKey, restoreReady])
 
   useEffect(() => {
     const el = box.current

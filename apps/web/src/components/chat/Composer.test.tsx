@@ -14,7 +14,7 @@ import { flush, renderSettled as render } from '../../test/render.tsx'
 let n = 0
 const nextPane = () => `%${++n}`
 const box = () => screen.getByRole('textbox') as HTMLTextAreaElement
-const sendButton = () => screen.getByLabelText(/^(Send|Queue follow-up|Run command|Stop)$/) as HTMLButtonElement
+const sendButton = () => screen.getByLabelText(/^(Send|Steer now|Queue follow-up|Run command|Stop)$/) as HTMLButtonElement
 const draft = (pane: string, text: string, at: number, source: 'app' | 'terminal' = 'terminal') => act(() => emit({ t: 'chat.draft', key: `box:${pane}`, text, source, at }))
 
 describe('Composer keeps what you type while live data flows', () => {
@@ -147,7 +147,7 @@ describe('Composer send button', () => {
     expect(screen.getByText(/Shell command/)).toBeTruthy()
   })
 
-  test('while Codex works, a message is queued unless you switch to steering it in', async () => {
+  test('while Codex works, sending steers by default and Queue remains available', async () => {
     const user = userEvent.setup()
     const pane = nextPane()
     const { rerender } = await render(<Composer host="box" pane={pane} agent="codex" working={false} />)
@@ -155,13 +155,9 @@ describe('Composer send button', () => {
     expect(screen.queryByRole('switch')).toBeNull()
     rerender(<Composer host="box" pane={pane} agent="codex" working />)
     const toggle = screen.getByRole('switch') as HTMLButtonElement
-    expect(toggle.getAttribute('aria-checked')).toBe('false')
-    expect(toggle.textContent).toBe('Queue')
-    await user.type(box(), 'also check the tests')
-    expect(sendButton().getAttribute('aria-label')).toBe('Queue follow-up')
-    await user.click(toggle)
     expect(toggle.getAttribute('aria-checked')).toBe('true')
     expect(toggle.textContent).toBe('Steer now')
+    await user.type(box(), 'also check the tests')
     expect(screen.getByLabelText('Steer now')).toBeTruthy()
     expect(box().placeholder).toBe('Steer Codex now…')
     await user.click(screen.getByLabelText('Steer now'))
@@ -169,6 +165,16 @@ describe('Composer send button', () => {
     const [call] = api.send.mock.calls
     expect(call.slice(0, 3)).toEqual(['box', pane, 'also check the tests'])
     expect(call[4]).toBe(true)
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    await user.type(box(), 'after this turn')
+    expect(sendButton().getAttribute('aria-label')).toBe('Queue follow-up')
+    await user.click(sendButton())
+    await flush()
+    expect(api.send.mock.calls.at(-1)![4]).toBeUndefined()
+    rerender(<Composer host="box" pane={pane} agent="codex" working={false} />)
+    rerender(<Composer host="box" pane={pane} agent="codex" working />)
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
     // a shell command runs as itself whichever way; other agents never see the switch
     await user.type(box(), '!ls')
     expect(screen.queryByRole('switch')).toBeNull()

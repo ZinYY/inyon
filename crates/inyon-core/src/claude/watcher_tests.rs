@@ -42,7 +42,12 @@ const KEY: &str = "draft-test:%9";
 #[test]
 fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts() {
     run(|| async {
-        let fake = Fake::install(|_, _, _| ok(""));
+        let fake = Fake::install(|_, cmd, _| {
+            if cmd == size_command("/tmp/existing-conversation.jsonl", 0) {
+                return ok(&format!("{} 1", TAIL_BYTES * 4));
+            }
+            ok("")
+        });
         machine("reload-test", "local", json!([{ "id": "%9", "agent": { "kind": "claude", "pid": 7, "state": "working", "transcriptPath":"/tmp/existing-conversation.jsonl" } }])).borrow_mut().hold_polls();
         let old = watchers().get("reload-test", "%9");
         {
@@ -64,9 +69,12 @@ fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts()
         assert!(!Rc::ptr_eq(&old, &fresh));
         assert!(old.st.borrow().stopped);
         assert_eq!(fresh.subscribers(), 1);
-        assert!(fresh.st.borrow().full_read);
         assert!(load_chat("reload-test:%9").is_none());
         assert_eq!(get_draft("reload-test:%9").unwrap().text, "unsent work");
+        wait(20).await;
+        // Check the actual read boundary, not the one-shot flag consumed when follow starts.
+        assert_eq!(fresh.st.borrow().reader.as_ref().unwrap().offset, 0);
+        assert!(fake.streams.borrow().iter().any(|s| !s.killed.get() && s.cmd == tail_command("/tmp/existing-conversation.jsonl", 0, false, true)));
         phone.got.borrow_mut().clear();
         old.more(&sub, 10).await;
         assert!(phone.got.borrow().is_empty(), "a retired reader must not republish stale pages");

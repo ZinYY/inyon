@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
-import { act, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { Home } from './Home.tsx'
 import { useStore } from '../lib/store.ts'
 import { api } from '../test/fakes.ts'
@@ -24,6 +24,33 @@ const home = () =>
 beforeEach(() => useStore.setState({ hostsLoaded: true, toasts: [], connected: true }))
 
 describe('agent sessions', () => {
+  test('returning from a session restores the Overview position, including after data reloads', async () => {
+    function Session() {
+      const navigate = useNavigate()
+      return <><button onClick={() => navigate(-1)}>Back</button><Link to="/">Overview</Link></>
+    }
+    useStore.setState({ hosts: [host('box', { panes: [asking()] })] })
+    await render(<MemoryRouter><Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/m/:host/p/:pane" element={<Session />} />
+    </Routes></MemoryRouter>)
+    const scrollBox = () => screen.getByRole('heading', { name: 'Overview' }).closest('.overscroll-y-contain') as HTMLDivElement
+    scrollBox().scrollTop = 980
+    fireEvent.scroll(scrollBox())
+    await userEvent.click(screen.getByRole('link', { name: 'Failing tests' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(scrollBox().scrollTop).toBe(980)
+    scrollBox().scrollTop = 640
+    fireEvent.scroll(scrollBox())
+    await userEvent.click(screen.getByRole('link', { name: 'Failing tests' }))
+    act(() => useStore.setState({ hostsLoaded: false }))
+    await userEvent.click(screen.getByRole('link', { name: 'Overview' }))
+    act(() => useStore.setState({ hostsLoaded: true }))
+    expect(scrollBox().scrollTop).toBe(640)
+    act(() => useStore.setState({ hosts: [host('box', { panes: [asking()] })] }))
+    expect(scrollBox().scrollTop).toBe(640)
+  })
+
   // a Needs-you section above the list grew and shrank as agents asked, moving every card under the pointer
   test('a session that asks something answers from its own card, in its own place', async () => {
     useStore.setState({ hosts: [host('box', { panes: [agentPane('%2', 'claude', { title: 'Write docs' }), asking('%3')] })] })

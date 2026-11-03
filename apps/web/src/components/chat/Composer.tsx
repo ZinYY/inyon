@@ -129,14 +129,13 @@ export function Composer({
   const serverDraft = useStore((s) => s.chats[key]?.draft)
   const [text, setTextState] = useState(() => DRAFTS.get(key) ?? serverDraft?.text ?? '')
   const shellMode = !!agent && agentDef(agent).shell && text.trimStart().startsWith('!')
-  // Codex takes a message two ways while it works: queued for after this turn (its default), or
-  // steered into the turn under way. The choice sits by the send button only then.
-  const [steer, setSteer] = useState(false)
+  // Steer the current Codex turn by default; Queue remains an explicit choice beside Send.
+  const [steer, setSteer] = useState(true)
   const canSteer = agent === 'codex' && working && !shellMode
-  // each turn starts from the safe choice
+  // A new turn or a different session starts with the default again.
   useEffect(() => {
-    if (!working) setSteer(false)
-  }, [working])
+    setSteer(true)
+  }, [working, key])
   const [focused, setFocused] = useState(false)
   const [origin, setOrigin] = useState<'app' | 'terminal' | null>(null)
   /**
