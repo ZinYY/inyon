@@ -20,4 +20,5 @@ pub mod send_check;
 pub mod send_receipts;
 pub mod transcript;
 pub mod transcript_tail;
+pub mod titles;
 pub mod watcher;

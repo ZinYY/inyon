@@ -206,6 +206,7 @@ pub struct HostRuntime {
     events: Option<StreamHandle>,
     cwd_map: HashMap<i64, Mapped>,
     status_cache: HashMap<i64, CachedStatus>,
+    claude_titles: HashMap<i64, crate::claude::titles::CachedTitle>,
     stopped: bool,
     /// last time the agy status line was put back
     agy_healed_at: Option<u64>,
@@ -261,6 +262,7 @@ impl HostRuntime {
             events: None,
             cwd_map: HashMap::new(),
             status_cache: HashMap::new(),
+            claude_titles: HashMap::new(),
             stopped: false,
             agy_healed_at: None,
             hooks_healed_at: None,
@@ -1197,6 +1199,7 @@ impl Registry {
         let mut r = rt.borrow_mut();
         r.cwd_map.retain(|pid, _| live.contains(pid));
         r.status_cache.retain(|pid, _| live.contains(pid));
+        r.claude_titles.retain(|pid, _| live.contains(pid));
         r.screens.retain(|id, _| agent_ids.contains(id));
         r.empty_codex.retain(|id| agent_ids.contains(id));
         r.codex_cleared.retain(|pid| live.contains(pid));
@@ -1448,7 +1451,31 @@ impl Registry {
         if proc.kind == AgentKind::Claude {
             if let Some(title) = info.session_id.as_deref().and_then(|session|
                 crate::claude::watcher::watchers().peek(&host_id, &p.id).and_then(|w| w.recorded_title(session))) {
+                if let (Some(path), Some(session)) = (info.transcript_path.as_deref(), info.session_id.as_deref()) {
+                    rt.borrow_mut().claude_titles.insert(pid, crate::claude::titles::CachedTitle {
+                        path: path.to_owned(), session: session.to_owned(), title: Some(title.clone()), at: now_ms(),
+                    });
+                }
                 p.title = title;
+            } else {
+                let generic = { let probe = pr.borrow(); p.title.is_empty() || p.title.eq_ignore_ascii_case(&probe.hostname) };
+                if generic {
+                    if let (Some(path), Some(session)) = (info.transcript_path.as_deref(), info.session_id.as_deref()) {
+                        let cached = rt.borrow().claude_titles.get(&pid).cloned().filter(|c| c.path == path && c.session == session);
+                        let title = if cached.as_ref().is_some_and(|c| now_ms().saturating_sub(c.at) < if c.title.is_some() { 15_000 } else { 2_000 }) {
+                            cached.and_then(|c| c.title)
+                        } else {
+                            let title = host.run(&crate::claude::titles::command(path)).await.ok()
+                                .filter(|r| r.code == 0).and_then(|r| crate::claude::titles::parse(&r.stdout, session))
+                                .or_else(|| cached.and_then(|c| c.title));
+                            rt.borrow_mut().claude_titles.insert(pid, crate::claude::titles::CachedTitle {
+                                path: path.to_owned(), session: session.to_owned(), title: title.clone(), at: now_ms(),
+                            });
+                            title
+                        };
+                        p.title = title.unwrap_or_default();
+                    }
+                }
             }
         }
         // a rename the agent hasn't taken yet: done once its title says so, else typed when it's idle

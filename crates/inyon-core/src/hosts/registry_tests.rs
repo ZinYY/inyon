@@ -986,3 +986,37 @@ fn windows_codex_hostname_case_does_not_hide_a_blank_or_resumed_footer() {
         assert!(!b.rt.borrow().empty_codex.contains("%9"));
     });
 }
+
+#[test]
+fn claude_titles_in_overview_do_not_require_a_chat_subscription_or_cross_a_clear() {
+    run(|| async {
+        let b = ModeBox::new();
+        let fake = Fake::install(|_, cmd, _| {
+            if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", idle(""))) }
+            else if cmd.contains("custom-title|ai-title") && cmd.contains("old.jsonl") { ok(r#"{"type":"ai-title","aiTitle":"Study poetry","sessionId":"old"}"#) }
+            else { ok("") }
+        });
+        let now = now_ms() as f64 / 1000.0;
+        let probe = |session: &str, title: &str| {
+            let mut p = mode_probe(now);
+            p.hostname = "Qian-PC".into();
+            p.sessions[0].windows[0].panes[0].title = title.into();
+            p.hook_panes.insert("%9".into(), HookPaneState { pane: "%9".into(), ts: now,
+                data: json!({"session_id":session,"transcript_path":format!("/s/{session}.jsonl"),"hook_event_name":"Stop"}), agent: None, event: None });
+            Rc::new(RefCell::new(p))
+        };
+        assert!(crate::claude::watcher::watchers().peek(MODE_ID, "%9").is_none());
+        for _ in 0..2 {
+            let pr = probe("old", "QIAN-PC");
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, "Study poetry");
+        }
+        assert_eq!(fake.cmds().iter().filter(|c| c.contains("custom-title|ai-title")).count(), 1);
+        let pr = probe("new", "QIAN-PC");
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].title.is_empty(), "a new empty conversation cannot borrow the old title");
+        let pr = probe("new", "My terminal title");
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, "My terminal title");
+    });
+}
