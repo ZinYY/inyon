@@ -445,7 +445,7 @@ pub struct Registry {
 thread_local! {
     static REGISTRY: Rc<Registry> = Rc::new(Registry::new());
     /// Turns that go on while the screen reads idle (see turns.rs).
-    static CODEX_IDLE: RefCell<HashMap<String, (i64, Option<u64>)>> = RefCell::new(HashMap::new());
+    static CODEX_IDLE: RefCell<HashMap<String, (u32, Option<u64>)>> = RefCell::new(HashMap::new());
     static TURNS: RefCell<Turns> = RefCell::new(Turns::new());
 }
 
@@ -1945,7 +1945,7 @@ fn was_active(pr: &mut ProbeResult, pane: &str, at: f64) {
 
 /// Work appears immediately; an idle screen must persist for three seconds. A new
 /// working frame resets the grace period. Questions and replacement processes never wait.
-pub(crate) fn codex_state(state: &mut (i64, Option<u64>), pid: i64, shown: Shown, was_working: bool, now: u64) -> Shown {
+pub(crate) fn codex_state(state: &mut (u32, Option<u64>), pid: u32, shown: Shown, was_working: bool, now: u64) -> Shown {
     if state.0 != pid { *state = (pid, None); return shown; }
     if !matches!(shown, Shown::Idle) || !was_working { state.1 = None; return shown; }
     let since = *state.1.get_or_insert(now);

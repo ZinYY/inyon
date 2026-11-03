@@ -177,7 +177,7 @@ struct State {
     meta: TranscriptMeta,
     agent: Option<AgentKind>,
     screen: ScreenState,
-    codex_idle: (i64, Option<u64>),
+    codex_idle: (u32, Option<u64>),
     info: ChatInfo,
     tail: Option<StreamHandle>,
     /// the transcript tail ended by itself (the machine dropped off): follow again once it's back
