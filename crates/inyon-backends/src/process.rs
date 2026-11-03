@@ -26,6 +26,7 @@ const DEFAULT_TIMEOUT_MS: u64 = 20_000;
 pub struct ProcessBackend {
     control_dir: PathBuf,
     env: Vec<(String, String)>,
+    herdr: RefCell<std::collections::HashMap<String, crate::windows_herdr::SharedChannel>>,
 }
 
 /// What a test's commands never get (test-setup.ts): with $TMUX set, tmux ignores TMUX_TMPDIR and
@@ -39,7 +40,7 @@ impl ProcessBackend {
     pub fn new(control_dir: impl Into<PathBuf>, env: Vec<(String, String)>) -> Rc<ProcessBackend> {
         #[cfg(feature = "testing")]
         let env = test_env(env);
-        Rc::new(ProcessBackend { control_dir: control_dir.into(), env })
+        Rc::new(ProcessBackend { control_dir: control_dir.into(), env, herdr: RefCell::new(std::collections::HashMap::new()) })
     }
 
     fn ssh_args(&self, c: &HostConfig, tty: bool) -> Vec<String> {
@@ -174,6 +175,12 @@ async fn read_all(r: Option<impl AsyncReadExt + Unpin>) -> Vec<u8> {
 impl HostBackend for ProcessBackend {
     fn exec(&self, config: &HostConfig, cmd: &str, mut opts: ExecOptions) -> LocalBoxFuture<'static, HubResult<ExecResult>> {
         if crate::windows_herdr::enabled(config) {
+            if let Some(request) = crate::windows_herdr::request(cmd) {
+                let key = serde_json::to_string(config).expect("host config");
+                let channel = self.herdr.borrow_mut().entry(key).or_insert_with(|| Rc::new(tokio::sync::Mutex::new(None))).clone();
+                let command = self.command(&self.argv(config, cmd, false));
+                return Box::pin(crate::windows_herdr::exchange(channel, command, request, opts.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS)));
+            }
             opts.input = Some(crate::windows_herdr::input(cmd, opts.input.take()));
         }
         let mut c = self.command(&self.argv(config, cmd, false));

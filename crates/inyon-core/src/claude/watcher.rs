@@ -247,6 +247,7 @@ struct State {
     /// a send owns the input box until then; no mirroring meanwhile
     sending_until: u64,
     mirroring: Option<Deferred<()>>,
+    mirror_again: bool,
     /// the last message sent from here, and when, to tell a stale draft of it from a new one
     last_sent: Option<(String, u64)>,
     ledger: SendLedger,
@@ -341,6 +342,7 @@ impl ChatWatcher {
                 mirroring_until: 0,
                 sending_until: 0,
                 mirroring: None,
+                mirror_again: false,
                 last_sent: None,
                 ledger: SendLedger::new(),
                 progress: None,
@@ -676,6 +678,14 @@ impl ChatWatcher {
     }
 
     fn mirror(&self) {
+        {
+            let mut st = self.st.borrow_mut();
+            if st.stopped { return; }
+            if st.mirroring.is_some() {
+                st.mirror_again = true;
+                return;
+            }
+        }
         let until = self.st.borrow().sending_until;
         // read once: the clock can tick between two reads
         let now = now_ms();
@@ -691,8 +701,13 @@ impl ChatWatcher {
         let w = self.rc();
         spawn(async move {
             w.do_mirror().await;
-            w.st.borrow_mut().mirroring = None;
+            let again = {
+                let mut st = w.st.borrow_mut();
+                st.mirroring = None;
+                std::mem::take(&mut st.mirror_again)
+            };
             d.resolve(());
+            if again { w.mirror(); }
         });
     }
 
@@ -703,6 +718,7 @@ impl ChatWatcher {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.mirror_timer);
             st.sending_until = now_ms() + 15_000;
+            st.mirror_again = false;
             st.mirroring.clone()
         };
         if let Some(m) = m {
@@ -713,7 +729,12 @@ impl ChatWatcher {
     /// A settings command borrows the input box (it clears it, types "/model", opens a menu): keep
     /// the draft as it was, ignore what the box shows meanwhile, and put the draft back afterwards.
     pub async fn hold_draft(&self, on_screen: Option<&str>) -> impl FnOnce() -> LocalBoxFuture<'static, ()> + use<> {
-        rt::clear(&mut self.st.borrow_mut().mirror_timer);
+        {
+            let mut st = self.st.borrow_mut();
+            rt::clear(&mut st.mirror_timer);
+            st.sending_until = now_ms() + 60_000;
+            st.mirror_again = false;
+        }
         let stop_driving = start_driving(&self.host_id, &self.pane_id);
         let m = self.st.borrow().mirroring.clone();
         if let Some(m) = m {
@@ -753,7 +774,7 @@ impl ChatWatcher {
     }
 
     async fn do_mirror(&self) {
-        let (stopped, prompt, input_visible, current) = {
+        let (stopped, prompt, input_visible, mut current) = {
             let st = self.st.borrow();
             (st.stopped, st.screen.prompt.is_some(), st.screen.input_visible == Some(true), st.screen.draft.clone().unwrap_or_default())
         };
@@ -764,6 +785,13 @@ impl ChatWatcher {
         let d = get_draft(&self.key);
         if !kind.is_some_and(|k| MIRRORS.contains(&k)) || prompt || !input_visible {
             return;
+        }
+        if self.host().is_ok_and(|h| crate::tmux::herdr::enabled(&h)) {
+            // A slow preceding write can finish before the screen poll. Read its actual result
+            // before replacing the draft, otherwise the newer draft is appended to the old one.
+            let Ok(screen) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { return };
+            if screen.prompt.is_some() || screen.input_visible != Some(true) { return; }
+            current = screen.draft.unwrap_or_default();
         }
         let target = d.as_ref().map(|d| d.text.clone()).unwrap_or_default();
         // a paste preview in the box is this draft only if the mirror put this draft there
@@ -865,7 +893,7 @@ impl ChatWatcher {
     fn sync_draft_from_screen(&self) {
         let term = {
             let st = self.st.borrow();
-            if now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) {
+            if st.mirroring.is_some() || now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) {
                 return;
             }
             st.screen.draft.clone().unwrap_or_default()

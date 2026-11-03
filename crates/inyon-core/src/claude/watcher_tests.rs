@@ -173,6 +173,34 @@ fn draft(text: &str, at: f64, mirrored: Option<&str>) -> Option<Draft> {
     Some(Draft { text: text.into(), source: DraftSource::App, at, mirrored: mirrored.map(str::to_owned) })
 }
 
+#[test]
+fn slow_draft_writes_are_serial_and_partial_echo_cannot_replace_the_new_draft() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        let writing = Deferred::new();
+        {
+            let mut st = w.st.borrow_mut();
+            st.mirroring = Some(writing.clone());
+            st.screen.input_visible = Some(true);
+            st.screen.draft = Some("old partial echo".into());
+            st.mirroring_until = 0;
+        }
+        set_draft(KEY, draft("latest full draft", now_ms() as f64, None));
+        w.mirror();
+        assert!(w.st.borrow().mirroring.as_ref().unwrap().same(&writing));
+        assert!(w.st.borrow().mirror_again);
+        w.sync_draft_from_screen();
+        assert_eq!(get_draft(KEY).unwrap().text, "latest full draft");
+        // Send must still wait for the original writer, even after another edit requested a mirror.
+        let began = crate::platform::rt::spawn_task({ let w = w.clone(); async move { w.begin_send().await } });
+        assert!(!began.is_settled());
+        writing.resolve(());
+        began.wait().await;
+        assert!(!w.st.borrow().mirror_again);
+        watchers().stop(KEY);
+    });
+}
+
 // draft-sent.test.ts
 
 #[test]

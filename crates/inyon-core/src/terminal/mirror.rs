@@ -338,6 +338,7 @@ fn close(m: &Rc<Mirror>, code: i32) {
 }
 
 async fn fit(m: &Rc<Mirror>) {
+    if crate::tmux::herdr::enabled(&m.host) { return; }
     let (cols, rows) = {
         let mut st = m.st.borrow_mut();
         st.resized = true;
@@ -372,7 +373,10 @@ async fn read(m: &Rc<Mirror>) {
         }
         st.reading = true;
     }
-    match m.host.exec(&read_command(&m.pane), ExecOptions::timeout(10_000)).await {
+    let cmd = if crate::tmux::herdr::enabled(&m.host) {
+        crate::tmux::herdr::command(serde_json::json!({"op":"mirror", "pane":m.pane}))
+    } else { read_command(&m.pane) };
+    match m.host.exec(&cmd, ExecOptions::timeout(10_000)).await {
         Ok(r) if !m.st.borrow().closed => match parse_screen(&r.stdout) {
             // the pane is gone (or the machine): end the terminal like a detach would
             None => {
@@ -416,7 +420,17 @@ fn flush(m: Rc<Mirror>) -> LocalBoxFuture<'static, ()> {
             st.writing = true;
             std::mem::take(&mut st.pending)
         };
-        for (cmd, input) in batch_commands(&m.pane, &to_input(&d)) {
+        let inputs = to_input(&d);
+        let commands = if crate::tmux::herdr::enabled(&m.host) {
+            let inputs: Vec<_> = inputs.iter().map(|x| match x {
+                Input::Keys(keys) => serde_json::json!({"keys":keys}),
+                Input::Text(text) => serde_json::json!({"text":text}),
+                Input::Paste(text) => serde_json::json!({"paste":paste_text(text)}),
+                Input::Hex(hex) => serde_json::json!({"hex":hex.join("")}),
+            }).collect();
+            vec![(crate::tmux::herdr::command(serde_json::json!({"op":"input", "pane":m.pane, "inputs":inputs})), None)]
+        } else { batch_commands(&m.pane, &inputs) };
+        for (cmd, input) in commands {
             let opts = input.map(ExecOptions::input).unwrap_or_default();
             let failure = match m.host.exec(&cmd, opts).await {
                 Ok(r) if r.code == 0 => None,

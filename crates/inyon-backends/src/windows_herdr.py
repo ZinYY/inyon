@@ -274,6 +274,8 @@ def tmux(args):
         try:
             p = selected(panes(), option(args, "-t"))
             text = path.read_text(encoding="utf-8")
+            if "-p" in args:
+                text = "\x1b[200~" + text + "\x1b[201~"
             rpc(p["address"], "pane.send_text", {"pane_id": p["pane_id"], "text": text})
         finally:
             path.unlink(missing_ok=True)
@@ -342,7 +344,62 @@ def control(command):
         closed.wait(0.75)
 
 
+def operation(request):
+    """A complete operation on the existing panes, without a new shell or SSH bootstrap per key."""
+    op = request["op"]
+    rows = panes()
+    if op == "capture":
+        out = []
+        for target in request["panes"]:
+            p = selected(rows, target)
+            r = rpc(p["address"], "pane.read", {"pane_id": p["pane_id"], "source": "visible", "format": "ansi", "strip_ansi": False})
+            out.append("@@CAP " + target + "\n" + r["read"]["text"].rstrip("\n") + "\n")
+        return "".join(out)
+    p = selected(rows, request["pane"])
+    if op == "mirror":
+        r = rpc(p["address"], "pane.read", {"pane_id": p["pane_id"], "source": "visible", "format": "ansi", "strip_ansi": False})
+        f = fields(p)
+        return f'{f["pane_width"]} {f["pane_height"]} 0 0 0 0\n' + r["read"]["text"].rstrip("\n") + "\n"
+    if op != "input":
+        raise RuntimeError("Unknown Herdr operation: " + op)
+    # Validate the entire batch before writing anything. Never retry a partly applied batch.
+    calls = []
+    for part in request["inputs"]:
+        if set(part) == {"keys"} and isinstance(part["keys"], list):
+            calls.append(("pane.send_keys", {"keys": [key_name(k) for k in part["keys"]]}))
+        elif set(part) == {"text"} and isinstance(part["text"], str):
+            calls.append(("pane.send_text", {"text": part["text"]}))
+        elif set(part) == {"paste"} and isinstance(part["paste"], str):
+            calls.append(("pane.send_text", {"text": "\x1b[200~" + part["paste"] + "\x1b[201~"}))
+        elif set(part) == {"hex"}:
+            calls.append(("pane.send_text", {"text": bytes.fromhex(part["hex"]).decode("utf-8")}))
+        else:
+            raise RuntimeError("Invalid Herdr input batch")
+    deadline = time.monotonic() + 8
+    for method, params in calls:
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Herdr input batch timed out; check the terminal before retrying")
+        rpc(p["address"], method, dict(params, pane_id=p["pane_id"]))
+    if request.get("submit"):
+        time.sleep(0.15)
+        rpc(p["address"], "pane.send_keys", {"pane_id": p["pane_id"], "keys": ["enter"]})
+    return ""
+
+
+def serve():
+    # The SSH channel is the transport. EOF ends the bridge; no listening port or service.
+    for line in sys.stdin.buffer:
+        envelope = json.loads(line)
+        try:
+            reply = {"id": envelope["id"], "stdout": operation(envelope["request"])}
+        except Exception as error:
+            reply = {"id": envelope["id"], "error": str(error)}
+        emit(json.dumps(reply, ensure_ascii=False))
+
+
 def execute(request):
+    if request["mode"] == "rpc":
+        return serve()
     home = Path.home()
     busybox = home / ".inyon" / "bin" / "busybox.exe"
     if not busybox.is_file():

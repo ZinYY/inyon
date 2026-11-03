@@ -915,12 +915,26 @@ pub async fn probe(host: &Host) -> Result<ProbeResult, String> {
 /// Captures the visible screen of several panes in one round trip, with styling.
 pub async fn capture_panes(host: &Host, pane_ids: &[String]) -> HubResult<IndexMap<String, Vec<String>>> {
     let Some(cmd) = capture_command(pane_ids) else { return Ok(IndexMap::new()) };
+    let cmd = if super::herdr::enabled(host) { super::herdr::command(serde_json::json!({"op":"capture", "panes":pane_ids})) } else { cmd };
     let r = host.exec(&cmd, ExecOptions::timeout(10000)).await?;
+    if super::herdr::enabled(host) && r.code != 0 {
+        return Err(HubError::plain(nonempty_or(r.stderr.jtrim(), "Could not read the Herdr terminal")));
+    }
     Ok(parse_captures(&r.stdout))
 }
 
 /// `typeText(host, pane, text, submit)`: types text into a pane as a person would.
 pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> HubResult<()> {
+    if super::herdr::enabled(host) {
+        if text.is_empty() && !submit { return Ok(()); }
+        let part = if text.len16() > 800 || re!(r"[\r\n]").is_match(text) {
+            serde_json::json!({"paste":paste_text(text)})
+        } else { serde_json::json!({"text":text}) };
+        let cmd = super::herdr::command(serde_json::json!({"op":"input", "pane":pane,
+            "inputs":[part], "submit":submit}));
+        let r = host.run(&cmd).await?;
+        return if r.code == 0 { Ok(()) } else { Err(HubError::plain(r.stderr)) };
+    }
     match type_text(pane, text, submit, &format!("inyon-{}", crate::ids::random_uuid())) {
         TypeText::Nothing => Ok(()),
         TypeText::Keys { command, input } => {
@@ -947,6 +961,7 @@ pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> Hub
 /// `sendKeys(host, pane, keys)`
 pub async fn send_keys(host: &Host, pane: &str, keys: &[&str]) -> HubResult<()> {
     let cmd = send_keys_command(pane, keys).map_err(HubError::plain)?;
+    let cmd = if super::herdr::enabled(host) { super::herdr::command(serde_json::json!({"op":"input", "pane":pane, "inputs":[{"keys":keys}]})) } else { cmd };
     let r = host.run(&cmd).await?;
     if r.code != 0 {
         return Err(HubError::plain(nonempty_or(r.stderr.jtrim(), "send-keys failed")));

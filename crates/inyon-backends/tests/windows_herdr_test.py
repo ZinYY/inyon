@@ -22,6 +22,45 @@ def snapshot():
 
 
 class BridgeTest(unittest.TestCase):
+    def test_persistent_bridge_preserves_input_order_and_multiline_paste(self):
+        p = bridge.mapped({"name": "default", "socket_path": "pipe"}, snapshot())[0]
+        with patch.object(bridge, "panes", return_value=[p]), patch.object(bridge, "rpc") as rpc:
+            bridge.operation({"op": "input", "pane": p["id"], "inputs": [
+                {"text": "中文"}, {"keys": ["Left", "BSpace"]}, {"paste": "第一行\n第二行"}, {"keys": ["Enter"]}]})
+            self.assertEqual([c.args[1:] for c in rpc.call_args_list], [
+                ("pane.send_text", {"text": "中文", "pane_id": "w1:p1"}),
+                ("pane.send_keys", {"keys": ["left", "backspace"], "pane_id": "w1:p1"}),
+                ("pane.send_text", {"text": "\x1b[200~第一行\n第二行\x1b[201~", "pane_id": "w1:p1"}),
+                ("pane.send_keys", {"keys": ["enter"], "pane_id": "w1:p1"})])
+
+    def test_bad_batch_is_rejected_before_any_input_and_failed_input_is_not_replayed(self):
+        p = bridge.mapped({"name": "default", "socket_path": "pipe"}, snapshot())[0]
+        with patch.object(bridge, "panes", return_value=[p]), patch.object(bridge, "rpc") as rpc:
+            with self.assertRaises(RuntimeError):
+                bridge.operation({"op": "input", "pane": p["id"], "inputs": [{"text": "valid"}, {"bad": True}]})
+            rpc.assert_not_called()
+            rpc.side_effect = TimeoutError("connection lost after write")
+            with self.assertRaises(TimeoutError):
+                bridge.operation({"op": "input", "pane": p["id"], "inputs": [{"text": "once"}, {"keys": ["Enter"]}]})
+            self.assertEqual(rpc.call_count, 1)
+
+    def test_mirror_reads_metadata_and_screen_from_the_same_selected_pane(self):
+        p = bridge.mapped({"name": "default", "socket_path": "pipe"}, snapshot())[0]
+        with patch.object(bridge, "panes", return_value=[p]), patch.object(bridge, "rpc", return_value={"read": {"text": "中文\n"}}) as rpc:
+            self.assertEqual(bridge.operation({"op": "mirror", "pane": p["id"]}), "94 29 0 0 0 0\n中文\n")
+            self.assertEqual(rpc.call_count, 1)
+            with self.assertRaises(RuntimeError):
+                bridge.operation({"op": "input", "pane": "%missing", "inputs": [{"keys": ["Enter"]}]})
+            self.assertEqual(rpc.call_count, 1)
+
+    def test_server_handles_several_frames_and_reports_an_error_without_losing_the_channel(self):
+        frames = b''.join((json.dumps({"id": i, "request": {"op": "test"}}) + '\n').encode() for i in range(3))
+        stdin = Mock(buffer=io.BytesIO(frames))
+        replies = []
+        with patch.object(bridge.sys, "stdin", stdin), patch.object(bridge, "operation", side_effect=["first", RuntimeError("missing pane"), "last"]), patch.object(bridge, "emit", side_effect=replies.append):
+            bridge.serve()
+        self.assertEqual([json.loads(x) for x in replies], [{"id": 0, "stdout": "first"}, {"id": 1, "error": "missing pane"}, {"id": 2, "stdout": "last"}])
+
     def test_busy_pipe_waits_for_a_connection_before_any_request_is_written(self):
         kernel = Mock()
         invalid = bridge.ctypes.c_void_p(-1).value
@@ -86,7 +125,7 @@ class BridgeTest(unittest.TestCase):
             data.write_text(text, encoding="utf-8")
             bridge.tmux(["-t", p["id"], "load-buffer", "-b", "inyon-test", str(data)])
             bridge.tmux(["paste-buffer", "-d", "-p", "-b", "inyon-test", "-t", p["id"]])
-            self.assertEqual(rpc.call_args.args, ("pipe", "pane.send_text", {"pane_id": "w1:p1", "text": text}))
+            self.assertEqual(rpc.call_args.args, ("pipe", "pane.send_text", {"pane_id": "w1:p1", "text": "\x1b[200~" + text + "\x1b[201~"}))
             self.assertFalse((Path(d) / ".inyon/herdr-buffers/inyon-test").exists())
 
     def test_missing_pane_never_falls_back_to_the_focused_pane(self):
