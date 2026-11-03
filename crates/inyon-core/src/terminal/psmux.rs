@@ -44,6 +44,26 @@ fn unescape(s: &str) -> Vec<u8> {
     out
 }
 
+fn restore_snapshot(geometry: &str, body: &[String]) -> Result<Vec<u8>, String> {
+    let height = parse_screen(&format!("{geometry}\n")).ok_or("Invalid PSmux screen")?.height as usize;
+    let history = body.len().saturating_sub(height);
+    let screen = parse_screen(&format!("{geometry}\n{}\n", body[history..].join("\n"))).ok_or("Invalid PSmux screen")?;
+    // Rebuild retained server scrollback on attach and resize. Reset the browser's old
+    // buffer first so reconnecting/resizing never duplicates history. Wrapping stays off
+    // because capture-pane has already laid out each physical terminal row.
+    let mut out = "\x1b[?7l\x1b[0m\x1b[r\x1b[H\x1b[2J\x1b[3J".to_owned();
+    if history > 0 {
+        for (i, line) in body.iter().enumerate() {
+            if i > 0 { out.push_str("\r\n"); }
+            out.push_str("\x1b[0m");
+            out.push_str(line);
+        }
+    }
+    out.push_str(&draw_screen(None, &screen));
+    out.push_str("\x1b[?7h");
+    Ok(out.into_bytes())
+}
+
 impl Decoder {
     fn new(pane: String) -> Self {
         Self { pane, pending: Vec::new(), replies: VecDeque::new(), frame: None, geometry: String::new(), ready: false }
@@ -53,7 +73,7 @@ impl Decoder {
         self.ready = false;
         self.replies.extend([Reply::Ignore, Reply::Geometry, Reply::Capture]);
         let p = &self.pane;
-        format!("resize-window -t {p} -x {cols} -y {rows}\ndisplay-message -p -t {p} '#{{pane_width}} #{{pane_height}} #{{cursor_x}} #{{cursor_y}} #{{cursor_flag}} #{{alternate_on}}'\ncapture-pane -p -e -t {p}\n")
+        format!("resize-window -t {p} -x {cols} -y {rows}\ndisplay-message -p -t {p} '#{{pane_width}} #{{pane_height}} #{{cursor_x}} #{{cursor_y}} #{{cursor_flag}} #{{alternate_on}}'\ncapture-pane -p -e -S - -t {p}\n")
     }
 
     fn input(&mut self, text: &str) -> String {
@@ -91,8 +111,7 @@ impl Decoder {
                     match kind {
                         Reply::Geometry => self.geometry = body.join("\n"),
                         Reply::Capture => {
-                            let screen = parse_screen(&format!("{}\n{}\n", self.geometry, body.join("\n"))).ok_or("Invalid PSmux screen")?;
-                            output.push(format!("{}\x1b[?7h", draw_screen(None, &screen)).into_bytes());
+                            output.push(restore_snapshot(&self.geometry, &body)?);
                             self.ready = true;
                         }
                         _ => {}
@@ -169,10 +188,22 @@ mod tests {
     #[test]
     fn attach_snapshot_then_raw_bytes_preserve_cursor_and_wrapping() {
         let mut d = Decoder::new("%3".into());
-        let cmd = d.snapshot(80, 24); assert!(cmd.contains("capture-pane -p -e -t %3"));
+        let cmd = d.snapshot(80, 24); assert!(cmd.contains("capture-pane -p -e -S - -t %3"));
         let data = b"\x1bP1000p%begin 1 1 0\n%end 1 1 0\n%begin 1 1 1\n%end 1 1 1\n%begin 1 2 1\n80 24 2 0 1 0\n%end 1 2 1\n%begin 1 3 1\nhi\n%end 1 3 1\n%output %3 !\n";
         let out = d.feed(data).unwrap();
         assert_eq!(out.len(), 2); assert!(out[0].ends_with(b"\x1b[?7h")); assert_eq!(out[1], b"!");
+    }
+
+    #[test]
+    fn reconnect_restores_history_and_keeps_the_live_screen_at_the_bottom() {
+        let body = ["oldest question", "earlier answer", "current answer", "prompt", ""].map(str::to_owned);
+        let out = String::from_utf8(restore_snapshot("80 3 2 1 1 0", &body).unwrap()).unwrap();
+        assert!(out.contains("\x1b[3J\x1b[0moldest question\r\n\x1b[0mearlier answer"));
+        assert!(out.contains("\x1b[1;1H\x1b[0mcurrent answer"));
+        assert!(out.contains("\x1b[2;1H\x1b[0mprompt"));
+        assert!(out.ends_with("\x1b[2;3H\x1b[?25h\x1b[?7h"));
+        // Rebuilding an unchanged snapshot is deterministic, with a fresh scrollback reset.
+        assert_eq!(restore_snapshot("80 3 2 1 1 0", &body).unwrap(), out.as_bytes());
     }
 
     #[test]
