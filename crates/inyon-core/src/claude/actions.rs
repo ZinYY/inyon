@@ -2196,6 +2196,25 @@ pub async fn launch(host_id: &str, opts: &LaunchOpts) -> HubResult<String> {
 /// Opens a copy of the conversation in a new tmux window next to this one, in the same folder and
 /// with the same flags: both carry on from here separately. Claude Code, Codex and OpenCode fork
 /// a conversation themselves; this only starts them that way.
+/// Preserve only explicit network proxy settings when a fork starts in another shell.
+/// Other environment variables (including agent credentials) are never copied.
+fn proxy_environment_prefix(output: &str) -> String {
+    let names = ["http_proxy", "https_proxy", "all_proxy", "no_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"];
+    let vars: Vec<String> = output.lines().filter_map(|line| {
+        let (key, _) = line.split_once('=')?;
+        names.contains(&key).then(|| shq(line))
+    }).collect();
+    if vars.is_empty() { String::new() } else { format!("env {} ", vars.join(" ")) }
+}
+
+async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
+    let cmd = format!(r"tr '\0' '\n' < /proc/{}/environ 2>/dev/null | grep -E '^(http_proxy|https_proxy|all_proxy|no_proxy|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY)='", fmt_number(pid.trunc()));
+    match host.run(&cmd).await {
+        Ok(r) if r.code == 0 => proxy_environment_prefix(&r.stdout),
+        _ => String::new(),
+    }
+}
+
 pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String> {
     require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
@@ -2229,6 +2248,10 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         AgentKind::Codex => re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex).await, 1, "$1 fork ").into_owned(),
         _ => format!("{} --session {session} --fork", AgentKind::Opencode.def().launch),
     };
+    let proxy = match &proc {
+        Some(p) => fork_proxy_environment(&host, p.pid).await,
+        None => String::new(),
+    };
     let r = host.run(&format!("tmux new-window -t {} -c {} -P -F {}", shq(&found.session.name), shq(&tmux_literal(&cwd, on_psmux(host_id))), shq("#{pane_id}"))).await?;
     let new_pane = r.stdout.jtrim().to_owned();
     if r.code != 0 || !new_pane.starts_with('%') {
@@ -2236,7 +2259,7 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         return Err(http(500, if err.is_empty() { "Could not open a window" } else { err }));
     }
     shell_ready(&host, &new_pane, 8000).await?;
-    let line = with_bin(&cmd, &launch_bin(&host, &a.kind.def().launch).await?);
+    let line = with_bin(&format!("{proxy}{cmd}"), &launch_bin(&host, &a.kind.def().launch).await?);
     type_into(&host, &new_pane, &line, true).await?;
     registry().refresh(host_id, 1500);
     Ok(new_pane)

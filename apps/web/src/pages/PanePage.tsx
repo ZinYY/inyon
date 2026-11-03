@@ -91,14 +91,6 @@ export function PanePage() {
     [s.info?.subagents],
   )
 
-  if (!ref && loaded && !info) {
-    return (
-      <div className="flex flex-1 flex-col">
-        <Empty title="This pane is gone">The tmux pane was closed or its machine is unreachable.</Empty>
-      </div>
-    )
-  }
-
   const showPanel = !!agent && wide && sidePanel
   // the panel stays a moment after it is closed, fading, before it goes (as a sheet does)
   const [panelShown, setPanelShown] = useState(showPanel)
@@ -107,6 +99,16 @@ export function PanePage() {
     const t = setTimeout(() => setPanelShown(false), LEAVE_MS)
     return () => clearTimeout(t)
   }, [showPanel])
+
+  // A fork can navigate here before its pane is discovered. Keep every hook above
+  // this return so appearing, disappearing and switching panes preserve hook order.
+  if (!ref && loaded && !info) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <Empty title="This pane is gone">The tmux pane was closed or its machine is unreachable.</Empty>
+      </div>
+    )
+  }
 
   return (
     <ChatActionsContext.Provider value={actions}>

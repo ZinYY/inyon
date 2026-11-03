@@ -64,6 +64,7 @@ fn with_proc(rt: &crate::hosts::registry::Rt, pane: &str, pid: f64, cwd: &str, a
         installed: vec![],
         signed_in: vec![],
         agy_conversations: IndexMap::new(),
+        codex_threads: IndexMap::new(),
         agy_status: IndexMap::new(),
         agy_titles: IndexMap::new(),
         agy_integration: None,
@@ -899,4 +900,12 @@ fn a_tmux_session_is_renamed_by_its_number_with_what_tmux_wont_take_out_of_the_n
         assert_eq!(rename_tmux_session("local", "$3; rm -rf ~", "x").await.unwrap_err().message, "Bad session");
         assert_eq!(fake.cmds().len(), n);
     });
+}
+
+#[test]
+fn fork_environment_copies_only_proxies_and_quotes_shell_metacharacters() {
+    let value = "https_proxy=http://127.0.0.1:7890/$(touch nope)";
+    let prefix = proxy_environment_prefix(&format!("{value}\nNO_PROXY=localhost,127.0.0.1\nAPI_KEY=private\nPATH=/other\n"));
+    assert_eq!(prefix, format!("env {} {} ", shq(value), shq("NO_PROXY=localhost,127.0.0.1")));
+    assert_eq!(proxy_environment_prefix("API_KEY=private\n"), "");
 }

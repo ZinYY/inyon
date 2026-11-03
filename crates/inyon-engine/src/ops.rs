@@ -713,6 +713,11 @@ async fn exec(running: Running, send: Sender, id: Value, m: Value) {
         env.push(("INYON_PS".into(), file.clone().into_os_string()));
         snapshot = Some(file);
     }
+    #[cfg(windows)]
+    if cmd.contains("@@CODEX") {
+        let threads = tokio::task::spawn_blocking(crate::codex_identity::threads).await.unwrap_or_default();
+        env.push(("INYON_CODEX_THREADS".into(), threads.into()));
+    }
     let input = m.get("input").filter(|v| truthy(v)).and_then(Value::as_str).map(|s| B64.decode(s.trim()).unwrap_or_default());
     let shell = shell_for(&cmd);
     let mut c = tokio::process::Command::new(&shell[0]);

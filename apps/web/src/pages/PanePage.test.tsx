@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test'
-import { act, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { PanePage } from './PanePage.tsx'
 import { LEAVE_MS } from '../components/ui/AnimatedList.tsx'
 import { useStore } from '../lib/store.ts'
@@ -64,4 +64,28 @@ test('a terminal-first agent opens on its terminal, and its chat tab is still th
   await waitFor(() => expect(screen.getByRole('radio', { name: 'Terminal' }).getAttribute('aria-checked')).toBe('true'))
   expect(screen.getByRole('radio', { name: 'Chat' }).getAttribute('aria-checked')).toBe('false')
   expect(screen.queryByText('Pi runs in the terminal')).toBeNull()
+})
+
+// A fork returns its pane ID before the next machine snapshot contains that pane.
+test('navigating to a newly forked pane survives discovery and later removal', async () => {
+  const Jump = () => {
+    const navigate = useNavigate()
+    return <button onClick={() => navigate('/m/box/p/2')}>Open fork</button>
+  }
+  const parent = agentPane('%1', 'codex', { title: 'Original conversation' })
+  const fork = agentPane('%2', 'codex', { title: 'Forked conversation' })
+  useStore.setState({ hosts: [host('box', { panes: [parent] })], hostsLoaded: true, connected: true })
+  await render(
+    <MemoryRouter initialEntries={['/m/box/p/1']}>
+      <Jump />
+      <Routes><Route path="/m/:host/p/:pane" element={<PanePage />} /></Routes>
+    </MemoryRouter>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Open fork' }))
+  await waitFor(() => expect(screen.getByText('This pane is gone')).toBeTruthy())
+  act(() => useStore.setState({ hosts: [host('box', { panes: [parent, fork] })] }))
+  await waitFor(() => expect(screen.getByRole('radiogroup', { name: 'View' })).toBeTruthy())
+  expect(screen.queryByText('This pane is gone')).toBeNull()
+  act(() => useStore.setState({ hosts: [host('box', { panes: [parent] })] }))
+  await waitFor(() => expect(screen.getByText('This pane is gone')).toBeTruthy())
 })

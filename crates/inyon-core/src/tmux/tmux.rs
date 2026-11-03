@@ -203,6 +203,8 @@ pub struct ProbeResult {
     pub signed_in: Vec<AgentKind>,
     /// Antigravity CLI: process id → the conversation it has open (from the presence lock it holds)
     pub agy_conversations: IndexMap<i64, String>,
+    /// Codex TUI process → active thread, from its held writer lock (not its title).
+    pub codex_threads: IndexMap<i64, String>,
     /// Antigravity CLI: pane id → last status line payload
     pub agy_status: IndexMap<String, AgyStatusPane>,
     /// Antigravity conversation id → its title
@@ -243,6 +245,7 @@ impl ProbeResult {
             installed: vec![],
             signed_in: vec![],
             agy_conversations: IndexMap::new(),
+            codex_threads: IndexMap::new(),
             agy_status: IndexMap::new(),
             agy_titles: IndexMap::new(),
             agy_integration: None,
@@ -313,6 +316,7 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
         installed: vec![],
         signed_in: vec![],
         agy_conversations: IndexMap::new(),
+        codex_threads: IndexMap::new(),
         agy_status: IndexMap::new(),
         agy_titles: IndexMap::new(),
         agy_integration: None,
@@ -427,6 +431,18 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
         let acct = |v: &str| if v == "-" { None } else { Some(v.to_owned()) };
         if let Some(data) = json::parse(&m[5]) {
             res.status_panes.insert(format!("%{}", &m[1]), StatusPane { ts: num(&m[2]), account: acct(&m[3]), account_now: acct(&m[4]), data });
+        }
+    }
+    // A daemon can hold several locks; only a unique lock identifies a TUI.
+    let mut codex_locks: IndexMap<i64, IndexSet<String>> = IndexMap::new();
+    for line in section("CODEX") {
+        if let Some(m) = re!(r"^(\d+) ([0-9a-f-]{36})$").captures(line.jtrim()) {
+            codex_locks.entry(num(&m[1]) as i64).or_default().insert(m[2].to_owned());
+        }
+    }
+    for (pid, ids) in codex_locks {
+        if ids.len() == 1 && procs.contains_key(&pid) {
+            res.codex_threads.insert(pid, ids.into_iter().next().unwrap());
         }
     }
     for line in section("AGY") {
@@ -816,6 +832,26 @@ for p in $(pgrep -f 'claude|codex|opencode|gemini|command-?code|agy' 2>/dev/null
   c=$(readlink /proc/$p/cwd 2>/dev/null) || c=$(lsof -a -p "$p" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)
   echo "$p $c"
 done
+echo "@@CODEX"
+# Codex 0.166's TUI holds the active thread's writer lock across fork/rewind/resume.
+# Windows supplies the same mapping using Restart Manager's read-only owner query.
+if [ "${INYON_CODEX_THREADS+x}" = x ]; then
+  printf '%s\n' "$INYON_CODEX_THREADS"
+else
+  codex_pids=$(pgrep -f codex 2>/dev/null)
+  if [ -d /proc/self/fd ]; then
+    for p in $codex_pids; do
+      for fd in /proc/$p/fd/*; do
+        l=$(readlink "$fd" 2>/dev/null)
+        case "$l" in */thread-writer-locks/*.lock) echo "$p $(basename "$l" .lock)";; esac
+      done
+    done
+  elif [ -n "$codex_pids" ]; then
+    lsof -a -p "$(printf '%s' "$codex_pids" | tr '\n' ',')" -Fn 2>/dev/null | awk '
+      /^p[0-9]+$/ { p=substr($0,2) }
+      /^n.*\/thread-writer-locks\/.*\.lock$/ { n=$0; sub(/^.*\//,"",n); sub(/\.lock$/,"",n); print p, n }'
+  fi
+fi
 echo "@@AGY"
 # each Antigravity CLI holds ~/.gemini/antigravity-cli/presence/<conversation>.lock open; the newest fd wins
 agy_ids=""
@@ -1134,6 +1170,14 @@ mod tests {
         let proc = CodexProc { pid: 4242, cwd: cwds.get(&4242).cloned(), started_at: 1000.0, ..Default::default() };
         let rows = vec![CodexRollout { path: "/s/rollout-a.jsonl".into(), id: Some("a".into()), cwd: Some("/home/u/wt/review".into()), created: 1010.0, mtime: 2000.0 }];
         assert_eq!(pick_codex_rollout(&rows, &proc, std::slice::from_ref(&proc), &HashMap::new()), Some("/s/rollout-a.jsonl".into()));
+    }
+
+    #[test]
+    fn codex_writer_locks_identify_a_unique_live_tui_but_not_a_shared_daemon() {
+        let out = "@@HOST box\n@@PS\n7 1 10 codex codex\n8 1 10 codex codex app-server\n@@CODEX\n7 00000000-0000-0000-0000-000000000001\n8 00000000-0000-0000-0000-000000000002\n8 00000000-0000-0000-0000-000000000003\n9 00000000-0000-0000-0000-000000000004\n@@END\n";
+        let p = parse_probe(out, "", 0, 0.0).unwrap();
+        assert_eq!(p.codex_threads.len(), 1);
+        assert_eq!(p.codex_threads.get(&7).map(String::as_str), Some("00000000-0000-0000-0000-000000000001"));
     }
 
     #[test]

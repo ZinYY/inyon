@@ -27,7 +27,7 @@ use super::node_update::node_updates;
 use super::turns::{Shown, Turns};
 use crate::agents::antigravity::{agy_status, agy_transcript};
 use crate::agents::claude_usage::{fetch_claude_usage, AccountUsage};
-use crate::agents::codex::{codex_empty_conversation, codex_footer_title, codex_title, find_codex_rollout, read_codex_status, CodexProc};
+use crate::agents::codex::{codex_empty_conversation, codex_footer_title, codex_title, find_codex_rollout, find_codex_thread_rollout, read_codex_status, CodexProc};
 use crate::agents::codex_limits;
 use crate::agents::copilot::{find_copilot_session, CopilotProc};
 use crate::agents::gemini::{find_gemini_session, GeminiProc};
@@ -1219,13 +1219,14 @@ impl Registry {
         live: Rc<RefCell<HashSet<i64>>>,
     ) -> HubResult<PaneInfo> {
         let host_id = host.id();
-        let (proc, hook, home, agy_conversation, parked) = {
+        let (proc, hook, home, agy_conversation, parked, codex_thread) = {
             let pr = pr.borrow();
             let proc = pr.agent_procs.get(&p.id).cloned().expect("an agent pane");
             let conv = pr.agy_conversations.get(&(proc.pid as i64)).cloned();
             let parked = pr.claude_parked.get(&(proc.pid as i64)).cloned().filter(|_| proc.kind == AgentKind::Claude);
             let kind = proc.kind;
-            (proc, pr.hook_panes.get(&p.id).filter(|h| h.from_agent(kind)).cloned(), Some(pr.home.clone()).filter(|h| !h.is_empty()), conv, parked)
+            let codex_thread = pr.codex_threads.get(&(proc.pid as i64)).cloned();
+            (proc, pr.hook_panes.get(&p.id).filter(|h| h.from_agent(kind)).cloned(), Some(pr.home.clone()).filter(|h| !h.is_empty()), conv, parked, codex_thread)
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
@@ -1292,8 +1293,9 @@ impl Registry {
             let stale = match &cached {
                 None => true,
                 Some(c) => {
-                    let keep = if c.path.as_deref().is_some_and(|x| !x.is_empty() && x != OCDB) { 15000 } else { 2000 };
+                    let keep = if proc.kind != AgentKind::Codex && c.path.as_deref().is_some_and(|x| !x.is_empty() && x != OCDB) { 15000 } else { 2000 };
                     now_ms().saturating_sub(c.at) > keep || (matches!(proc.kind, AgentKind::Opencode | AgentKind::Codex) && c.title != p.title)
+                        || codex_thread.as_ref().is_some_and(|id| c.path.as_deref().is_none_or(|path| crate::agents::codex_live::codex_thread_id(path) != *id))
                 }
             };
             let cached = if stale {
@@ -1305,11 +1307,16 @@ impl Registry {
                         found.0
                     }
                     AgentKind::Codex => {
-                        let resume = (!rt.borrow().codex_cleared.contains(&pid)).then(|| proc.resume.clone()).flatten();
-                        let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume, title: Some(p.title.clone()) };
-                        let found = find_codex_rollout(host, home, &me, &codex_procs).await?;
-                        by = if found.as_ref().is_some_and(|path| me.resume.as_ref().is_some_and(|id| path.contains(id))) { MappedBy::Resume } else { MappedBy::Cwd };
-                        found
+                        if let Some(id) = codex_thread.as_deref() {
+                            by = MappedBy::Process;
+                            find_codex_thread_rollout(host, home, id).await?
+                        } else {
+                            let resume = (!rt.borrow().codex_cleared.contains(&pid)).then(|| proc.resume.clone()).flatten();
+                            let me = CodexProc { pid, cwd: proc.cwd.clone(), started_at: proc.started_at, resume, title: Some(p.title.clone()) };
+                            let found = find_codex_rollout(host, home, &me, &codex_procs).await?;
+                            by = if found.as_ref().is_some_and(|path| me.resume.as_ref().is_some_and(|id| path.contains(id))) { MappedBy::Resume } else { MappedBy::Cwd };
+                            found
+                        }
                     }
                     AgentKind::Gemini => find_gemini_session(host, home, &GeminiProc { cwd: proc.cwd.clone(), started_at: proc.started_at }).await?,
                     AgentKind::Copilot => find_copilot_session(host, home, &CopilotProc { pid, resume: proc.resume.clone() }).await?,
@@ -1322,6 +1329,9 @@ impl Registry {
                         }
                     },
                 };
+                if proc.kind == AgentKind::Codex && cached.as_ref().is_some_and(|c| c.path != path) {
+                    rt.borrow_mut().status_cache.remove(&pid);
+                }
                 let c = Mapped { path, by, at: now_ms(), title: p.title.clone() };
                 rt.borrow_mut().cwd_map.insert(pid, c.clone());
                 c

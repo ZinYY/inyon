@@ -262,6 +262,7 @@ fn probe(agent_procs: IndexMap<String, AgentProc>) -> ProbeResult {
         installed: vec![],
         signed_in: vec![],
         agy_conversations: IndexMap::new(),
+        codex_threads: IndexMap::new(),
         agy_status: IndexMap::new(),
         agy_titles: IndexMap::new(),
         agy_integration: None,

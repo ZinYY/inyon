@@ -17,6 +17,8 @@ pub mod link;
 pub mod networks;
 pub mod ops;
 mod psmux;
+#[cfg(windows)]
+mod codex_identity;
 pub mod output;
 pub mod paths;
 pub mod push;

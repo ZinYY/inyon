@@ -924,3 +924,24 @@ fn current_codex_title_wins_over_a_startup_resume_flag_after_an_in_process_switc
     let older = CodexRollout { created: 50.0, ..rows[1].clone() };
     assert_eq!(pick_codex_rollout(&[rows[0].clone(), older], &proc, std::slice::from_ref(&proc), &names), Some("/s/new.jsonl".into()));
 }
+
+#[test]
+fn an_active_thread_identity_follows_rewinds_without_claiming_a_same_folder_fork() {
+    use crate::test_support::sandbox::Sandbox;
+    use crate::test_support::{host, rt, TempDir};
+    let root = TempDir::new("codex-identity-");
+    let parent = "00000000-0000-0000-0000-000000000001";
+    let child = "00000000-0000-0000-0000-000000000002";
+    let day = ".codex/sessions/2026/11/04";
+    let original = format!("{day}/rollout-2026-11-04T00-00-00-{parent}.jsonl");
+    let segment = format!("{day}/rollout-2026-11-04T00-01-00-{parent}_00000000-0000-0000-0000-000000000003.jsonl");
+    let fork = format!("{day}/rollout-2026-11-04T00-02-00-{child}.jsonl");
+    for path in [&original, &segment, &fork] { root.write(path, "{}\n"); }
+    rt::run(|| async {
+        Sandbox::install(&root.s());
+        let h = host("local", "local");
+        assert_eq!(find_codex_thread_rollout(&h, &root.s(), parent).await.unwrap(), Some(root.path(&segment).to_string_lossy().into_owned()));
+        assert_eq!(find_codex_thread_rollout(&h, &root.s(), child).await.unwrap(), Some(root.path(&fork).to_string_lossy().into_owned()));
+        assert_eq!(find_codex_thread_rollout(&h, &root.s(), "00000000-0000-0000-0000-000000000004").await.unwrap(), None);
+    });
+}

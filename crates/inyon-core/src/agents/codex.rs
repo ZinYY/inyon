@@ -1094,6 +1094,18 @@ pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, other
     Ok(pick_codex_rollout(&rows, proc, others, &names))
 }
 
+/// Resolve an identity held by the running TUI, including every later rewind segment.
+/// No title or folder fallback is allowed when this identity is available.
+pub async fn find_codex_thread_rollout(host: &Host, home: &str, id: &str) -> HubResult<Option<String>> {
+    if !re!(r"^[0-9a-f-]{36}$").is_match(id) { return Ok(None); }
+    let cmd = format!(
+        r#"find {} \( -name {} -o -name {} \) 2>/dev/null | while read -r f; do printf '%s\t%s\n' "$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")" "$f"; done | sort -nr | head -n 1 | cut -f 2-"#,
+        shq(&format!("{home}/.codex/sessions")), shq(&format!("rollout-*-{id}.jsonl")), shq(&format!("rollout-*-{id}_*.jsonl")),
+    );
+    let r = host.run(&cmd).await?;
+    Ok((r.code == 0 && !r.stdout.jtrim().is_empty()).then(|| r.stdout.jtrim().to_owned()))
+}
+
 /// `codexHistory(host, path)`: the earlier lines to replay before a segment, following bases of
 /// bases, oldest first.
 pub fn codex_history<'a>(host: &'a Host, path: &'a str, _depth: u32) -> futures_util::future::LocalBoxFuture<'a, HubResult<Vec<String>>> {
