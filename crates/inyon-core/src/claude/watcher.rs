@@ -203,6 +203,9 @@ struct State {
     /// A Codex thread rewound earlier continues an older segment file. Opened on its last stretch,
     /// those earlier lines wait here until scrolling back reaches the start of this file.
     held_history: Option<Vec<String>>,
+    /// Earlier Codex segments may precede a cached/trimmed first item. Resolve them again
+    /// at the file boundary; the raw held history is intentionally not stored on disk.
+    history_pending: bool,
     ready: bool,
     /// Reading a backlog (what was said while nobody watched): updates are held back and one reset
     /// brings the result, so the chat doesn't replay hours of messages and passing states (a goal
@@ -306,6 +309,7 @@ impl ChatWatcher {
                 replays: 0,
                 codex: false,
                 held_history: None,
+                history_pending: false,
                 ready: false,
                 behind: None,
                 goal_unsure: false,
@@ -495,6 +499,7 @@ impl ChatWatcher {
         st.meta = p.meta;
         st.info = ChatInfo { goal: None, ..p.info };
         st.older_from = p.older;
+        st.history_pending = p.codex && p.older.is_some();
         st.goal_unsure = true;
         st.ready = true;
         st.tail_lost = true;
@@ -922,6 +927,9 @@ impl ChatWatcher {
                     }
                 }
                 let gone: Vec<ChatItem> = st.items.drain(..cut).collect();
+                if st.codex {
+                    st.history_pending = true;
+                }
                 for it in gone {
                     st.line_at.remove(&it.seq());
                 }
@@ -1089,7 +1097,18 @@ impl ChatWatcher {
             end = lines[0].1;
         }
         // the start of a Codex segment file: what the thread said before its rewind comes first
-        let held = if end == 0 { self.st.borrow_mut().held_history.take().filter(|h| !h.is_empty()) } else { None };
+        let pending = end == 0 && codex && self.st.borrow().history_pending;
+        let held = if pending {
+            let held = self.st.borrow_mut().held_history.take();
+            match held {
+                Some(lines) => Some(lines),
+                None => {
+                    let Ok(host) = self.host() else { return };
+                    let Ok(lines) = codex_history(&host, &path, 0).await else { return };
+                    Some(lines)
+                }
+            }
+        } else { None };
         if let Some(held) = held {
             let mut meta = new_meta();
             let mut got = vec![];
@@ -1098,6 +1117,13 @@ impl ChatWatcher {
                     for d in normalize_codex(&e, &mut meta) {
                         got.push((d, 0));
                     }
+                }
+            }
+            // A disk cache can already contain the end of the previous segments. Stable
+            // record IDs identify that boundary without duplicating those messages.
+            if let Some(first) = self.st.borrow().items.first() {
+                if let Some(at) = got.iter().position(|(item, _)| item.uuid() == first.uuid()) {
+                    got.truncate(at);
                 }
             }
             got.append(&mut older);
@@ -1117,6 +1143,9 @@ impl ChatWatcher {
         items.append(&mut st.items);
         st.items = items;
         st.older_from = Some(end);
+        if pending {
+            st.history_pending = false;
+        }
         st.tail_start = false;
     }
 
@@ -1768,6 +1797,7 @@ impl ChatWatcher {
             st.replay = None;
             st.goal_unsure = false;
             st.held_history = None;
+            st.history_pending = false;
         }
         self.stop_live();
     }
@@ -1896,6 +1926,7 @@ impl ChatWatcher {
                 st.seq = 0;
                 st.reader = Some(TranscriptReader::new(0));
                 st.codex = codex;
+                st.history_pending = codex;
             }
             // a Codex segment file starts after a rewind: the history it continues comes first
             let history = if codex { codex_history(&host, &path, 0).await.unwrap_or_default() } else { vec![] };
@@ -2616,7 +2647,7 @@ fn older_in_file(st: &State) -> bool {
         return false;
     }
     if let Some(o) = st.older_from {
-        return o > 0 || st.held_history.as_ref().is_some_and(|h| !h.is_empty());
+        return o > 0 || st.history_pending;
     }
     let first = st.items.first().map_or(0, ChatItem::seq);
     first > 0 && first < TAIL_SEQ

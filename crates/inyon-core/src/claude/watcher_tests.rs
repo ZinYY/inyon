@@ -39,6 +39,67 @@ impl Phone {
 
 const KEY: &str = "draft-test:%9";
 
+#[test]
+fn cached_codex_segments_keep_their_earlier_pages_after_restart_without_duplicate_items() {
+    run(|| async {
+        let path = "/home/test/.codex/sessions/current.jsonl";
+        let previous = "/home/test/.codex/sessions/rollout-00000000-0000-0000-0000-000000000001.jsonl";
+        let record = |n: usize| json!({"timestamp":"2026-11-03T00:00:00Z","type":"response_item","payload":{"id":format!("record-{n}"),"type":"message","role":"user","content":[{"type":"input_text","text":format!("message {n}")}]}});
+        let history = (0..360).map(|n| stringify(&record(n)) + "\n").collect::<String>();
+        let header = stringify(&json!({"type":"session_meta","payload":{"history_base":{"thread_id":"00000000-0000-0000-0000-000000000001","end_byte_offset":history.len()}}}));
+        let root_header = stringify(&record(0));
+        let _fake = Fake::install(move |_, command, _| {
+            if command == crate::agents::codex::codex_history_head_command(path) { return ok(&header); }
+            if command.starts_with("find ") { return ok(previous); }
+            if command == crate::agents::codex::codex_history_head_command(previous) { return ok(&root_header); }
+            if command.starts_with("head -c ") { return ok(&history); }
+            ok("")
+        });
+        machine("history-cache-test", "local", json!([{ "id": "%9", "agent": { "kind": "codex", "pid": 7, "state": "idle" } }])).borrow_mut().hold_polls();
+        let w = watchers().get("history-cache-test", "%9");
+        let mut meta = new_meta();
+        let items = (350..=360).flat_map(|n| normalize_codex(&record(n), &mut meta)).enumerate().map(|(n, item)| with_seq(item, 1000 + n as i64)).collect();
+        {
+            let mut st = w.st.borrow_mut();
+            st.transcript = Some(path.into());
+            st.reader = Some(TranscriptReader::new(100));
+            st.codex = true;
+            st.agent = Some(AgentKind::Codex);
+            st.items = items;
+            st.seq = 1011;
+            st.older_from = Some(0);
+            st.ready = true;
+        }
+        // A hub restart loses held_history, but the disk cache must still advertise earlier pages.
+        w.save();
+        w.restart();
+        w.load_cached();
+        assert!(w.older_in_file());
+        assert!(w.st.borrow().held_history.is_none());
+        let phone = Rc::new(Phone::default());
+        let sub: Sub = phone.clone();
+        let mut before = w.items()[0].seq();
+        loop {
+            w.more(&sub, before).await;
+            let message = phone.got.borrow().last().cloned().unwrap();
+            let ServerMsg::ChatMore { items, has_more, .. } = message else { panic!("history page expected") };
+            assert!(!items.is_empty());
+            before = items[0].seq();
+            if !has_more { break; }
+        }
+        assert_eq!(texts(&w), (0..=360).map(|n| format!("message {n}")).collect::<Vec<_>>());
+        assert!(!w.older_in_file());
+        // In-memory parking also loses the raw history; resolving it again adds no duplicates.
+        let parked = w.park().unwrap();
+        w.restart();
+        w.unpark(parked);
+        w.more(&sub, w.items()[0].seq()).await;
+        assert_eq!(w.items().len(), 361);
+        assert!(!w.older_in_file());
+        watchers().stop("history-cache-test:%9");
+    });
+}
+
 fn draft_box() -> (Rc<Fake>, Rc<ChatWatcher>) {
     let fake = Fake::install(|_, _, _| ok(""));
     machine("draft-test", "local", json!([{ "id": "%9", "agent": { "kind": "claude", "pid": 7, "state": "idle" } }]));

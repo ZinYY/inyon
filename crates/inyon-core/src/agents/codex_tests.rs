@@ -330,6 +330,36 @@ fn a_rewound_codex_thread_replays_the_kept_part_of_each_earlier_segment_oldest_f
     });
 }
 
+#[test]
+fn codex_history_crosses_more_than_seven_segments_and_rejects_a_broken_chain() {
+    use crate::test_support::sandbox::Sandbox;
+    use crate::test_support::{host, rt, TempDir};
+    let root = TempDir::new("codex-history-");
+    let mut previous = String::new();
+    let mut previous_bytes = 0;
+    let mut last = String::new();
+    for n in 0..12 {
+        let id = format!("00000000-0000-0000-0000-{n:012}");
+        let base = if n == 0 { Value::Null } else { json!({"end_byte_offset": previous_bytes, "thread_id":previous}) };
+        // A large metadata line and reordered fields must not hide the history link.
+        let header = json!({"type":"session_meta","payload":{"base_instructions":{"text":"x".repeat(210_000)},"history_base":base}});
+        let body = stringify(&header) + "\n" + &stringify(&json!({"type":"event_msg","payload":{"n":n}})) + "\n";
+        last = format!("sessions/2026/11/03/rollout-{id}.jsonl");
+        root.write(&last, &body);
+        previous = id;
+        previous_bytes = body.len();
+    }
+    rt::run(|| async {
+        Sandbox::install(&root.s());
+        let last = root.path(&last).to_string_lossy().into_owned();
+        let lines = codex_history(&host("local", "local"), &last, 0).await.unwrap();
+        let numbers: Vec<u64> = lines.iter().filter_map(|line| serde_json::from_str::<Value>(line).unwrap()["payload"]["n"].as_u64()).collect();
+        assert_eq!(numbers, (0..11).collect::<Vec<_>>());
+        std::fs::remove_file(root.path("sessions/2026/11/03/rollout-00000000-0000-0000-0000-000000000005.jsonl")).unwrap();
+        assert!(codex_history(&host("local", "local"), &last, 0).await.is_err());
+    });
+}
+
 /// From agents/discovery.test.ts: a Codex conversation is found under a home whose path has a space
 #[test]
 fn a_codex_conversation_is_found_under_a_home_whose_path_has_a_space() {

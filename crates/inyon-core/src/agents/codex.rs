@@ -142,13 +142,18 @@ pub fn codex_rollouts(stdout: &str) -> (Vec<CodexRollout>, HashMap<String, Strin
 /// history_base {thread_id, end_byte_offset}. This reads that from the segment's first line;
 /// `codexHistory` follows bases of bases with the commands below.
 pub fn codex_history_base(first_line: &str) -> Option<(String, u64)> {
-    let m = re!(r#""history_base":\{"thread_id":"([0-9a-f-]{36})"[^}]*?"end_byte_offset":(\d+)"#).captures(first_line)?;
-    Some((m[1].to_owned(), to_number(&m[2]) as u64))
+    let line: Value = serde_json::from_str(first_line.lines().next()?).ok()?;
+    let base = line.get("payload").and_then(|p| p.get("history_base")).or_else(|| line.get("history_base"))?;
+    let id = base.get("thread_id")?.as_str()?;
+    if !re!(r"^[0-9a-f-]{36}$").is_match(id) {
+        return None;
+    }
+    Some((id.to_owned(), base.get("end_byte_offset")?.as_u64()?))
 }
 
 /// The command that prints a rollout's first line (where its history_base is).
 pub fn codex_history_head_command(path: &str) -> String {
-    format!("head -c 200000 {} 2>/dev/null | head -n 1", shq(path))
+    format!("head -n 1 {}", shq(path))
 }
 
 /// The command that finds the file a segment continues: the thread's first file ends
@@ -1043,22 +1048,34 @@ pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, other
 
 /// `codexHistory(host, path)`: the earlier lines to replay before a segment, following bases of
 /// bases, oldest first.
-pub fn codex_history<'a>(host: &'a Host, path: &'a str, depth: u32) -> futures_util::future::LocalBoxFuture<'a, HubResult<Vec<String>>> {
+pub fn codex_history<'a>(host: &'a Host, path: &'a str, _depth: u32) -> futures_util::future::LocalBoxFuture<'a, HubResult<Vec<String>>> {
     Box::pin(async move {
-        if depth > 6 {
-            return Ok(vec![]);
+        use crate::hosts::http_error::HubError;
+        let mut current = path.to_owned();
+        let mut seen = std::collections::HashSet::new();
+        let mut segments = vec![];
+        loop {
+            if !seen.insert(current.clone()) {
+                return Err(HubError::plain("Codex history contains a segment cycle"));
+            }
+            let head = host.run(&codex_history_head_command(&current)).await?;
+            if head.code != 0 || serde_json::from_str::<Value>(head.stdout.lines().next().unwrap_or("")).is_err() {
+                return Err(HubError::plain("Could not read Codex history metadata"));
+            }
+            let Some((id, offset)) = codex_history_base(&head.stdout) else { break };
+            let r = host.run(&codex_history_find_command(&current, &id)).await?;
+            let prev = r.stdout.jtrim().to_owned();
+            if prev.is_empty() {
+                return Err(HubError::plain("A referenced Codex history segment is missing"));
+            }
+            let body = host.exec(&codex_history_body_command(&prev, offset), crate::hosts::host::ExecOptions::timeout(30000)).await?;
+            if body.code != 0 || body.stdout.len() as u64 != offset {
+                return Err(HubError::plain("A Codex history segment read was incomplete"));
+            }
+            segments.push(body.stdout);
+            current = prev;
         }
-        let head = host.run(&codex_history_head_command(path)).await?;
-        let Some((id, offset)) = codex_history_base(&head.stdout) else { return Ok(vec![]) };
-        let r = host.run(&codex_history_find_command(path, &id)).await?;
-        let prev = r.stdout.jtrim().to_owned();
-        if prev.is_empty() {
-            return Ok(vec![]);
-        }
-        let body = host.exec(&codex_history_body_command(&prev, offset), crate::hosts::host::ExecOptions::timeout(30000)).await?;
-        let mut out = codex_history(host, &prev, depth + 1).await?;
-        out.extend(body.stdout.split('\n').filter(|l| !l.is_empty()).map(str::to_owned));
-        Ok(out)
+        Ok(segments.into_iter().rev().flat_map(|body| body.split('\n').filter(|l| !l.is_empty()).map(str::to_owned).collect::<Vec<_>>()).collect())
     })
 }
 

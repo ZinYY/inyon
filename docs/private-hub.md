@@ -29,5 +29,5 @@ check still refers to the upstream release channel; use the CLI for private upda
 
 Save an independent backup of the binary and `.inyon` data before deployment. The
 updater rolls back on startup failure, but functional verification is separate.
-Chat cache reader version 4 rebuilds cached transcripts and summaries automatically.
+Chat cache reader version 5 rebuilds cached transcripts and summaries automatically.
 No Codex session or transcript needs to be deleted or restarted.
