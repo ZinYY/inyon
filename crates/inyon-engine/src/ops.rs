@@ -374,6 +374,7 @@ enum Handle {
         _stdin: Option<tokio::process::ChildStdin>,
     },
     Pty(Arc<Pty>),
+    Control { input: tokio::sync::mpsc::UnboundedSender<Vec<u8>>, cancel: Mutex<Option<tokio::sync::oneshot::Sender<()>>> },
 }
 
 struct Pty {
@@ -390,6 +391,9 @@ impl Handle {
         match self {
             Handle::Process { pid: Some(pid), .. } => kill_tree(*pid),
             Handle::Process { pid: None, .. } => {}
+            Handle::Control { cancel, .. } => {
+                if let Some(cancel) = cancel.lock().unwrap_or_else(|e| e.into_inner()).take() { let _ = cancel.send(()); }
+            }
             Handle::Pty(p) => {
                 if let Some(pid) = p.pid {
                     kill_tree(pid);
@@ -476,6 +480,10 @@ impl Ops {
             "stream" => self.stream(id, &m),
             "pty" => self.pty(id, &m),
             "write" => {
+                if let Some(Handle::Control { input, .. }) = jobs(&self.running).map.get(&key(&id)) {
+                    let _ = input.send(text(&m, "data").into_bytes());
+                    return;
+                }
                 if let Some(p) = self.pty_of(&id) {
                     let _ = p.input.send(text(&m, "data").into_bytes());
                 }
@@ -575,6 +583,28 @@ impl Ops {
     }
 
     fn pty(&self, id: Value, m: &Value) {
+        if WIN {
+            if let Some(session) = text(m, "cmd").strip_prefix("inyon-psmux-control:") {
+                let session = match serde_json::from_str::<String>(session) {
+                    Ok(s) if crate::psmux::valid_session(&s) => s,
+                    _ => return (self.send)(json!({"id":id,"type":"error","error":"Invalid PSmux session"})),
+                };
+                let (input, keys) = tokio::sync::mpsc::unbounded_channel();
+                let (cancel, stopped) = tokio::sync::oneshot::channel();
+                if !register(&self.running, &id, Handle::Control { input, cancel: Mutex::new(Some(cancel)) }) { return; }
+                let (running, send) = (self.running.clone(), self.send.clone());
+                tokio::spawn(async move {
+                    let result = tokio::select! {
+                        r = crate::psmux::relay(&session, keys, &id, &send) => r,
+                        _ = stopped => Ok(()),
+                    };
+                    jobs(&running).map.remove(&key(&id));
+                    if let Err(e) = result { send(json!({"id":id,"type":"error","error":format!("PSmux: {e}")})); }
+                    else { send(json!({"id":id,"type":"exit","code":0})); }
+                });
+                return;
+            }
+        }
         let size = |k: &str, d: u16| m.get(k).and_then(Value::as_u64).map(|v| v as u16).unwrap_or(d);
         let shell = shell_for(&text(m, "cmd"));
         let pair = match portable_pty::native_pty_system().openpty(portable_pty::PtySize { rows: size("rows", 24), cols: size("cols", 80), pixel_width: 0, pixel_height: 0 }) {
