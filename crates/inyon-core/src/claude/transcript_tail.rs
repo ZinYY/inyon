@@ -142,7 +142,7 @@ pub fn codex_meta_command(path: &str, to: u64, slim: bool, from: u64) -> String 
 /// own on a machine reached over SSH, where closing the connection doesn't stop it.
 pub fn until_stdin_closes(cmd: &str) -> String {
     // a background job's stdin is /dev/null, so it watches the real one through fd 3; once that
-    // closes it stops this shell's other children (tail and awk), and when they end it goes too
+    // closes it stops this shell's other children (tail and the filter), and when they end it goes too
     format!("exec 3<&0; {{ cat <&3; pkill -P $$; }} >/dev/null 2>&1 & w=$!; {cmd}; kill $w 2>/dev/null")
 }
 

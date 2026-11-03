@@ -285,7 +285,6 @@ fn a_dropped_connection_carries_on_from_where_it_stopped_instead_of_reading_it_a
         until!(200, got.texts("chat.reset").len() == 3);
         assert_eq!(got.texts("chat.reset"), ["first", "with a picture", "second"]);
         assert!(here.last().contains("tail -c +1 "));
-        assert!(here.last().contains("awk"));
 
         // the connection drops; more is said meanwhile; it comes back
         w.kill_tail();
