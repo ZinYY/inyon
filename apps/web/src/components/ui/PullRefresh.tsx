@@ -24,27 +24,51 @@ export function PullRefresh({ onRefresh, className, children, scrollKey, restore
     const el = box.current
     if (!el || !scrollKey || !restoreReady) return
     const key = `inyon:scroll:${scrollKey}`
+    let target = 0
     try {
       const top = Number(sessionStorage.getItem(key))
-      if (Number.isFinite(top) && top >= 0) el.scrollTop = top
+      if (Number.isFinite(top) && top >= 0) target = top
     } catch { /* storage may be unavailable */ }
-    let lastTop = el.scrollTop
+    // The first layout can still be shorter than the finished page. Keep the saved
+    // target while the browser clamps scrollTop, instead of overwriting it with that clamp.
+    let lastTop = target
+    let restoring = target > 0
+    let frame = 0
+    let stable = 0
+    const deadline = performance.now() + 1000
     const persist = () => {
       try { sessionStorage.setItem(key, String(lastTop)) } catch { /* keep scrolling */ }
     }
     const save = () => {
+      if (restoring) return
       lastTop = el.scrollTop
       persist()
     }
+    const stopRestoring = () => {
+      restoring = false
+      cancelAnimationFrame(frame)
+      save()
+    }
+    const restore = () => {
+      if (!restoring) return
+      el.scrollTop = target
+      stable = Math.abs(el.scrollTop - target) < 1 ? stable + 1 : 0
+      if (stable >= 2 || performance.now() >= deadline) stopRestoring()
+      else frame = requestAnimationFrame(restore)
+    }
+    el.scrollTop = target
+    if (restoring) frame = requestAnimationFrame(restore)
     el.addEventListener('scroll', save, { passive: true })
-    el.addEventListener('pointerdown', save, { passive: true })
-    window.addEventListener('pagehide', save)
+    // Any deliberate interaction wins over a pending automatic restoration.
+    for (const type of ['pointerdown', 'wheel', 'touchstart', 'keydown']) el.addEventListener(type, stopRestoring, { passive: true })
+    window.addEventListener('pagehide', stopRestoring)
     return () => {
       // Keep the last live position: route teardown can already have changed this div's layout.
+      cancelAnimationFrame(frame)
       persist()
       el.removeEventListener('scroll', save)
-      el.removeEventListener('pointerdown', save)
-      window.removeEventListener('pagehide', save)
+      for (const type of ['pointerdown', 'wheel', 'touchstart', 'keydown']) el.removeEventListener(type, stopRestoring)
+      window.removeEventListener('pagehide', stopRestoring)
     }
   }, [scrollKey, restoreReady])
 
