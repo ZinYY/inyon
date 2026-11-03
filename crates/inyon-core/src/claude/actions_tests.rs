@@ -636,7 +636,8 @@ fn ultracode_not_a_claude_pane_refused_before_anything_is_typed() {
 const FORK_ID: &str = "0b6e2a52-3c1d-4f7a-9e44-5d1f0c2b7a19";
 
 fn fork_host() -> Rc<Fake> {
-    Fake::install(|_, cmd, _| -> ExecResult {
+    let launched = Rc::new(std::cell::Cell::new(false));
+    Fake::install(move |_, cmd, _| -> ExecResult {
         if cmd.starts_with("test -s") {
             return ok("yes\n");
         }
@@ -644,8 +645,10 @@ fn fork_host() -> Rc<Fake> {
             return ok("%9\n");
         }
         if cmd.contains("capture-pane") {
+            if launched.get() { return ok("@@CAP %9\n──────────────────────────────\n❯ \n──────────────────────────────\n"); }
             return ok("@@CAP %9\nuser@box ~/app $ \n");
         }
+        if cmd.contains("send-keys") && cmd.contains("--fork-session") { launched.set(true); }
         if cmd.contains("/cmdline") {
             let bin = if cmd.contains("/41/") { "codex" } else { "claude" };
             return ok(&format!("/usr/bin/node\n/home/u/.local/bin/{bin}\n--model\nopus\n"));
@@ -673,6 +676,7 @@ fn a_claude_conversation_forks_into_a_new_window_same_folder_and_flags() {
         assert_eq!(fake.cmds().into_iter().find(|c| c.contains("new-window")).unwrap(), "tmux new-window -t 'work' -c '/home/u/app' -P -F '#{pane_id}'");
         let t = typed(&fake);
         assert!(t.contains(&format!("-t '%9' -l -- 'claude --resume {FORK_ID} '--model' 'opus' --fork-session'")), "{t}");
+        assert!(t.contains("/rename "), "the native rename must flush the inherited history: {t}");
     });
 }
 

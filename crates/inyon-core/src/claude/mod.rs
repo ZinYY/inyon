@@ -22,3 +22,5 @@ pub mod transcript;
 pub mod transcript_tail;
 pub mod titles;
 pub mod watcher;
+
+mod branch;

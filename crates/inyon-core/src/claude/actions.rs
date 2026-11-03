@@ -2215,6 +2215,26 @@ async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
     }
 }
 
+/// Claude initially keeps a --fork-session history only in memory. Reaffirming its inherited
+/// name through the native command flushes that history without sending a model prompt or
+/// writing Claude's JSONL ourselves. Never type through a question or over a user's draft.
+async fn materialize_claude_fork(host: &Host, pane: &str, width: Option<u32>, title: &str) {
+    for _ in 0..40 {
+        sleep(250).await;
+        let Ok(caps) = capture_panes(host, &[pane.to_owned()]).await else { return };
+        let lines = caps.get(pane).map(Vec::as_slice).unwrap_or(&[]);
+        let s = parse_screen(lines, width, AgentKind::Claude);
+        if s.prompt.is_some() { return; }
+        if s.input_visible == Some(true) && !s.working {
+            if s.draft.as_deref().is_none_or(str::is_empty) {
+                let name = re!(r"\s+", "g").replace_all(title, " ");
+                let _ = type_into(host, pane, &format!("/rename {}", name.jtrim().to16(80)), true).await;
+            }
+            return;
+        }
+    }
+}
+
 pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String> {
     require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
@@ -2244,7 +2264,15 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         }
     };
     let cmd = match a.kind {
-        AgentKind::Claude => format!("{} --fork-session", resume(AgentKind::Claude).await),
+        AgentKind::Claude => {
+            let status = watchers().peek(host_id, pane_id).and_then(|w| w.info().status).or(a.status.clone());
+            let mut cmd = format!("{} --fork-session", resume(AgentKind::Claude).await);
+            if let Some(s) = status {
+                if let Some(model) = s.model_id.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --model {}", shq(&model))); }
+                if let Some(effort) = s.effort.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --effort {}", shq(&effort))); }
+            }
+            cmd
+        },
         AgentKind::Codex => re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex).await, 1, "$1 fork ").into_owned(),
         _ => format!("{} --session {session} --fork", AgentKind::Opencode.def().launch),
     };
@@ -2261,6 +2289,11 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     shell_ready(&host, &new_pane, 8000).await?;
     let line = with_bin(&format!("{proxy}{cmd}"), &launch_bin(&host, &a.kind.def().launch).await?);
     type_into(&host, &new_pane, &line, true).await?;
+    if a.kind == AgentKind::Claude {
+        let title = watchers().peek(host_id, pane_id).and_then(|w| w.info().title).unwrap_or_else(|| found.pane.title.clone());
+        let title = bare_title(Some(&title));
+        materialize_claude_fork(&host, &new_pane, width_of(&found.pane), if title.is_empty() { "Forked conversation" } else { &title }).await;
+    }
     registry().refresh(host_id, 1500);
     Ok(new_pane)
 }

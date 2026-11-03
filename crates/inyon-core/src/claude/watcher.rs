@@ -204,6 +204,9 @@ struct State {
     /// A Codex thread rewound earlier continues an older segment file. Opened on its last stretch,
     /// those earlier lines wait here until scrolling back reaches the start of this file.
     held_history: Option<Vec<String>>,
+    claude_branch: Option<super::branch::Branch>,
+    claude_rewind: Option<(String, String)>,
+    claude_start: f64,
     /// Earlier Codex segments may precede a cached/trimmed first item. Resolve them again
     /// at the file boundary; the raw held history is intentionally not stored on disk.
     history_pending: bool,
@@ -313,6 +316,9 @@ impl ChatWatcher {
                 replays: 0,
                 codex: false,
                 held_history: None,
+                claude_branch: None,
+                claude_rewind: None,
+                claude_start: 0.0,
                 history_pending: false,
                 full_read,
                 ready: false,
@@ -1061,7 +1067,8 @@ impl ChatWatcher {
             Err(_) => -1,
         };
         let received = reader.borrow().received();
-        let lines = std::mem::take(&mut *out.borrow_mut());
+        let mut lines = std::mem::take(&mut *out.borrow_mut());
+        if let Some(b) = self.st.borrow().claude_branch.as_ref() { lines.retain(|(e, _)| b.includes(e)); }
         (lines, code == 0 && received == to)
     }
 
@@ -1073,11 +1080,12 @@ impl ChatWatcher {
         let (codex, agent) = self.kind();
         let mut reader = TranscriptReader::new(from);
         let cmd = if codex { codex_meta_command(path, to, self.on_remote_host(), from) } else { meta_command(path, to, self.on_remote_host(), from) };
+        let branch = self.st.borrow().claude_branch.clone();
         let stream = host.stream(
             &cmd,
             move |line| {
                 if let Some(entry) = reader.line(&line).and_then(|r| r.entry) {
-                    Self::normalize_entry(codex, agent, &entry, &mut meta.borrow_mut());
+                    if branch.as_ref().is_none_or(|b| b.includes(&entry)) { Self::normalize_entry(codex, agent, &entry, &mut meta.borrow_mut()); }
                 }
             },
             false,
@@ -1232,7 +1240,9 @@ impl ChatWatcher {
         let acc = Rc::new(RefCell::new(Acc { meta: new_meta(), older: vec![], seq: 0 }));
         let add = {
             let acc = acc.clone();
+            let branch = self.st.borrow().claude_branch.clone();
             move |e: &Value| -> bool {
+                if branch.as_ref().is_some_and(|b| !b.includes(e)) { return true; }
                 let mut a = acc.borrow_mut();
                 let Acc { meta, older, seq } = &mut *a;
                 for d in Self::normalize_entry(codex, agent, e, meta) {
@@ -1328,6 +1338,18 @@ impl ChatWatcher {
         // not the conversation of the one before it
         let proc = proc_of(agent.as_ref());
         let path = agent.as_ref().and_then(|a| a.transcript_path.clone()).filter(|p| !p.is_empty());
+        // /resume can select another branch of the same Claude session without changing its
+        // PID or file. SessionStart is authoritative even when the pathname stays the same.
+        let resumed = agent.as_ref().filter(|a| a.kind == AgentKind::Claude).and_then(|a| {
+            registry().get(&self.host_id).and_then(|r| r.borrow().probe.clone())
+                .and_then(|p| p.borrow().hook_panes.get(&self.pane_id).cloned())
+                .filter(|h| h.event_name() == "SessionStart" && h.data.get("session_id").and_then(Value::as_str) == a.session_id.as_deref())
+        }).is_some_and(|h| {
+            let mut st = self.st.borrow_mut();
+            let changed = h.ts > st.claude_start;
+            st.claude_start = st.claude_start.max(h.ts);
+            changed && h.data.get("source").and_then(Value::as_str) == Some("resume")
+        });
         let (shown, held, tail_lost, transcript) = {
             let st = self.st.borrow();
             (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone())
@@ -1337,11 +1359,11 @@ impl ChatWatcher {
         // necessarily exists. Drop the previous chat now: a slow/failed initial read must not
         // leave it displayed under the new session id until someone forces a reload.
         let switched = path.as_ref().is_some_and(|p| Some(p) != transcript.as_ref());
-        if online && agent.is_some() && held && (switched || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
+        if online && agent.is_some() && held && (switched || resumed || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
             self.forget();
         }
         if let (true, Some(p)) = (online, &path) {
-            if Some(p) != transcript.as_ref() || tail_lost {
+            if Some(p) != transcript.as_ref() || tail_lost || resumed {
                 let (w, p) = (self.rc(), p.clone());
                 spawn(async move { w.follow(p).await });
             }
@@ -1366,6 +1388,8 @@ impl ChatWatcher {
             st.generation += 1;
             st.transcript = None;
             st.reader = None;
+            st.claude_branch = None;
+            st.claude_rewind = None;
             st.items = vec![];
             st.meta = new_meta();
             st.pending = vec![];
@@ -1861,6 +1885,7 @@ impl ChatWatcher {
             st.replay = None;
             st.goal_unsure = false;
             st.held_history = None;
+            st.claude_branch = None;
             st.history_pending = false;
         }
         self.stop_live();
@@ -1943,6 +1968,21 @@ impl ChatWatcher {
             console::log(&format!("[follow] {} {} {path}", if again { "resume" } else { "start" }, self.key));
         }
         let Ok(host) = self.host() else { return };
+        let claude = self.st.borrow().agent == Some(AgentKind::Claude);
+        if claude {
+            let session_start = registry().get(&self.host_id).and_then(|r| r.borrow().probe.clone())
+                .and_then(|p| p.borrow().hook_panes.get(&self.pane_id).cloned())
+                .filter(|h| h.event_name() == "SessionStart").map_or(0.0, |h| h.ts);
+            let selected = super::branch::selection(&self.key, &path, self.st.borrow().proc.as_deref(), session_start);
+            let branch = host.run(&super::branch::command(&path, selected.as_ref())).await.ok()
+                .and_then(|r| serde_json::from_str::<super::branch::Branch>(&r.stdout).ok());
+            if self.stale(gen) { return; }
+            if again && branch.as_ref().is_some_and(|b| b.has_rewind()) {
+                again = false;
+                self.restart();
+            }
+            self.st.borrow_mut().claude_branch = branch;
+        }
         let offset = if again { self.st.borrow().reader.as_ref().map_or(0, |r| r.offset) } else { 0 };
         let Ok(r) = host.run(&size_command(&path, offset)).await else { return };
         let size = parse_size(&r.stdout);
@@ -2107,7 +2147,14 @@ impl ChatWatcher {
             });
         }
         if let Some(e) = r.entry {
-            let items = {
+            let rewind = self.st.borrow_mut().claude_branch.as_mut().is_some_and(|b| b.observe(&e, at));
+            if rewind {
+                let (host, pane) = (self.host_id.clone(), self.pane_id.clone());
+                spawn(async move { yield_now().await; let _ = watchers().reload(&host, &pane); });
+                return;
+            }
+            let included = self.st.borrow().claude_branch.as_ref().is_none_or(|b| b.includes(&e));
+            let items = if !included { vec![] } else {
                 let mut st = self.st.borrow_mut();
                 if st.tail_start {
                     st.older_from = Some(at);
@@ -2611,6 +2658,26 @@ impl ChatWatcher {
                     let _ = w.later(400, |w| w.kick_screen());
                 }
             });
+        }
+        if agent.kind == AgentKind::Claude {
+            let selected = super::branch::confirmation(lines, &self.st.borrow().items);
+            if let Some(selected) = selected {
+                self.st.borrow_mut().claude_rewind = Some(selected);
+            } else if screen.prompt.is_none() && !screen.working {
+                let pending = self.st.borrow_mut().claude_rewind.take();
+                if let Some((before, text)) = pending.filter(|(_, text)| screen.draft.as_deref().is_some_and(|d| squash(d) == squash(text))) {
+                    let state = {
+                        let st = self.st.borrow();
+                        st.transcript.clone().zip(st.proc.clone()).map(|(path, process)| (path, process, st.reader.as_ref().map_or(0, |r| r.offset)))
+                    };
+                    if let Some((path, process, since)) = state {
+                        let _ = text;
+                        super::branch::save_selection(&self.key, path, process, before, since);
+                        watchers().reload(&self.host_id, &self.pane_id)?;
+                        return Ok(());
+                    }
+                }
+            }
         }
         let json = to_json(&screen);
         let changed = {
