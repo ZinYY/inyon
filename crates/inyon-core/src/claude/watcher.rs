@@ -454,6 +454,7 @@ impl ChatWatcher {
     /// has that transcript) carry on from there. Otherwise it's only shown while the machine isn't
     /// answering, if it's this session.
     fn load_cached(&self) {
+        if self.online() && registry().codex_is_empty(&self.host_id, &self.pane_id) { return; }
         let Some(cached) = load_chat(&self.key) else { return };
         let agent = registry().pane_agent(&self.host_id, &self.pane_id);
         if agent.as_ref().and_then(|a| a.session_id.as_deref()).is_some_and(|s| !s.is_empty() && Some(s) != cached.session_id.as_deref()) {
@@ -1322,7 +1323,8 @@ impl ChatWatcher {
             let st = self.st.borrow();
             (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone())
         };
-        if online && agent.is_some() && path.is_none() && proc.is_some() && proc != shown && held {
+        let blank_codex = registry().codex_is_empty(&self.host_id, &self.pane_id);
+        if online && agent.is_some() && path.is_none() && proc.is_some() && (proc != shown || blank_codex) && held {
             self.forget();
         }
         if let (true, Some(p)) = (online, &path) {

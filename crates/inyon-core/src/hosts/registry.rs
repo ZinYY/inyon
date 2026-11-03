@@ -27,7 +27,7 @@ use super::node_update::node_updates;
 use super::turns::{Shown, Turns};
 use crate::agents::antigravity::{agy_status, agy_transcript};
 use crate::agents::claude_usage::{fetch_claude_usage, AccountUsage};
-use crate::agents::codex::{codex_title, find_codex_rollout, read_codex_status, CodexProc};
+use crate::agents::codex::{codex_empty_conversation, codex_title, find_codex_rollout, read_codex_status, CodexProc};
 use crate::agents::codex_limits;
 use crate::agents::copilot::{find_copilot_session, CopilotProc};
 use crate::agents::gemini::{find_gemini_session, GeminiProc};
@@ -217,6 +217,8 @@ pub struct HostRuntime {
     dirty_timer: Option<Timer>,
     /// last screen per agent pane, for deciding whether a restart is safe
     pub screens: HashMap<String, ScreenState>,
+    /// Codex panes whose visible footer confirms a blank/new conversation.
+    pub(crate) empty_codex: HashSet<String>,
     /// when the integration was last put back automatically
     healed_at: Option<u64>,
     /// sessions already resumed automatically (once each, so a failure can't loop)
@@ -264,6 +266,7 @@ impl HostRuntime {
             dirty: IndexSet::new(),
             dirty_timer: None,
             screens: HashMap::new(),
+            empty_codex: HashSet::new(),
             healed_at: None,
             resumed: HashSet::new(),
             rested: HashMap::new(),
@@ -785,6 +788,10 @@ impl Registry {
         TURNS.with(|t| t.borrow_mut().end(&turn_key(host_id, pane_id), now_ms()));
     }
 
+    pub fn codex_is_empty(&self, host_id: &str, pane_id: &str) -> bool {
+        self.get(host_id).is_some_and(|rt| rt.borrow().empty_codex.contains(pane_id))
+    }
+
     /// The agent process found in a pane by the last probe.
     pub fn agent_proc(&self, host_id: &str, pane_id: &str) -> Option<AgentProc> {
         let rt = self.get(host_id)?;
@@ -1116,11 +1123,10 @@ impl Registry {
         let live: Rc<RefCell<HashSet<i64>>> = Rc::default();
         // every Codex on the host, so two in one folder don't claim the same thread
         let codex_procs: Rc<Vec<CodexProc>> = Rc::new(
-            pr.borrow()
-                .agent_procs
-                .values()
-                .filter(|x| x.kind == AgentKind::Codex)
-                .map(|x| CodexProc { pid: x.pid as i64, cwd: x.cwd.clone(), started_at: x.started_at, resume: x.resume.clone(), title: None })
+            agent_panes.iter()
+                .filter_map(|pane| pr.borrow().agent_procs.get(&pane.id).cloned().map(|proc| (pane, proc)))
+                .filter(|(_, x)| x.kind == AgentKind::Codex)
+                .map(|(pane, x)| CodexProc { pid: x.pid as i64, cwd: x.cwd.clone(), started_at: x.started_at, resume: x.resume.clone(), title: Some(pane.title.clone()) })
                 .collect(),
         );
         let work = agent_panes.into_iter().map(|p| self.annotate_pane(rt, &host, pr, p, screens.clone(), codex_procs.clone(), live.clone()));
@@ -1157,6 +1163,7 @@ impl Registry {
         r.cwd_map.retain(|pid, _| live.contains(pid));
         r.status_cache.retain(|pid, _| live.contains(pid));
         r.screens.retain(|id, _| agent_ids.contains(id));
+        r.empty_codex.retain(|id| agent_ids.contains(id));
         Ok(())
     }
 
@@ -1183,6 +1190,18 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
+        let empty_codex = proc.kind == AgentKind::Codex && screens.get(&p.id)
+            .is_some_and(|lines| codex_empty_conversation(lines, &p.title, proc.cwd.as_deref()));
+        {
+            let mut r = rt.borrow_mut();
+            if empty_codex {
+                r.empty_codex.insert(p.id.clone());
+                r.cwd_map.remove(&pid);
+                r.status_cache.remove(&pid);
+            } else {
+                r.empty_codex.remove(&p.id);
+            }
+        }
         let mut info = AgentPaneInfo {
             kind: proc.kind,
             custom: proc.custom.clone(),
@@ -1219,6 +1238,8 @@ impl Registry {
                 info.session_id = Some(id);
                 info.mapped_by = Some(MappedBy::Process);
             }
+        } else if empty_codex {
+            // No transcript exists for this blank thread. Do not borrow an older same-folder chat.
         } else if let Some(home) = home.as_deref().filter(|_| proc.kind.chat()) {
             // a terminal-first agent has no transcript Inyon reads, so none is looked for
             let cached = rt.borrow().cwd_map.get(&pid).cloned();

@@ -847,3 +847,32 @@ fn a_u_escape_takes_four_utf16_units() {
     assert_eq!(js_string("\"a\\nb\\\"c\"", 0).as_deref(), Some("a\nb\"c"));
     assert_eq!(js_string("\"open", 0), None);
 }
+
+#[test]
+fn folder_guesses_cannot_claim_a_thread_resumed_in_another_pane() {
+    let blank = CodexProc { pid: 1, cwd: Some("/work".into()), started_at: 100.0, title: Some("work".into()), ..Default::default() };
+    let resumed = CodexProc { pid: 41, started_at: 1000.0, title: Some("Fix chat history | work".into()), ..blank.clone() };
+    let rows = vec![
+        CodexRollout { path: "/s/original.jsonl".into(), id: Some("thread".into()), cwd: Some("/work".into()), created: 500.0, mtime: 1100.0 },
+        CodexRollout { path: "/s/segment.jsonl".into(), id: Some("thread".into()), cwd: Some("/work".into()), created: 600.0, mtime: 1200.0 },
+    ];
+    let names = HashMap::from([("thread".into(), "Fix chat history".into())]);
+    let peers = [blank.clone(), resumed.clone()];
+    assert_eq!(pick_codex_rollout(&rows, &resumed, &peers, &names), Some("/s/segment.jsonl".into()));
+    assert_eq!(pick_codex_rollout(&rows, &blank, &peers, &names), None);
+    let resumed_by_id = CodexProc { title: None, resume: Some("thread".into()), ..resumed };
+    assert_eq!(pick_codex_rollout(&rows, &blank, &[blank.clone(), resumed_by_id], &HashMap::new()), None);
+}
+
+#[test]
+fn only_a_nameless_zero_context_footer_confirms_a_blank_codex_thread() {
+    let lines = vec!["› An unsent draft".into(), "  GPT-6-Astra xhigh · ~ · Full Access · Context \u{1b}[32m0%\u{1b}[0m used · weekly 63% left".into(), "  ? for shortcuts".into()];
+    assert!(codex_empty_conversation(&lines, "work", Some("/work")));
+    assert!(codex_empty_conversation(&lines, "codex", Some("/work")));
+    assert!(!codex_empty_conversation(&lines, "Small conversation | work", Some("/work")));
+    assert!(!codex_empty_conversation(&["Context 56% used".into()], "work", Some("/work")));
+    assert!(!codex_empty_conversation(&[], "work", Some("/work")));
+    let mut output = vec!["Quoted output: Context 0% used".into()];
+    output.extend((0..10).map(|_| "more conversation output".into()));
+    assert!(!codex_empty_conversation(&output, "work", Some("/work")));
+}

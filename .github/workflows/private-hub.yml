@@ -118,4 +118,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Preserve live model, effort, context and cost after local Claude commands such as rename. Only conversational activity can mark a status line as stalled. Includes the PSmux parity fixes from 0.24.15.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep blank Codex panes empty, discard stale Chat caches after /new, and prevent folder matching from claiming a conversation already identified in another pane. Includes the Windows PSmux parity fixes.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

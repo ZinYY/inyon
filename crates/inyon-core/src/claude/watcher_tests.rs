@@ -684,3 +684,49 @@ fn after_its_turn_the_screens_copy_waits_for_the_record_then_goes_on_its_own() {
         watchers().stop("live-wait:%6");
     });
 }
+
+fn blank_codex_same_process() {
+    let rt = machine(
+        "new-agent-test", "local",
+        json!([{ "id": "%5", "title": "work", "width": 100, "agent": { "kind": "codex", "pid": 100, "startedAt": 1000, "state": "idle" } }]),
+    );
+    let mut r = rt.borrow_mut();
+    r.hold_polls();
+    r.empty_codex.insert("%5".into());
+}
+
+#[test]
+fn a_blank_codex_thread_discards_old_chat_even_when_the_process_is_unchanged() {
+    run(|| async {
+        let _fake = Fake::install(|_, _, _| ok(""));
+        fresh_new_agent();
+        let w = chat_of_first();
+        w.st.borrow_mut().info.session_id = Some("other-panes-thread".into());
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        blank_codex_same_process();
+        phone.got.borrow_mut().clear();
+        w.sync();
+        assert!(texts(&w).is_empty());
+        assert!(w.info().session_id.is_none());
+        assert!(w.info().transcript_path.is_none());
+        assert!(phone.got.borrow().iter().any(|m| matches!(m, ServerMsg::ChatReset { items, .. } if items.is_empty())));
+        watchers().stop(NEW_KEY);
+    });
+}
+
+#[test]
+fn reopening_a_blank_codex_thread_does_not_revive_parked_or_persisted_history() {
+    run(|| async {
+        let _fake = Fake::install(|_, _, _| ok(""));
+        for from in ["recently closed", "saved copy"] {
+            fresh_new_agent();
+            chat_of_first().save();
+            watchers().stop(NEW_KEY);
+            if from == "saved copy" { WATCHERS.with(|w| w.parked.borrow_mut().shift_remove(NEW_KEY)); }
+            blank_codex_same_process();
+            assert_eq!((from, texts(&watchers().get("new-agent-test", "%5"))), (from, vec![]));
+            watchers().stop(NEW_KEY);
+        }
+    });
+}

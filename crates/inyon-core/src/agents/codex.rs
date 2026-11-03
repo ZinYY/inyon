@@ -81,7 +81,18 @@ pub fn pick_codex_rollout(rows: &[CodexRollout], proc: &CodexProc, others: &[Cod
         }
     }
     let rivals: Vec<&CodexProc> = others.iter().filter(|o| o.pid != proc.pid && o.cwd == proc.cwd && o.started_at > proc.started_at).collect();
-    let owned = mine.into_iter().filter(|r| !rivals.iter().any(|o| o.started_at - 5.0 <= r.created));
+    // A resumed thread can predate its current process. Its explicit identity in another pane
+    // outranks this pane's folder/time guess, for every segment of the thread.
+    let owned = mine.into_iter().filter(|r| {
+        let claimed = others.iter().filter(|o| o.pid != proc.pid).any(|o| {
+            if o.resume.as_deref().filter(|s| !s.is_empty()).is_some_and(|s| r.id.as_deref() == Some(s) || r.path.contains(s)) {
+                return true;
+            }
+            let name = o.title.as_deref().map(|t| codex_title(t, o.cwd.as_deref())).unwrap_or_default();
+            o.cwd.as_deref() == r.cwd.as_deref() && !name.is_empty() && r.id.as_ref().and_then(|id| names.get(id)) == Some(&name)
+        });
+        !claimed && !rivals.iter().any(|o| o.started_at - 5.0 <= r.created)
+    });
     newest(owned).map(|r| r.path.clone())
 }
 
@@ -525,6 +536,15 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
     } else {
         name
     }
+}
+
+/// A blank/new Codex thread has no name and a zero-use footer, even if the same TUI process
+/// previously held a conversation. A draft does not change that identity. Never infer emptiness
+/// from a generic title alone: older clients may not set conversation titles.
+pub fn codex_empty_conversation(lines: &[String], title: &str, cwd: Option<&str>) -> bool {
+    if !codex_title(title, cwd).is_empty() { return false; }
+    let footer = lines.iter().rev().take(8).map(|s| crate::claude::screen::unstyle(s).text).collect::<Vec<_>>().join(" ");
+    re!(r"\bContext\s+0%\s+used\b", "i").is_match(&footer)
 }
 
 /// "@@ -2 +2,5 @@\n ctx\n+new" → hunks with their line numbers.
