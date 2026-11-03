@@ -65,12 +65,11 @@ pub fn pick_codex_rollout(rows: &[CodexRollout], proc: &CodexProc, others: &[Cod
     let since = proc.started_at - 5.0;
     let here: Vec<&CodexRollout> = rows.iter().filter(|r| cwd.is_none() || r.cwd.as_deref() == cwd).collect();
     let mine: Vec<&CodexRollout> = here.iter().copied().filter(|r| r.created >= since).collect();
-    // a thread picked with /resume was made before the process started, but is written since; only
-    // its name (Codex names every thread) tells it from one a Codex outside tmux is writing
-    let touched: Vec<&CodexRollout> = here.iter().copied().filter(|r| r.created >= since || r.mtime >= since).collect();
+    // An idle /resume need not write anything. Its exact name still identifies it,
+    // even when both creation and modification predate this process.
     let name = proc.title.as_deref().filter(|t| !t.is_empty()).map(|t| codex_title(t, proc.cwd.as_deref())).unwrap_or_default();
     if !name.is_empty() {
-        let named: Vec<&CodexRollout> = touched.iter().copied().filter(|r| r.id.as_deref().filter(|i| !i.is_empty()).and_then(|i| names.get(i)) == Some(&name)).collect();
+        let named: Vec<&CodexRollout> = here.iter().copied().filter(|r| r.id.as_deref().filter(|i| !i.is_empty()).and_then(|i| names.get(i)) == Some(&name)).collect();
         if named.len() == 1 {
             return Some(named[0].path.clone());
         }
@@ -100,9 +99,9 @@ pub fn guess_codex_rollout_command(home: &str, proc: &CodexProc, others: &[Codex
 /// What `guessCodexRollout` reads out of that command's output: the rollout files and the latest
 /// name per thread (/rename appends a line).
 pub fn codex_rollouts(stdout: &str) -> (Vec<CodexRollout>, HashMap<String, String>) {
-    let mut halves = stdout.split("\n---\n");
-    let list = halves.next().unwrap_or("");
-    let index = halves.next().unwrap_or("");
+    let (list, index) = stdout.split_once("\n---\n")
+        .or_else(|| stdout.strip_prefix("---\n").map(|index| ("", index)))
+        .unwrap_or((stdout, ""));
     let rows = list
         .split('\n')
         .filter(|l| !l.is_empty())
@@ -1022,7 +1021,21 @@ fn function_call_output(p: Option<&Value>, meta: &mut TranscriptMeta, base: &Bas
 pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, others: &[CodexProc]) -> HubResult<Option<String>> {
     let cmd = guess_codex_rollout_command(home, proc, others, now_ms() as f64 / 1000.0);
     let r = host.run(&cmd).await?;
-    let (rows, names) = codex_rollouts(&r.stdout);
+    let (mut rows, names) = codex_rollouts(&r.stdout);
+    // Recent-file discovery misses an old thread resumed without sending a message.
+    // Look up only its exact indexed id, never guess the newest unrelated old chat.
+    let name = proc.title.as_deref().map(|t| codex_title(t, proc.cwd.as_deref())).unwrap_or_default();
+    let named: Vec<&String> = names.iter().filter(|(_, n)| !name.is_empty() && **n == name).map(|(id, _)| id).collect();
+    let wanted = proc.resume.as_deref().filter(|id| !id.is_empty())
+        .or_else(|| (named.len() == 1).then(|| named[0].as_str()));
+    if let Some(id) = wanted.filter(|id| re!(r"^[0-9a-f-]{36}$").is_match(id) && !rows.iter().any(|r| r.id.as_deref() == Some(*id))) {
+        let command = format!(
+            r#"find {} \( -name {} -o -name {} \) 2>/dev/null | while read -r f; do printf '%s\t%s\t%s\n' "$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")" "$f" "$(head -c 4000 "$f" | head -n 1)"; done"#,
+            shq(&format!("{home}/.codex/sessions")), shq(&format!("rollout-*-{id}.jsonl")), shq(&format!("rollout-*-{id}_*.jsonl"))
+        );
+        let old = host.run(&command).await?;
+        rows.extend(codex_rollouts(&old.stdout).0);
+    }
     Ok(pick_codex_rollout(&rows, proc, others, &names))
 }
 

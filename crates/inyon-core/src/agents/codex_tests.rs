@@ -331,6 +331,30 @@ fn a_codex_conversation_is_found_under_a_home_whose_path_has_a_space() {
     });
 }
 
+#[test]
+fn an_idle_resumed_thread_is_found_even_when_its_file_has_not_changed_since_before_startup() {
+    use crate::test_support::sandbox::Sandbox;
+    use crate::test_support::{host, rt, TempDir};
+    let root = TempDir::new("inyon-idle-resume-");
+    rt::run(|| async {
+        Sandbox::install(&root.s());
+        let id = "01a18d9e-fba4-74a2-a098-a77dc8107ce4";
+        let rel = format!(".codex/sessions/2026/10/31/rollout-2026-10-31T00-22-48-{id}.jsonl");
+        root.write(&rel, &(stringify(&json!({"timestamp":"1970-01-01T00:01:40Z","type":"session_meta","payload":{"id":id,"cwd":"/work"}})) + "\n"));
+        std::fs::File::options().write(true).open(root.path(&rel)).unwrap().set_times(
+            std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(100))
+        ).unwrap();
+        root.write(".codex/session_index.jsonl", &(stringify(&json!({"id":id,"thread_name":"确认QQ多设备登录"})) + "\n"));
+        let proc = CodexProc { pid:1, cwd:Some("/work".into()), started_at:now_ms() as f64 / 1000.0 - 60.0, title:Some("确认QQ多设备登录 | work".into()), ..Default::default() };
+        let h = host("idle-resume", "local");
+        let want = Some(root.path(&rel).to_string_lossy().into_owned());
+        assert_eq!(find_codex_rollout(&h, &root.s(), &proc, &[]).await.unwrap(), want);
+        // A newer unrelated thread in the same folder must not win over the exact title.
+        root.write(".codex/sessions/new/rollout-new.jsonl", &(stringify(&json!({"timestamp":date::to_iso(now_ms() as f64).unwrap(),"payload":{"id":"other","cwd":"/work"}})) + "\n"));
+        assert_eq!(find_codex_rollout(&h, &root.s(), &proc, &[]).await.unwrap(), want);
+    });
+}
+
 /// completed Codex patches accumulate session lines once; failed patches do not
 #[test]
 fn completed_codex_patches_accumulate_session_lines_once_failed_patches_do_not() {
