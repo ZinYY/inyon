@@ -929,3 +929,28 @@ fn codex_new_invalidates_the_startup_resume_hint_before_the_new_thread_has_a_tit
         assert!(!b._fake.cmds().iter().any(|cmd| cmd.contains(old)), "the old startup thread must not be looked up again after /new");
     });
 }
+
+#[test]
+fn machine_order_is_saved_without_replacing_live_sessions_and_invalid_moves_are_atomic() {
+    run(|| async {
+        for id in ["a", "b", "c"] {
+            crate::test_support::machine(id, "node", json!([])).borrow_mut().hold_polls();
+        }
+        let b = registry().get("b").unwrap();
+        let ids = || registry().overview().iter().map(|h| h.config.id.clone()).collect::<Vec<_>>();
+        registry().move_before("c", Some("a")).unwrap();
+        assert_eq!(ids(), ["c", "a", "b"]);
+        assert_eq!(crate::config::load_hosts().iter().map(|h| h.id.as_str()).collect::<Vec<_>>(), ["c", "a", "b"]);
+        assert!(Rc::ptr_eq(&b, &registry().get("b").unwrap()));
+        registry().move_before("c", None).unwrap();
+        assert_eq!(ids(), ["a", "b", "c"]);
+        registry().move_before("b", Some("b")).unwrap();
+        assert_eq!(ids(), ["a", "b", "c"]);
+        assert!(registry().move_before("missing", Some("a")).is_err());
+        assert!(registry().move_before("b", Some("missing")).is_err());
+        assert_eq!(ids(), ["a", "b", "c"]);
+        crate::platform::store::use_store(Rc::new(FullDisk));
+        assert!(registry().move_before("c", Some("a")).is_err());
+        assert_eq!(ids(), ["a", "b", "c"]);
+    });
+}

@@ -25,6 +25,12 @@ const json = async () => JSON.parse(await sent().text())
 const failure = (p: Promise<unknown>) => p.then(() => { throw new Error('expected a failure') }, (e) => e as InstanceType<typeof ApiError>)
 
 describe('requests', () => {
+  test('reordering moves just one machine and cannot overwrite its configuration', async () => {
+    await api.orderHost('my box', 'first')
+    expect(sent().method).toBe('POST')
+    expect(sent().url).toBe('http://localhost:5173/api/hosts/my%20box/order')
+    expect(await json()).toEqual({ before: 'first' })
+  })
   test('a GET goes to the hub with the session cookie and no body', async () => {
     reply = ok({ authed: true })
     expect(await api.session()).toEqual({ authed: true })

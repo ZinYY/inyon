@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { HostState, MachineKind } from '@inyon/protocol'
@@ -14,10 +14,10 @@ const rows = () => screen.getAllByRole('link').filter((a) => a.getAttribute('hre
 const page = () => render(<MemoryRouter><MachinesPage /></MemoryRouter>)
 
 describe('the machines list', () => {
-  test('machines that answer come first, each with the icon of what it is', async () => {
+  test('machines keep the hub order even when one goes offline', async () => {
     useStore.setState({ hosts: [m('nas', 'server', 'error'), m('studio', 'desktop'), m('air', 'laptop'), m('vm', 'server')] })
     await page()
-    expect(rows()).toEqual(['studio', 'air', 'vm', 'nas'])
+    expect(rows()).toEqual(['nas', 'studio', 'air', 'vm'])
     expect(screen.getAllByRole('img', { name: 'Server' })).toHaveLength(2)
     expect(screen.getByRole('img', { name: 'Laptop' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Desktop' })).toBeTruthy()

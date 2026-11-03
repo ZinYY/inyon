@@ -345,6 +345,10 @@ export const api = {
   login: (password: string) => request<{ ok: boolean }>('POST', '/api/login', { password }),
   logout: () => request('POST', '/api/logout').catch(() => {}),
   addHost: (b: { name: string; target: string; port?: number; identityFile?: string; sshMode?: string }) => request<{ id: string }>('POST', '/api/hosts', b),
+  orderHost: (id: string, before: string | null) => {
+    if (before !== null && splitHostId(id).hub?.id !== splitHostId(before).hub?.id) throw new Error('Machines can be reordered within the same hub.')
+    return request('POST', `${h(id)}/order`, { before: before === null ? null : splitHostId(before).id })
+  },
   // the phone app: servers it SSHes into itself
   addServer: (b: ServerForm) => request<{ id: string }>('POST', '/api/hosts', b),
   editServer: (id: string, b: Partial<ServerForm>) => request('PATCH', h(id), b),

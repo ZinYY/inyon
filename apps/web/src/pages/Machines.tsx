@@ -22,7 +22,8 @@ import { listHubs } from '../lib/hubs.ts'
 import { PullRefresh } from '../components/ui/PullRefresh.tsx'
 import { refreshAll } from '../lib/refresh.ts'
 import { AgentBadges } from '../components/Overview.tsx'
-import { MachineIcon, machineKindOf, onlineFirst } from '../components/ui/MachineIcon.tsx'
+import { MachineIcon, machineKindOf } from '../components/ui/MachineIcon.tsx'
+import { MachineOrderList } from '../components/MachineOrderList.tsx'
 import { FilterInput } from '../components/ui/FilterInput.tsx'
 import { matchesQuery } from '../lib/groups.ts'
 import { confirmAction } from '../components/Confirm.tsx'
@@ -75,7 +76,7 @@ function MachineRow({ h, hosts, i }: { h: HostState; hosts: HostState[]; i: numb
   const where = h.config.kind === 'local' ? 'This hub' : h.config.kind === 'node' ? h.hostname ?? 'Paired machine' : h.config.kind === 'link' ? h.hostname ?? 'Paired' : sshAddress(h.config, hosts)
   const panes = h.sessions.reduce((n, s) => n + s.windows.reduce((m, w) => m + w.panes.filter((p) => p.agent).length, 0), 0)
   return (
-    <Link style={{ '--i': i } as React.CSSProperties} to={`/machines/${encodeURIComponent(h.config.id)}`} {...contextMenu(() => machineMenu(h, nav), { touch: true })} className="flex min-h-[56px] items-center gap-3 px-4 py-2.5 hover:bg-hover/60 active:bg-hover">
+    <Link style={{ '--i': i } as React.CSSProperties} to={`/machines/${encodeURIComponent(h.config.id)}`} {...contextMenu(() => machineMenu(h, nav), { touch: true })} className="flex min-h-[56px] min-w-0 flex-1 items-center gap-3 px-4 py-2.5 hover:bg-hover/60 active:bg-hover">
       <span className={clsx('relative flex size-9 shrink-0 items-center justify-center rounded-xl border border-line bg-sunken', h.status === 'online' ? 'text-fg-2' : 'text-fg-3')}>
         <MachineIcon kind={machineKindOf(h)} size={18} />
         <span className="absolute -right-0.5 -bottom-0.5 flex size-[11px] items-center justify-center rounded-full bg-elev">
@@ -107,7 +108,7 @@ export function MachinesPage() {
   // nothing listed, but a hub is paired: the phone can't reach it right now (off its VPN, say)
   const hubs = loaded && !hosts.length ? listHubs() : []
   const [q, setQ] = useState('')
-  const shown = useMemo(() => onlineFirst(hosts).filter((h) => !q || matchesQuery(`${h.config.name} ${h.hostname ?? ''} ${h.machineKind ?? ''} ${h.os ?? ''} ${h.agents.join(' ')}`, q)), [hosts, q])
+  const shown = useMemo(() => hosts.filter((h) => !q || matchesQuery(`${h.config.name} ${h.hostname ?? ''} ${h.machineKind ?? ''} ${h.os ?? ''} ${h.agents.join(' ')}`, q)), [hosts, q])
   // a pairing link opened from outside (a QR code scanned with the camera) lands here
   const [params, setParams] = useSearchParams()
   // a hub's code goes the same way; the sheet tells the two apart
@@ -175,11 +176,7 @@ export function MachinesPage() {
           </div>
         ) : (
           shown.length > 0 && (
-            <div className="stagger divide-y divide-line overflow-hidden rounded-3xl border border-line bg-elev shadow-card">
-              {shown.map((h, i) => (
-                <MachineRow key={h.config.id} h={h} hosts={hosts} i={i} />
-              ))}
-            </div>
+            <MachineOrderList hosts={shown} allHosts={hosts} renderRow={(h, i) => <MachineRow h={h} hosts={hosts} i={i} />} />
           )
         )}
         {q && !shown.length && <p className="px-1 py-6 text-center text-[13px] text-fg-3">No {isPhone() ? 'computer' : 'machine'} matches “{q}”</p>}

@@ -445,6 +445,20 @@ pub fn add(routes: &mut Routes) {
     );
     guarded(
         routes,
+        "/api/hosts/:id/order",
+        vec![(M::POST, h(|mut r| async move {
+            let b = r.body().await?;
+            let before = match field(&b, "before")? {
+                Some(Value::String(s)) => Some(s.as_str()),
+                Some(Value::Null) => None,
+                _ => return Err(http(400, "before must be a machine id or null")),
+            };
+            registry().move_before(&id(&r), before)?;
+            Ok(ok())
+        }))],
+    );
+    guarded(
+        routes,
         "/api/hosts/:id/integration",
         vec![(
             M::POST,

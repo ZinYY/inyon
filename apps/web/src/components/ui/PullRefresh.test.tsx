@@ -26,6 +26,14 @@ function setup() {
   return { onRefresh, page, done: () => done() }
 }
 
+test('dragging a machine handle never starts pull to refresh', () => {
+  const onRefresh = mock(async () => {})
+  render(<PullRefresh onRefresh={onRefresh}><button data-machine-drag>Reorder</button></PullRefresh>)
+  drag(screen.getByRole('button', { name: 'Reorder' }), 200, 300)
+  expect(onRefresh).not.toHaveBeenCalled()
+  expect(screen.queryByRole('status', { name: 'Refreshing' })).toBeNull()
+})
+
 test('pulling down far enough from the top refreshes, and shows it until done', async () => {
   const { onRefresh, page, done } = setup()
   drag(page, 140, 200, 260)

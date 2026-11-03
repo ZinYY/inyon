@@ -14,3 +14,5 @@ pub mod routes;
 pub mod streams;
 #[cfg(test)]
 pub mod test_util;
+#[cfg(test)]
+mod machine_order_tests;

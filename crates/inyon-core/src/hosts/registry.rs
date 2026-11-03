@@ -20,7 +20,7 @@ use serde_json::Value;
 use super::coalesce::coalesce;
 use super::failure::{failure_text, turn_failure};
 use super::host::{shq, Host, StreamHandle};
-use super::http_error::{HubError, HubResult};
+use super::http_error::{http, HubError, HubResult};
 use super::names::{bare_title, name_taken, owns_title, pending_name, session_name};
 use super::node_link;
 use super::node_update::node_updates;
@@ -568,6 +568,27 @@ impl Registry {
 
     pub fn configs(&self) -> Vec<HostConfig> {
         self.hosts.borrow().values().map(|r| r.borrow().host.config()).collect()
+    }
+
+    /// Move one machine without replacing its runtime or changing any other configuration.
+    /// Persist first: a failed write must leave both the live order and the saved order intact.
+    pub fn move_before(&self, id: &str, before: Option<&str>) -> HubResult<()> {
+        let mut next = self.hosts.borrow().clone();
+        let from = next.get_index_of(id).ok_or_else(|| http(404, "Unknown machine"))?;
+        let to = match before {
+            Some(b) => {
+                let at = next.get_index_of(b).ok_or_else(|| http(400, "The destination machine is no longer available"))?;
+                if at > from { at - 1 } else { at }
+            }
+            None => next.len() - 1,
+        };
+        if from == to { return Ok(()); }
+        next.move_index(from, to);
+        let configs: Vec<_> = next.values().map(|r| r.borrow().host.config()).collect();
+        save_hosts(&configs).map_err(HubError::plain)?;
+        *self.hosts.borrow_mut() = next;
+        self.emit(RegistryEvent::Overview);
+        Ok(())
     }
 
     pub fn overview(&self) -> Vec<HostState> {

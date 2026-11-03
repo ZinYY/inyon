@@ -77,6 +77,7 @@ export function PullRefresh({ onRefresh, className, children, scrollKey, restore
     if (!el) return
     const s = live.current
     const down = (e: TouchEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-machine-drag]')) { s.start = -1; return }
       s.start = el.scrollTop <= 0 && !s.busy && e.touches.length === 1 ? e.touches[0].clientY : -1
       s.armed = false
     }
