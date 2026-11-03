@@ -70,12 +70,14 @@ pub fn pick_codex_rollout(rows: &[CodexRollout], proc: &CodexProc, others: &[Cod
     let name = proc.title.as_deref().filter(|t| !t.is_empty()).map(|t| codex_title(t, proc.cwd.as_deref())).unwrap_or_default();
     if !name.is_empty() {
         let named: Vec<&CodexRollout> = here.iter().copied().filter(|r| r.id.as_deref().filter(|i| !i.is_empty()).and_then(|i| names.get(i)) == Some(&name)).collect();
-        if named.len() == 1 {
-            return Some(named[0].path.clone());
+        // Rewinds create several segment files with the same thread id. Those are
+        // one match, not ambiguous conversations; follow its newest segment.
+        if !named.is_empty() && named.iter().all(|r| r.id == named[0].id) {
+            return newest(named.iter().copied()).map(|r| r.path.clone());
         }
-        let fresh: Vec<&&CodexRollout> = named.iter().filter(|r| r.created >= since).collect();
-        if fresh.len() == 1 {
-            return Some(fresh[0].path.clone());
+        let fresh: Vec<&CodexRollout> = named.iter().copied().filter(|r| r.created >= since).collect();
+        if !fresh.is_empty() && fresh.iter().all(|r| r.id == fresh[0].id) {
+            return newest(fresh.into_iter()).map(|r| r.path.clone());
         }
     }
     let rivals: Vec<&CodexProc> = others.iter().filter(|o| o.pid != proc.pid && o.cwd == proc.cwd && o.started_at > proc.started_at).collect();

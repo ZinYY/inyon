@@ -224,6 +224,23 @@ mod codex_rollout_matching {
         assert_eq!(pick_codex_rollout(&rows, &a, std::slice::from_ref(&a), &names), path("resumed"));
     }
 
+    #[test]
+    fn a_resumed_thread_with_multiple_segments_uses_its_latest_segment() {
+        let a = CodexProc { title: Some("分析 Codex 聊天页面空白问题".into()), ..p(41, 1000.0) };
+        let rows = [
+            row("thread", 100.0, 200.0, "/w"),
+            CodexRollout { path: "/s/thread_segment1.jsonl".into(), ..row("thread", 200.0, 300.0, "/w") },
+            CodexRollout { path: "/s/thread_segment2.jsonl".into(), ..row("thread", 300.0, 1100.0, "/w") },
+        ];
+        let n = names(&[("thread", "分析 Codex 聊天页面空白问题")]);
+        assert_eq!(pick_codex_rollout(&rows, &a, std::slice::from_ref(&a), &n), Some("/s/thread_segment2.jsonl".into()));
+        // Different threads sharing a title remain ambiguous, even if one has more segments.
+        let mut ambiguous = rows.to_vec();
+        ambiguous.push(row("other", 400.0, 1200.0, "/w"));
+        let n = names(&[("thread", "分析 Codex 聊天页面空白问题"), ("other", "分析 Codex 聊天页面空白问题")]);
+        assert_eq!(pick_codex_rollout(&ambiguous, &a, std::slice::from_ref(&a), &n), None);
+    }
+
     /// /new in a lone session moves to the new thread
     #[test]
     fn new_in_a_lone_session_moves_to_the_new_thread() {
