@@ -1917,6 +1917,7 @@ impl ChatWatcher {
             st.seq = st.seq.max(TAIL_SEQ) + TAIL_SEQ;
             st.reader = Some(TranscriptReader::new(from));
             st.older_from = Some(size);
+            st.history_pending = st.codex;
             st.tail_start = true;
         }
         if !again {
