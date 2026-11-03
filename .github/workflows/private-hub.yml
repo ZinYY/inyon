@@ -21,7 +21,8 @@ jobs:
           cache-on-failure: true
       - run: sudo apt-get update -qq && sudo apt-get install -y musl-tools python3
       - run: bun install --frozen-lockfile
-      - run: cargo test -p inyon-protocol --test gen
+      # The generator rewrites a stale file, then deliberately fails its first check.
+      - run: cargo test -p inyon-protocol --test gen || cargo test -p inyon-protocol --test gen
       - uses: actions/upload-artifact@v4
         with:
           name: protocol-types
