@@ -24,6 +24,25 @@ fn r100() -> String {
     "─".repeat(100)
 }
 
+#[test]
+fn claude_rewind_picker_uses_arrow_navigation_and_ignores_previous_output() {
+    let rows = ["1. Earlier numbered answer", "", "────────────────────", " Rewind", "",
+        " Restore the code and/or conversation to the point before…", "",
+        "   告诉我机器学习是什么。", "   No code changes", "",
+        "   用一句话总结一下。", "   No code changes", "",
+        " ❯ (current)", "", " Enter to continue · Esc to cancel"];
+    let lines: Vec<String> = rows.iter().map(|s| (*s).to_owned()).collect();
+    let s = claude(&lines, Some(100));
+    assert!(!s.working);
+    assert_ne!(s.input_visible, Some(true));
+    let p = s.prompt.unwrap();
+    assert_eq!(labels(&p), vec!["告诉我机器学习是什么。", "用一句话总结一下。", "(current)"]);
+    assert_eq!(p.options[0].detail.as_deref(), Some("No code changes"));
+    assert!(p.options[2].selected);
+    assert_eq!(p.navigate, Some(true));
+    assert!(parse_claude_rewind(&lines[..lines.len() - 1]).is_none());
+}
+
 /// permission prompt
 #[test]
 fn permission_prompt() {

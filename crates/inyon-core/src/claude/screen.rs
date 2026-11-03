@@ -314,6 +314,11 @@ pub fn parse_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKi
     let rules: Vec<usize> = (0..lines.len()).filter(|&i| RULE!().is_match(&lines[i])).collect();
     let mut state = new_state(width);
 
+    if let Some(p) = parse_claude_rewind(&lines) {
+        state.prompt = Some(p);
+        return finish(state);
+    }
+
     // Idle/working layout: rule, "❯ input", rule, status lines.
     let mut input_top: Option<usize> = None;
     for k in (0..rules.len().saturating_sub(1)).rev() {
@@ -541,6 +546,30 @@ fn parse_cursor_menu(lines: &[String]) -> Option<ScreenPrompt> {
     let mut p = prompt(body, options);
     p.footer = footer_at.map(|f| tail[f].jtrim().to_owned());
     p.navigate = Some(true);
+    Some(p)
+}
+
+/// Claude's rewind picker separates unnumbered messages with blank rows and appends
+/// a code-change summary. It is a navigation menu, not the ordinary input box.
+fn parse_claude_rewind(lines: &[String]) -> Option<ScreenPrompt> {
+    let title = find_last(lines, |l| l.jtrim() == "Rewind")?;
+    let desc = (title + 1..lines.len()).find(|&i| lines[i].jtrim().starts_with("Restore the code and/or conversation to the point before"))?;
+    let footer = (desc + 1..lines.len()).find(|&i| re!(r"Enter to continue.*Esc to cancel", "i").is_match(&lines[i]))?;
+    if lines[footer + 1..].iter().any(|l| !l.is_blank()) { return None; }
+    let mut options = Vec::new();
+    for group in lines[desc + 1..footer].split(|l| l.is_blank()).filter(|g| !g.is_empty()) {
+        let selected = group[0].jtrim().starts_with('❯');
+        let label = group[0].jtrim().trim_start_matches('❯').trim();
+        let mut o = opt(options.len() as u64 + 1, label, selected);
+        if group.len() > 1 {
+            o.detail = Some(group[1..].iter().map(|l| l.jtrim()).collect::<Vec<_>>().join(" "));
+        }
+        options.push(o);
+    }
+    if options.len() < 2 || options.iter().filter(|o| o.selected).count() != 1 { return None; }
+    let mut p = prompt(vec!["Rewind".into(), lines[desc].jtrim().to_owned()], options);
+    p.navigate = Some(true);
+    p.footer = Some(lines[footer].jtrim().to_owned());
     Some(p)
 }
 
