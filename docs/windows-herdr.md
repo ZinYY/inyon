@@ -10,9 +10,11 @@ integrations, and BusyBox. Run `scripts/setup-windows-herdr.ps1` once as that us
 It installs the same checksum-pinned BusyBox used by Inyon's Windows engine. No
 SSH configuration, firewall rule, Herdr access policy or Claude hook is changed.
 
-The hub carries the Python bridge in its binary. Every command sends a bounded,
-length-prefixed frame over SSH stdin. Commands and pasted text never appear in the
-SSH command line. A versioned helper is cached under `~/.inyon/bridges` for child
+The hub carries the Python bridge in its binary. The first request sends a bounded,
+length-prefixed bootstrap over SSH stdin. Input and screen reads then share one
+ordered JSON request/reply channel, avoiding a new SSH session and Windows shell
+for each keystroke or confirmation. Other shell commands and transcript streams
+use their own SSH channels. Commands and pasted text never appear in the SSH command line. A versioned helper is cached under `~/.inyon/bridges` for child
 commands; updating the hub updates the bridge without rebuilding Windows binaries.
 
 The bridge lists all running named Herdr sessions and workspaces. It maps Claude's
@@ -37,3 +39,8 @@ are never replayed after being written, so a retry cannot duplicate a submitted
 message. Terminal input failures are displayed and require reconnecting before
 more keys are sent. Chat displays completed transcript blocks; screen-based
 streaming previews are disabled for Windows / Herdr.
+
+Multiline pastes retain their terminal paste boundaries, so line breaks do not
+submit partial messages. Draft synchronization runs one write at a time; a screen
+read cannot replace an app draft with the partial echo of an unfinished write.
+A lost or timed-out bridge reply closes that channel without replaying input.
