@@ -933,7 +933,8 @@ impl Registry {
                     TmuxProbe::Missing => TmuxState::Missing,
                 },
                 agents: p.installed.clone(),
-                signed_in: Some(p.signed_in.clone()),
+                // Herdr supplies pane identity, not account authentication state.
+                signed_in: (config.ssh_mode.as_deref() != Some("windows-herdr")).then(|| p.signed_in.clone()),
                 os: Some(p.os.clone()),
                 machine_kind: p.machine_kind,
                 node_version: if reached_through_inyon(&config) { node_link::info(&config.id).and_then(|i| i.version) } else { None },
