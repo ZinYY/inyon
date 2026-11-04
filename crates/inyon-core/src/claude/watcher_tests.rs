@@ -785,6 +785,44 @@ fn windows_herdr_chat_waits_for_recorded_blocks_instead_of_screen_previews() {
 }
 
 #[test]
+fn windows_claude_streams_official_batches_while_its_terminal_only_shows_a_spinner() {
+    run(|| async {
+        use inyon_protocol::claude_stream::{DisplayEvent,DisplaySnapshot};
+        let id="11111111-1111-4111-8111-111111111111";
+        let now=now_ms();
+        let event=|index,delta:&str| DisplayEvent { hook_event_name:"MessageDisplay".into(),session_id:id.into(),turn_id:id.into(),message_id:id.into(),index,delta:delta.into(),finished:false };
+        let snapshot=Rc::new(RefCell::new(DisplaySnapshot::apply(None,event(0,"第一段 🎸\n"),now).unwrap()));
+        let captured=snapshot.clone();
+        let screen=crate::test_support::fixture("screens/claude/reply-thinking.txt");
+        let _fake=Fake::install(move |_,cmd,_| {
+            if cmd.contains("capture-pane") { ok(&format!("@@CAP %8.10\n{screen}")) }
+            else if cmd.contains("claude-live/") { ok(&serde_json::to_string(&*captured.borrow()).unwrap()) }
+            else { ok("") }
+        });
+        let rt=machine("windows-display","local",json!([{"id":"%8.10","width":120,"agent":{"kind":"claude","pid":7,"state":"working","sessionId":id,"startedAt":now-2000}}]));
+        rt.borrow_mut().hold_polls();
+        rt.borrow_mut().state.os=Some("Windows x64".into());
+        let w=watchers().get("windows-display","%8.10");
+        let phone=Rc::new(Phone::default());w.subscribe(phone.clone());
+        w.st.borrow_mut().info.session_id=Some(id.into());
+        w.st.borrow_mut().items.push(ChatItem::User { seq:1,uuid:"u".into(),ts:crate::js::date::to_iso((now-1000) as f64).unwrap(),text:"练琴".into(),images:0,queued:None,shell:None });
+        w.poll_screen().await;wait(100).await;
+        assert_eq!(live_of(&phone).unwrap()[0].text,"第一段 🎸\n");
+        let before=snapshot.borrow().clone();
+        *snapshot.borrow_mut()=DisplaySnapshot::apply(Some(before),event(1,"第二段"),now+1).unwrap();
+        w.poll_screen().await;wait(100).await;
+        assert_eq!(live_of(&phone).unwrap()[0].text,"第一段 🎸\n第二段");
+        let base=Base::new("u","t");
+        w.st.borrow_mut().items.push(with_seq(base.with_uuid("done").assistant("api-message",None,inyon_protocol::AssistantBlock::Text{text:"第一段 🎸\n第二段".into()}),2));
+        w.settle_screen_live();w.live_soon();wait(100).await;
+        assert_eq!(live_of(&phone),Some(vec![]));
+        w.poll_screen().await;wait(100).await;
+        assert_eq!(live_of(&phone),Some(vec![]));
+        watchers().stop("windows-display:%8.10");
+    });
+}
+
+#[test]
 fn an_earlier_turns_record_landing_late_sends_the_reply_being_written_again() {
     run(|| async {
         let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");

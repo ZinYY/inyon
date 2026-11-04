@@ -46,7 +46,7 @@ fn drop_hooks(settings: &mut Value) -> bool {
         for g in list.iter_mut() {
             if let Some(hs) = g.get_mut("hooks").and_then(|h| h.as_array_mut()) {
                 let before = hs.len();
-                hs.retain(|h| !h.get("command").is_some_and(|c| ours(c, "hook.sh")));
+                hs.retain(|h| !h.get("command").is_some_and(|c| ours(c, "hook.sh") || c.as_str().is_some_and(|s| s.contains(".inyon/bin/inyon.exe") && s.ends_with(" claude-display"))));
                 changed |= hs.len() != before;
             }
         }

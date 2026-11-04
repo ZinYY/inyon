@@ -234,6 +234,7 @@ struct State {
     live: CodexLiveState,
     /// the reply Claude Code, Copilot or Antigravity is writing, read off the screen (screen_reply.rs)
     screen_live: Option<LiveItem>,
+    display_live: bool,
     live_tail: Option<StreamHandle>,
     live_timer: Option<Timer>,
     live_expiry: Option<Timer>,
@@ -335,6 +336,7 @@ impl ChatWatcher {
                 generation: 0,
                 live: CodexLiveState::new(),
                 screen_live: None,
+                display_live: false,
                 live_tail: None,
                 live_timer: None,
                 live_expiry: None,
@@ -2434,7 +2436,8 @@ impl ChatWatcher {
     fn settle_screen_live(&self) -> bool {
         let mut st = self.st.borrow_mut();
         let Some(live) = st.screen_live.take() else { return false };
-        let text = unrecorded(&live.text, &recent_replies(&st.items));
+        let text = if st.display_live { super::display_reply::pending_text(&live.text, &st.items) }
+            else { unrecorded(&live.text, &recent_replies(&st.items)) };
         if !text.is_empty() {
             st.live_json = String::new();
         }
@@ -2453,6 +2456,7 @@ impl ChatWatcher {
             let had = !st.live.items.is_empty() || st.screen_live.is_some();
             st.live.clear();
             st.screen_live = None;
+            st.display_live = false;
             st.live_json = String::new();
             (t, had, st.stopped)
         };
@@ -2635,7 +2639,29 @@ impl ChatWatcher {
                 screen.activity = st.screen.activity.clone();
             }
         }
-        if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
+        let windows_claude = agent.kind == AgentKind::Claude && registry().get(&self.host_id)
+            .is_some_and(|r| r.borrow().state.os.as_deref().is_some_and(|os| os.to_ascii_lowercase().contains("windows")));
+        if windows_claude && self.reads_live_reply(agent.kind) {
+            // Reading is separate from the input/control connection, so streaming cannot queue keys.
+            let gen = self.st.borrow().generation;
+            let sid = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s));
+            let raw = if let Some(id) = sid {
+                host.run(&format!(r#"head -c 2097153 "$HOME/.inyon/claude-live/{id}.json" 2>/dev/null; true"#)).await.ok().map(|r| r.stdout)
+            } else { None };
+            let changed = {
+                let mut st = self.st.borrow_mut();
+                if st.generation != gen { return Ok(()); }
+                let next = if sid == st.info.session_id.as_deref() && (screen.working || st.screen.working || st.screen_live.is_some()) {
+                    sid.zip(agent.started_at).zip(raw.as_deref()).and_then(|((id, started), raw)|
+                        super::display_reply::preview(raw, id, started, &st.items, now_ms()))
+                } else { None };
+                let changed = next != st.screen_live;
+                st.screen_live = next;
+                st.display_live = true;
+                changed
+            };
+            if changed { self.live_soon(); }
+        } else if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
             self.live_soon();
         }
         // a menu Inyon is working through itself stays out of the app

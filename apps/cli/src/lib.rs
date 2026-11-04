@@ -3,6 +3,7 @@
 
 pub mod app;
 pub mod cli;
+pub mod claude_display;
 pub mod commands;
 pub mod desktop;
 pub mod docs;

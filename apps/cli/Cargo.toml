@@ -16,6 +16,7 @@ clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
 flate2 = "1.1"
 inyon-engine = { path = "../../crates/inyon-engine" }
+inyon-protocol = { path = "../../crates/inyon-protocol" }
 url = "2.5"
 minisign-verify = "0.3"
 qrcode = { version = "0.14", default-features = false }

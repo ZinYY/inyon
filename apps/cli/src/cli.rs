@@ -429,6 +429,12 @@ fn closed_pipe_is_not_a_crash(only_prints: bool) {
 
 pub fn main() {
     let mut argv: Vec<String> = std::env::args().collect();
+    // Hooks must not initialise services, inspect updates, or wait for stdin EOF.
+    if argv.get(1).is_some_and(|s| s == "claude-display") {
+        if argv.get(2).is_some_and(|s| s == "--supported") { println!("1"); return; }
+        crate::claude_display::run();
+        return;
+    }
     // started as inyon-engine (Windows' logon tasks run a windowless copy of this program under
     // that name, and older inyon commands and hubs ask for it): the engine's commands, as it answered them
     if argv.first().is_some_and(|a| inyon_engine::paths::started_as_engine(a)) {

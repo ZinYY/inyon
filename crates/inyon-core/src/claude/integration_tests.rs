@@ -13,6 +13,21 @@ use crate::test_support::sandbox::Sandbox;
 use crate::test_support::{host, sh, TempDir};
 use crate::tmux::tmux::{probe, HOOK_STATE_SH};
 
+#[test]
+fn display_hooks_are_version_gated_idempotent_and_preserve_user_hooks() {
+    assert!(!knows_message_display("2.1.151"));
+    assert!(knows_message_display("2.1.318 (Claude Code)"));
+    let own=json!({"hooks":[{"type":"command","command":"my-display"}]});
+    let mut hooks=Map::from_iter([("MessageDisplay".into(),json!([own.clone()]))]);
+    display_hooks(&mut hooks,true);
+    display_hooks(&mut hooks,true);
+    assert_eq!(hooks["MessageDisplay"].as_array().unwrap().len(),2);
+    assert_eq!(hooks["MessageDisplay"][0],own);
+    assert_eq!(hooks["UserPromptSubmit"][0]["hooks"][0]["command"],DISPLAY_COMMAND);
+    display_hooks(&mut hooks,false);
+    assert_eq!(hooks,Map::from_iter([("MessageDisplay".into(),json!([own]))]));
+}
+
 /// A ~/.claude.json shaped like the real one: other accountUuid keys come before oauthAccount.
 fn write_config(home: &TempDir, account: &str) {
     let cfg = json!({

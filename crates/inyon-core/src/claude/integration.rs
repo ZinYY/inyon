@@ -137,6 +137,34 @@ fn is_ours(h: Option<&Value>) -> bool {
     ours(h.at("command"), "hook.sh")
 }
 
+const DISPLAY_COMMAND: &str = r#"cmd.exe /d /c call "%USERPROFILE%/.inyon/bin/inyon.exe" claude-display"#;
+fn is_our_display(h: Option<&Value>) -> bool {
+    h.at("command").str().is_some_and(|c| c.contains(".inyon/bin/inyon.exe") && c.ends_with(" claude-display"))
+}
+
+fn display_hooks(hooks: &mut Map<String, Value>, enabled: bool) {
+    for name in ["MessageDisplay", "UserPromptSubmit", "SessionStart", "SessionEnd"] {
+        if let Some(groups) = hooks.get_mut(name).and_then(Value::as_array_mut) {
+            for group in groups.iter_mut() {
+                if let Some(list) = group.get_mut("hooks").and_then(Value::as_array_mut) { list.retain(|h| !is_our_display(Some(h))); }
+            }
+            groups.retain(|g| g["hooks"].as_array().is_none_or(|hs| !hs.is_empty()));
+        }
+        if enabled {
+            let groups = hooks.entry(name.to_owned()).or_insert_with(|| json!([]));
+            if let Some(groups) = groups.as_array_mut() {
+                groups.push(json!({"hooks":[{"type":"command","command":DISPLAY_COMMAND,"timeout":2}]}));
+            }
+        } else if hooks.get(name).and_then(Value::as_array).is_some_and(Vec::is_empty) { hooks.shift_remove(name); }
+    }
+}
+
+fn knows_message_display(version: &str) -> bool {
+    let Some(v) = re!(r"^\s*(\d+)\.(\d+)\.(\d+)").captures(version) else { return false };
+    let n = |i: usize| v[i].parse::<u64>().unwrap_or(0);
+    (n(1), n(2), n(3)) >= (2, 1, 152)
+}
+
 const EVENTS: [(&str, Option<&str>); 6] =
     [("SessionStart", None), ("SessionEnd", None), ("UserPromptSubmit", None), ("Notification", None), ("PermissionRequest", Some("*")), ("Stop", None)];
 
@@ -357,6 +385,10 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
     if stop_failure.is_none() {
         drop_ours(hooks, STOP_FAILURE.0);
     }
+    // Old nodes do not understand this command; only install after their binary is upgraded.
+    let display = windows && knows_message_display(&version) && host.run(r#""$HOME/.inyon/bin/inyon.exe" claude-display --supported 2>/dev/null"#).await
+        .is_ok_and(|r| r.code == 0 && r.stdout.trim() == "1");
+    display_hooks(hooks, display);
     write_settings(host, &settings, &sum).await
 }
 
@@ -526,7 +558,7 @@ fn drop_ours(hooks: &mut Map<String, Value>, name: &str) {
         .iter()
         .map(|g| {
             let mut m = spread(Some(g));
-            let hs: Vec<Value> = Some(g).at("hooks").arr().map(|hs| hs.iter().filter(|h| !is_ours(Some(h))).cloned().collect()).unwrap_or_default();
+            let hs: Vec<Value> = Some(g).at("hooks").arr().map(|hs| hs.iter().filter(|h| !is_ours(Some(h)) && !is_our_display(Some(h))).cloned().collect()).unwrap_or_default();
             m.insert("hooks".into(), Value::Array(hs));
             Value::Object(m)
         })
