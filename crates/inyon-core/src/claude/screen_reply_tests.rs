@@ -27,6 +27,19 @@ fn claude_macos_marker_streams_text_and_still_excludes_tools() {
 }
 
 #[test]
+fn claude_continues_a_known_reply_after_its_marker_scrolls_away() {
+    let frame = screen("  A sufficiently long paragraph already seen in the previous frame.\n\n  The next paragraph is still arriving.\n\n────────────────────\n❯\n────────────────────");
+    assert_eq!(screen_reply(&frame, AgentKind::Claude, Some(100)), None);
+    let reply = continued_screen_reply(&frame, AgentKind::Claude, Some(100), true).unwrap();
+    assert!(!reply.whole);
+    let before = "The opening paragraph.\n\nA sufficiently long paragraph already seen in the previous frame.";
+    assert_eq!(carry_on(before, &reply.text), format!("{before}\n\nThe next paragraph is still arriving."));
+    // A known text reply does not turn a following tool's output into more text.
+    let tool = screen("⏺ Bash(ls)\n  ⎿ secret\n\n────────────────────\n❯\n────────────────────");
+    assert_eq!(continued_screen_reply(&tool, AgentKind::Claude, Some(100), true), None);
+}
+
+#[test]
 fn claude_streams_its_reply_under_your_prompt() {
     let r = reply("claude", "reply-streaming", AgentKind::Claude).unwrap();
     assert!(r.whole);

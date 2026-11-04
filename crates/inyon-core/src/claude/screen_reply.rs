@@ -33,6 +33,13 @@ enum Block {
 
 /// The reply being written on a captured screen, or None when the screen shows none.
 pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32>) -> Option<ScreenReply> {
+    continued_screen_reply(captured, kind, pane_width, false)
+}
+
+/// Only a watcher that already saw this reply may read unmarked continuation rows.
+/// Once Claude's reply marker scrolls off screen those rows are otherwise indistinguishable
+/// from old output. Explicit tool/thinking boundaries still end the preceding reply.
+pub(super) fn continued_screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32>, continuing: bool) -> Option<ScreenReply> {
     if kind == AgentKind::Codex {
         return codex_reply(captured, pane_width, false);
     }
@@ -88,7 +95,8 @@ pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32
             continue;
         }
         let alone = cur.len() == 1 && tool_name_alone(kind, cur[0], &captured[cur_at]);
-        let kind_of = if alone { Block::Other } else { classify(kind, cur[0], blocks.last().map(|b| b.0)) };
+        let previous = blocks.last().map(|b| b.0).or_else(|| (continuing && kind == AgentKind::Claude && echo.is_none()).then_some(Block::Text));
+        let kind_of = if alone { Block::Other } else { classify(kind, cur[0], previous) };
         blocks.push((kind_of, std::mem::take(&mut cur)));
     }
     let from = blocks.iter().rposition(|b| b.0 == Block::Other).map_or(0, |i| i + 1);

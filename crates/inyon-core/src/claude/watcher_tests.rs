@@ -741,6 +741,17 @@ fn claude_keeps_streaming_when_its_spinner_disappears_during_text_output() {
         assert!(next[0].text.ends_with("换一口锅就不灵了。"));
         assert_eq!(next[0].id, first[0].id);
 
+        // Long answers scroll both the prompt and the assistant marker out of view.
+        // Their remaining unmarked paragraphs must extend the preview, not erase it.
+        let tail = next[0].text.split("\n\n").last().unwrap();
+        *frame.borrow_mut() = format!("  {tail}\n\n  换了食材也能做好，才说明掌握了规律。\n\n────────────────────\n❯\n────────────────────");
+        w.poll_screen().await;
+        wait(200).await;
+        let next = live_of(&phone).unwrap();
+        assert_eq!(next[0].id, first[0].id);
+        assert!(next[0].text.starts_with(&first[0].text), "{}", next[0].text);
+        assert!(next[0].text.ends_with("换了食材也能做好，才说明掌握了规律。"));
+
         let base = Base::new("u", "t");
         w.st.borrow_mut().items.push(with_seq(base.with_uuid("done").assistant("m", None, inyon_protocol::AssistantBlock::Text { text: next[0].text.clone() }), 1));
         w.settle_screen_live();

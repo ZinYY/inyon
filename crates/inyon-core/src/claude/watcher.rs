@@ -23,7 +23,7 @@ use super::delivery::{has_paste_preview, input_contains, SendLedger};
 use super::drafts::{get_draft, mirror_to_terminal, set_draft, squash, Draft, DraftSource};
 use super::driving::{is_driving, start_driving};
 use super::screen::parse_screen;
-use super::screen_reply::{carry_on, codex_reply, reads_reply, screen_reply, unrecorded};
+use super::screen_reply::{carry_on, codex_reply, continued_screen_reply, reads_reply, unrecorded};
 use super::transcript::{load_meta, new_meta, normalize, save_meta, with_seq, TranscriptMeta};
 use super::transcript_tail::{codex_meta_command, meta_command, parse_size, range_command, size_command, tail_command, TranscriptReader};
 use crate::agents::antigravity::AntigravityDoc;
@@ -2382,7 +2382,7 @@ impl ChatWatcher {
         }
         let mut st = self.st.borrow_mut();
         if working { rt::clear(&mut st.screen_live_expiry); }
-        let read = if kind == AgentKind::Codex { codex_reply(lines, width, active_codex_turn) } else { screen_reply(lines, kind, width) };
+        let read = if kind == AgentKind::Codex { codex_reply(lines, width, active_codex_turn) } else { continued_screen_reply(lines, kind, width, st.screen_live.is_some()) };
         let no_reply = read.is_none();
         let before = st.screen_live.take();
         let next = read.and_then(|r| {
