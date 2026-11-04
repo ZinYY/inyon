@@ -47,7 +47,7 @@ fn bursts_of_terminal_output_do_not_overlap_screen_reads() {
         fake.calls.borrow_mut().clear();
         futures_util::future::join_all([w.poll_screen(), w.poll_screen(), w.poll_screen()]).await;
         assert_eq!(fake.cmds().iter().filter(|s| s.contains("capture-pane")).count(), 1);
-        assert!(!w.st.borrow().screen_polling);
+        assert!(w.st.borrow().screen_read.is_none());
         w.stop();
     });
 }

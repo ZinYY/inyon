@@ -224,7 +224,7 @@ struct State {
     pending: Vec<ChatItem>,
     flush_timer: Option<Timer>,
     screen_timer: Option<Timer>,
-    screen_polling: bool,
+    screen_read: Option<Deferred<()>>,
     screen_again: bool,
     idle_timer: Option<Timer>,
     stopped: bool,
@@ -333,7 +333,7 @@ impl ChatWatcher {
                 pending: vec![],
                 flush_timer: None,
                 screen_timer: None,
-                screen_polling: false,
+                screen_read: None,
                 screen_again: false,
                 idle_timer: None,
                 stopped: false,
@@ -2678,24 +2678,29 @@ impl ChatWatcher {
     }
 
     pub async fn poll_screen(&self) {
-        {
+        let (done, joined) = {
             let mut st = self.st.borrow_mut();
-            if st.stopped {
-                return;
-            }
-            if st.screen_polling {
+            if st.stopped { return; }
+            if let Some(done) = st.screen_read.clone() {
                 st.screen_again = true;
-                return;
+                (done, true)
+            } else {
+                let done = Deferred::new();
+                st.screen_read = Some(done.clone());
+                rt::clear(&mut st.screen_timer);
+                (done, false)
             }
-            st.screen_polling = true;
-            rt::clear(&mut st.screen_timer);
-        }
+        };
+        // Explicit callers still wait for a completed read; output notifications
+        // share that work instead of launching another capture.
+        if joined { done.wait().await; return; }
         let _ = self.read_screen().await;
         let again = {
             let mut st = self.st.borrow_mut();
-            st.screen_polling = false;
+            st.screen_read = None;
             std::mem::take(&mut st.screen_again) && !st.stopped
         };
+        done.resolve(());
         self.next_screen();
         if again { self.screen_changed(); }
     }
