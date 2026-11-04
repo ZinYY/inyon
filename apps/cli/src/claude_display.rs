@@ -45,6 +45,55 @@ pub fn read_snapshot(session: &str) {
     }
 }
 
+/// A single reader stays beside the session. Each changed snapshot travels over
+/// the existing authenticated stream without launching a shell for every batch.
+#[derive(Default)]
+struct SnapshotFeed {
+    previous: Option<Vec<u8>>,
+    sent_at: Option<Instant>,
+}
+
+impl SnapshotFeed {
+    fn poll(&mut self, path: &Path, out: &mut impl Write, now: Instant) -> io::Result<()> {
+        let raw = match fs::File::open(path) {
+            Ok(file) => {
+                let mut bytes = Vec::new();
+                file.take((MAX_TEXT * 2 + 1) as u64).read_to_end(&mut bytes)?;
+                if bytes.len() > MAX_TEXT * 2 { Some(b"null".to_vec()) }
+                else { serde_json::from_slice::<Value>(&bytes).ok().map(|v| serde_json::to_vec(&v).unwrap()) }
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Some(b"null".to_vec()),
+            // A transient sharing failure must not erase the preview. The hub's
+            // freshness check still expires a snapshot that stops updating.
+            Err(_) => None,
+        };
+        if let Some(raw) = raw.filter(|r| self.previous.as_ref() != Some(r)) {
+            out.write_all(&raw)?;
+            out.write_all(b"\n")?;
+            out.flush()?;
+            self.previous = Some(raw);
+            self.sent_at = Some(now);
+        } else if self.sent_at.is_none_or(|at| now.duration_since(at) >= Duration::from_secs(1)) {
+            // A heartbeat lets the hub recheck freshness without sending the
+            // entire (possibly long) answer again.
+            out.write_all(b"{}\n")?;
+            out.flush()?;
+            self.sent_at = Some(now);
+        }
+        Ok(())
+    }
+}
+
+pub fn watch_snapshot(session: &str) {
+    if !valid_id(session) { return; }
+    let path = crate::paths::home().join(format!(".inyon/claude-live/{session}.json"));
+    let mut feed = SnapshotFeed::default();
+    let mut out = io::stdout().lock();
+    while feed.poll(&path, &mut out, Instant::now()).is_ok() {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 fn save(home: &Path, input: Value) -> io::Result<()> {
     let session = input["session_id"].as_str().unwrap_or("");
     let name = input["hook_event_name"].as_str().unwrap_or("");
@@ -97,6 +146,35 @@ pub fn run() {
 mod tests {
     use super::*;
     const S: &str = "11111111-1111-4111-8111-111111111111";
+    #[test]
+    fn feed_streams_changes_and_clear_without_repeating_whole_answers() {
+        let dir = std::env::temp_dir().join(format!("inyon-display-feed-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("snapshot.json");
+        let mut feed = SnapshotFeed::default();
+        let mut out = Vec::new();
+        let now = Instant::now();
+        feed.poll(&path, &mut out, now).unwrap();
+        assert_eq!(out, b"null\n");
+        out.clear();
+        fs::write(&path, br#"{"text":"one"}"#).unwrap();
+        feed.poll(&path, &mut out, now).unwrap();
+        assert_eq!(out, b"{\"text\":\"one\"}\n");
+        out.clear();
+        feed.poll(&path, &mut out, now + Duration::from_millis(100)).unwrap();
+        assert!(out.is_empty());
+        feed.poll(&path, &mut out, now + Duration::from_secs(1)).unwrap();
+        assert_eq!(out, b"{}\n");
+        out.clear();
+        fs::write(&path, "{\"text\":\"你好 🎸\\n\"}").unwrap();
+        feed.poll(&path, &mut out, now + Duration::from_secs(2)).unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&out).unwrap()["text"], "你好 🎸\n");
+        out.clear();
+        fs::remove_file(&path).unwrap();
+        feed.poll(&path, &mut out, now + Duration::from_secs(2)).unwrap();
+        assert_eq!(out, b"null\n", "clear must remove the preceding preview immediately");
+        fs::remove_dir_all(dir).unwrap();
+    }
     fn event(index: u64, text: &str, finished: bool) -> DisplayEvent {
         serde_json::from_value(serde_json::json!({"hook_event_name":"MessageDisplay","session_id":S,"turn_id":S,"message_id":S,"index":index,"delta":text,"final":finished})).unwrap()
     }

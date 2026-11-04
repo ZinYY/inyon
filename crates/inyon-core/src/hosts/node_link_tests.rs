@@ -34,6 +34,32 @@ fn config(id: &str) -> inyon_protocol::HostConfig {
     serde_json::from_value(json!({ "id": id, "name": id, "kind": "node" })).unwrap()
 }
 
+#[test]
+fn reachability_requires_recent_successful_traffic_from_a_registered_operation() {
+    run(|| async {
+        let id = "reply-proof";
+        let socket: Socket = Rc::new(FakeSocket::default());
+        attach(id, socket.clone());
+        assert!(!replied_recently(id));
+        receive(id, &json!({"id":"unknown","type":"line","data":"old"}));
+        assert!(!replied_recently(id));
+        let op = start(id, json!({"op":"stream","cmd":"read"}), |_| {}).unwrap();
+        receive(id, &json!({"id":op.id,"type":"error","error":"failed"}));
+        assert!(!replied_recently(id));
+        receive(id, &json!({"id":op.id,"type":"line","data":"new"}));
+        assert!(replied_recently(id));
+        with(|n| n.replies.insert(id.into(), now_ms().saturating_sub(6000)));
+        assert!(!replied_recently(id));
+        receive(id, &json!({"id":op.id,"type":"exit","code":0}));
+        assert!(replied_recently(id));
+        detach(id, &socket);
+        assert!(!replied_recently(id));
+        attach(id, socket.clone());
+        assert!(!replied_recently(id), "a new connection cannot inherit the old proof");
+        detach(id, &socket);
+    });
+}
+
 /// Whether the promise settles within 50 ms.
 async fn settled(p: &Deferred<i32>) -> bool {
     wait(50).await;

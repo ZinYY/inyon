@@ -54,6 +54,7 @@ struct NodeLinks {
     seq: u64,
     listeners: Vec<Listener>,
     info: HashMap<String, NodeInfo>,
+    replies: HashMap<String, u64>,
     /// when each machine's connection dropped, until it's back
     dropped: HashMap<String, u64>,
 }
@@ -84,6 +85,12 @@ pub fn info(host_id: &str) -> Option<NodeInfo> {
     with(|n| n.info.get(host_id).cloned())
 }
 
+/// Successful operation traffic is stronger evidence of reachability than an
+/// inventory command timing out. Merely having an open socket is not enough.
+pub fn replied_recently(host_id: &str) -> bool {
+    with(|n| n.sockets.contains_key(host_id) && n.replies.get(host_id).is_some_and(|at| now_ms().saturating_sub(*at) <= 5000))
+}
+
 pub fn attach(host_id: &str, ws: Socket) {
     let old = with(|n| {
         n.errors.remove(host_id);
@@ -96,6 +103,7 @@ pub fn attach(host_id: &str, ws: Socket) {
     }
     with(|n| {
         n.dropped.remove(host_id);
+        n.replies.remove(host_id);
         n.sockets.insert(host_id.to_owned(), ws);
         n.info.insert(host_id.to_owned(), NodeInfo { version: None, os: None, warning: None, connected_at: now_ms() });
     });
@@ -229,6 +237,9 @@ pub fn receive(host_id: &str, msg: &Value) {
     };
     let handler = with(|n| n.handlers.get(&format!("{host_id}:{id}")).map(|op| op.on_msg.clone()));
     if let Some(h) = handler {
+        if matches!(m.at("type").str(), Some("line" | "data")) || (m.at("type").str() == Some("exit") && msg.get("code").and_then(Value::as_i64) == Some(0)) {
+            with(|n| n.replies.insert(host_id.to_owned(), now_ms()));
+        }
         // a handler that is already running (a frame that arrives from inside it) is not entered twice
         if let Ok(mut h) = h.try_borrow_mut() {
             h(msg);

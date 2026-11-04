@@ -40,6 +40,54 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn native_claude_stream_is_independent_of_screen_polls_and_rejects_old_session_frames() {
+    run(|| async {
+        use inyon_protocol::claude_stream::{DisplayEvent, DisplaySnapshot};
+        let (fake, w) = draft_box();
+        let id = "11111111-1111-4111-8111-111111111111";
+        let next_id = "22222222-2222-4222-8222-222222222222";
+        let now = now_ms();
+        let ts = date::to_iso((now - 1000) as f64).unwrap();
+        {
+            let mut st = w.st.borrow_mut();
+            st.info.session_id = Some(id.into());
+            st.items = vec![with_seq(Base::new("prompt", &ts).user("聊聊吉他", 0), 1)];
+        }
+        let raw = |sid: &str, text: &str| {
+            let event: DisplayEvent = serde_json::from_value(json!({"hook_event_name":"MessageDisplay","session_id":sid,"turn_id":sid,"message_id":sid,"index":0,"delta":text,"final":false})).unwrap();
+            serde_json::to_string(&DisplaySnapshot::apply(None, event, now).unwrap()).unwrap()
+        };
+        w.start_display(id, now - 2000);
+        let first = fake.streams.borrow().last().unwrap().clone();
+        assert!(first.cmd.contains("claude-display watch"));
+        w.start_display(id, now - 2000);
+        assert_eq!(fake.streams.borrow().len(), 1, "reuse the existing reader");
+        first.line(&raw(id, "连续输出 🎸"));
+        assert_eq!(w.st.borrow().screen_live.as_ref().unwrap().text, "连续输出 🎸");
+        first.line("{}");
+        assert!(w.st.borrow().screen_live.is_some(), "heartbeat is not a clear");
+        first.line("null");
+        assert!(w.st.borrow().screen_live.is_none());
+        {
+            let mut st = w.st.borrow_mut();
+            st.generation += 1;
+            st.info.session_id = Some(next_id.into());
+        }
+        w.start_display(next_id, now - 2000);
+        assert!(first.killed.get());
+        first.line(&raw(id, "old reply"));
+        assert!(w.st.borrow().screen_live.is_none(), "late output from before resume is ignored");
+        let second = fake.streams.borrow().last().unwrap().clone();
+        second.line(&raw(next_id, "new reply"));
+        assert_eq!(w.st.borrow().screen_live.as_ref().unwrap().text, "new reply");
+        w.stop();
+        assert!(second.killed.get());
+        second.line(&raw(next_id, "after stop"));
+        assert!(w.st.borrow().screen_live.is_none());
+    });
+}
+
+#[test]
 fn confirmed_claude_controls_are_bound_to_the_current_transcript() {
     run(|| async {
         let (_fake, w) = draft_box();

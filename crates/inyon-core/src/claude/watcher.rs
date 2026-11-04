@@ -235,6 +235,8 @@ struct State {
     /// the reply Claude Code, Copilot or Antigravity is writing, read off the screen (screen_reply.rs)
     screen_live: Option<LiveItem>,
     display_live: bool,
+    display_session: Option<(String, u64, u64)>,
+    display_raw: Option<String>,
     live_tail: Option<StreamHandle>,
     live_timer: Option<Timer>,
     live_expiry: Option<Timer>,
@@ -337,6 +339,8 @@ impl ChatWatcher {
                 live: CodexLiveState::new(),
                 screen_live: None,
                 display_live: false,
+                display_session: None,
+                display_raw: None,
                 live_tail: None,
                 live_timer: None,
                 live_expiry: None,
@@ -2301,6 +2305,77 @@ impl ChatWatcher {
 
     // ---------- Codex live events (the reply as it's written) ----------
 
+    fn display_stream_supported(&self) -> bool {
+        crate::hosts::node_link::info(&self.host_id).and_then(|i| i.version)
+            .is_some_and(|v| !crate::hosts::node_update::newer_target("0.24.47", &v))
+    }
+
+    /// Claude's native hook already supplies exact text. Keep one reader open,
+    /// independently of terminal capture and the machine's inventory polls.
+    fn start_display(&self, session: &str, started: u64) {
+        let gen = self.st.borrow().generation;
+        let identity = (session.to_owned(), started, gen);
+        {
+            let st = self.st.borrow();
+            if st.stopped || (st.display_session.as_ref() == Some(&identity) && (st.live_tail.is_some() || st.live_retry_timer.is_some())) { return; }
+        }
+        self.stop_live();
+        let Ok(host) = self.host() else { return };
+        let me = self.me.clone();
+        let mine: Rc<RefCell<Option<StreamHandle>>> = Rc::default();
+        let m2 = mine.clone();
+        let Ok(t) = host.stream(
+            &format!(r#""$HOME/.inyon/bin/inyon.exe" claude-display watch {session}"#),
+            move |line| {
+                let Some(w) = me.upgrade() else { return };
+                let current = {
+                    let st = w.st.borrow();
+                    !st.stopped && st.generation == gen && matches!((&st.live_tail, &*m2.borrow()), (Some(a), Some(b)) if a.same(b))
+                };
+                if current { w.on_display_line(&line); }
+            }, false,
+        ) else { return };
+        *mine.borrow_mut() = Some(t.clone());
+        {
+            let mut st = self.st.borrow_mut();
+            st.display_session = Some(identity);
+            st.display_live = true;
+            st.live_tail = Some(t.clone());
+        }
+        let me = self.me.clone();
+        spawn(async move {
+            t.exited.wait().await;
+            let Some(w) = me.upgrade() else { return };
+            {
+                let mut st = w.st.borrow_mut();
+                if st.stopped || st.generation != gen || !st.live_tail.as_ref().is_some_and(|x| x.same(&t)) { return; }
+                st.live_tail = None;
+            }
+            w.expire_screen_live_soon();
+            let timer = w.later(2000, |w| {
+                w.st.borrow_mut().live_retry_timer = None;
+                w.kick_screen();
+            });
+            w.st.borrow_mut().live_retry_timer = Some(timer);
+        });
+    }
+
+    fn on_display_line(&self, line: &str) {
+        let changed = {
+            let mut st = self.st.borrow_mut();
+            let Some((id, started, gen)) = st.display_session.clone() else { return };
+            if st.stopped || gen != st.generation || st.info.session_id.as_deref() != Some(&id) { return; }
+            if line != "{}" {
+                st.display_raw = (line != "null" && line.len() <= inyon_protocol::claude_stream::MAX_TEXT * 2).then(|| line.to_owned());
+            }
+            let next = st.display_raw.as_deref().and_then(|raw| super::display_reply::preview(raw, &id, started, &st.items, now_ms()));
+            let changed = st.screen_live != next;
+            st.screen_live = next;
+            changed
+        };
+        if changed { self.live_soon(); }
+    }
+
     /// Joins the thread on Codex's app-server through a helper on the machine (codex_live.rs). The
     /// helper needs node and the daemon's socket; without them it ends at once, and is tried again
     /// later rather than at once.
@@ -2457,6 +2532,8 @@ impl ChatWatcher {
             st.live.clear();
             st.screen_live = None;
             st.display_live = false;
+            st.display_session = None;
+            st.display_raw = None;
             st.live_json = String::new();
             (t, had, st.stopped)
         };
@@ -2585,7 +2662,10 @@ impl ChatWatcher {
         if self.st.borrow().change_timer.is_some() {
             return;
         }
-        let t = self.later(if hidden() { QUIET_SCREEN_MS } else { 120 }, |w| {
+        // Native Claude text has its own stream; terminal repaint events only
+        // need to refresh controls, drafts and menus, not every output batch.
+        let delay = if hidden() { QUIET_SCREEN_MS } else if self.st.borrow().display_session.is_some() { LIVE_SCREEN_MS } else { 120 };
+        let t = self.later(delay, |w| {
             w.st.borrow_mut().change_timer = None;
             w.kick_screen();
         });
@@ -2651,6 +2731,13 @@ impl ChatWatcher {
         let windows_claude = agent.kind == AgentKind::Claude && registry().get(&self.host_id)
             .is_some_and(|r| r.borrow().state.os.as_deref().is_some_and(|os| os.to_ascii_lowercase().contains("windows")));
         if windows_claude && self.reads_live_reply(agent.kind) {
+            if self.display_stream_supported() {
+                if let Some((id, started)) = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s)).zip(agent.started_at) {
+                    self.start_display(id, started);
+                } else if self.st.borrow().display_session.is_some() {
+                    self.stop_live();
+                }
+            } else {
             // Reading is separate from the input/control connection, so streaming cannot queue keys.
             let gen = self.st.borrow().generation;
             let sid = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s));
@@ -2671,6 +2758,7 @@ impl ChatWatcher {
                 changed
             };
             if changed { self.live_soon(); }
+            }
         } else if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
             self.live_soon();
         }
@@ -2812,7 +2900,7 @@ impl ChatWatcher {
         let (stopped, streaming) = {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.screen_timer);
-            (st.stopped, (st.screen.working || st.screen_live.is_some()) && st.agent.is_some_and(|kind| self.reads_live_reply(kind)))
+            (st.stopped, st.display_session.is_none() && (st.screen.working || st.screen_live.is_some()) && st.agent.is_some_and(|kind| self.reads_live_reply(kind)))
         };
         if !stopped {
             let t = self.later(if hidden() { QUIET_SCREEN_MS } else if streaming { LIVE_SCREEN_MS } else { SCREEN_MS }, |w| w.kick_screen());

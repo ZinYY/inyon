@@ -18,6 +18,15 @@ fn from<T: serde::de::DeserializeOwned>(v: Value) -> T {
 }
 
 #[test]
+fn a_probe_timeout_does_not_hide_a_node_that_is_still_answering() {
+    assert!(probe_timeout_while_live(HostStatus::Online, true, true, "Machine inventory: timed out"));
+    assert!(!probe_timeout_while_live(HostStatus::Online, true, false, "timed out"), "an open but silent socket is insufficient");
+    assert!(!probe_timeout_while_live(HostStatus::Online, false, true, "timed out"), "SSH reachability has no node proof");
+    assert!(!probe_timeout_while_live(HostStatus::Connecting, true, true, "timed out"));
+    assert!(!probe_timeout_while_live(HostStatus::Online, true, true, "permission denied"));
+}
+
+#[test]
 fn renames_and_metadata_do_not_make_live_status_look_stalled() {
     use crate::test_support::{sh, TempDir};
     let dir = TempDir::new("inyon-reporting-");

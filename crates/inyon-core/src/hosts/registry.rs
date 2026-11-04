@@ -381,6 +381,10 @@ pub fn overview_changed(prev: &HostState, next: &HostState) -> bool {
     still(prev) != still(next)
 }
 
+fn probe_timeout_while_live(status: HostStatus, node: bool, recent_reply: bool, error: &str) -> bool {
+    status == HostStatus::Online && node && recent_reply && error.to_ascii_lowercase().contains("timed out")
+}
+
 fn snapshot_key(id: &str) -> String {
     format!("snapshots/{}", key_part(id))
 }
@@ -936,6 +940,24 @@ impl Registry {
             Ok(()) => {}
             // the read in flight when the connection dropped: not a fault of the machine's
             Err(_) if reached_through_inyon(&config) && node_link::reconnecting(&config.id) => next = 1000,
+            Err(error) if probe_timeout_while_live(rt.borrow().state.status, reached_through_inyon(&config), node_link::replied_recently(&config.id), &error) => {
+                // The machine is still producing replies. Preserve its last
+                // inventory and retry; a slow inventory command is not a lost
+                // connection, and must not disable otherwise working input.
+                let warning = format!("Session refresh delayed: {error}");
+                let changed = {
+                    let mut r = rt.borrow_mut();
+                    let changed = r.state.error.as_deref() != Some(warning.as_str());
+                    r.state.error = Some(warning);
+                    r.state.latency_ms = None;
+                    changed
+                };
+                if changed {
+                    console::error(&format!("probe {} delayed while node is responding: {error}", config.id));
+                    self.emit(RegistryEvent::Overview);
+                }
+                next = poll_ms();
+            }
             Err(error) => {
                 let failures = {
                     let mut r = rt.borrow_mut();
@@ -946,6 +968,7 @@ impl Registry {
                 let before = rt.borrow().state.clone();
                 let replaced = self.mark_down(&rt, HostStatus::Error, &error);
                 if before.status != HostStatus::Error || before.error.as_deref() != Some(error.as_str()) || replaced {
+                    console::error(&format!("probe {} failed: {error}", config.id));
                     self.emit(RegistryEvent::Overview);
                 }
             }
@@ -966,10 +989,10 @@ impl Registry {
 
     /// One poll's work; the error is the message the machine shows.
     async fn poll_once(&self, rt: &Rt, host: &Host) -> Result<(), String> {
-        let pr = probe(host).await?;
+        let pr = probe(host).await.map_err(|e| format!("Machine inventory: {e}"))?;
         let pr = Rc::new(RefCell::new(pr));
         rt.borrow_mut().probe = Some(pr.clone());
-        self.annotate_agents(rt, &pr).await.map_err(|e| e.message)?;
+        self.annotate_agents(rt, &pr).await.map_err(|e| format!("Session details: {}", e.message))?;
         rest_windows(rt, host, &pr.borrow());
         let config = host.config();
         let prev = rt.borrow().state.clone();

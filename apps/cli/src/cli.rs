@@ -436,6 +436,10 @@ pub fn main() {
             if let Some(session) = argv.get(3) { crate::claude_display::read_snapshot(session); }
             return;
         }
+        if argv.get(2).is_some_and(|s| s == "watch") {
+            if let Some(session) = argv.get(3) { crate::claude_display::watch_snapshot(session); }
+            return;
+        }
         crate::claude_display::run();
         return;
     }
