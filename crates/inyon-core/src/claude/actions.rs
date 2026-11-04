@@ -1756,7 +1756,8 @@ async fn active_bin(host: &Host, kind: AgentKind, pid: Option<f64>) -> HubResult
 
 pub(crate) async fn resume_launch(host: &Host, kind: AgentKind, id: &str, pid: f64, args: &str) -> HubResult<String> {
     let command = resume_for(host, kind, Some(id), pid, args).await;
-    Ok(with_bin(&command, &active_bin(host, kind, Some(pid)).await?))
+    let proxy = fork_proxy_environment(host, pid).await;
+    Ok(fork_launch_line(&command, &active_bin(host, kind, Some(pid)).await?, &proxy))
 }
 
 async fn saved_transcript(host: &Host, path: Option<&str>) -> HubResult<bool> {
@@ -2227,26 +2228,31 @@ pub async fn launch(host_id: &str, opts: &LaunchOpts) -> HubResult<String> {
 /// a conversation themselves; this only starts them that way.
 /// Preserve only explicit network proxy settings when a fork starts in another shell.
 /// Other environment variables (including agent credentials) are never copied.
-fn proxy_environment_prefix(output: &str) -> String {
+fn proxy_environment_prefix(output: &str, win: bool) -> String {
     let names = ["http_proxy", "https_proxy", "all_proxy", "no_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"];
-    let vars: Vec<String> = output.lines().filter_map(|line| {
-        let (key, _) = line.split_once('=')?;
-        names.contains(&key).then(|| shq(line))
+    let data = serde_json::from_str::<Value>(output).unwrap_or(Value::Null);
+    let vars: Vec<String> = data.as_object().into_iter().flatten().filter_map(|(key, value)| {
+        let value = value.as_str()?;
+        names.contains(&key.as_str()).then(|| if win {
+            format!("$env:{key}='{}';", value.replace('\'', "''"))
+        } else { format!("{key}={}", shq(value)) })
     }).collect();
-    if vars.is_empty() { String::new() } else { format!("env {} ", vars.join(" ")) }
+    // A user-local `env` may be a shell setup script (e.g. uv's), not the system utility.
+    // POSIX assignment prefixes need no external command and still quote each value literally.
+    if vars.is_empty() { String::new() } else { format!("{} {}", vars.join(" "), if win { "& " } else { "" }) }
 }
 
 async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
-    let cmd = format!(r"tr '\0' '\n' < /proc/{}/environ 2>/dev/null | grep -E '^(http_proxy|https_proxy|all_proxy|no_proxy|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY)='", fmt_number(pid.trunc()));
+    let cmd = format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {}; fi; done",
+        shq(include_str!("process_environment.py")), fmt_number(pid.trunc()));
     match host.run(&cmd).await {
-        Ok(r) if r.code == 0 => proxy_environment_prefix(&r.stdout),
+        Ok(r) if r.code == 0 => proxy_environment_prefix(&r.stdout, on_psmux(&host.id())),
         _ => String::new(),
     }
 }
 
 fn fork_launch_line(cmd: &str, bin: &str, proxy: &str) -> String {
-    // Resolve the agent executable before adding env; replacing the first word
-    // afterwards would turn env into codex and pass proxy assignments as prompts.
+    // Resolve the agent executable before adding the shell's environment assignments.
     format!("{proxy}{}", with_bin(cmd, bin))
 }
 

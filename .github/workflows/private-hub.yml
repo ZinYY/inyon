@@ -31,6 +31,7 @@ jobs:
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p branch_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_identity_test.py
       - run: python3 -m unittest discover -s scripts -p claude_auto_title_test.py
+      - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: bun run typecheck
       - run: bun test
         working-directory: apps/web
@@ -57,6 +58,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - run: python -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
@@ -83,6 +85,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: |
           python3 - <<'PY'
           import re, pathlib, subprocess

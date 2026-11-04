@@ -923,18 +923,23 @@ fn a_tmux_session_is_renamed_by_its_number_with_what_tmux_wont_take_out_of_the_n
 
 #[test]
 fn fork_environment_copies_only_proxies_and_quotes_shell_metacharacters() {
-    let value = "https_proxy=http://127.0.0.1:7890/$(touch nope)";
-    let prefix = proxy_environment_prefix(&format!("{value}\nNO_PROXY=localhost,127.0.0.1\nAPI_KEY=private\nPATH=/other\n"));
-    assert_eq!(prefix, format!("env {} {} ", shq(value), shq("NO_PROXY=localhost,127.0.0.1")));
-    assert_eq!(proxy_environment_prefix("API_KEY=private\n"), "");
+    let data = json!({"https_proxy":"http://127.0.0.1:7890/$(touch nope)", "NO_PROXY":"localhost,127.0.0.1", "API_KEY":"private", "PATH":"/other"}).to_string();
+    let prefix = proxy_environment_prefix(&data, false);
+    assert_eq!(prefix, "https_proxy='http://127.0.0.1:7890/$(touch nope)' NO_PROXY='localhost,127.0.0.1' ");
+    assert_eq!(proxy_environment_prefix(r#"{"API_KEY":"private"}"#, false), "");
+    assert_eq!(proxy_environment_prefix(r#"{"https_proxy":"http://host/a'b$()"}"#, true), "$env:https_proxy='http://host/a''b$()'; & ");
 }
 
 #[cfg(unix)]
 #[test]
 fn a_fork_launch_runs_the_resolved_binary_with_its_proxy_and_arguments() {
-    let proxy = proxy_environment_prefix("http_proxy=http://127.0.0.1:7890\n");
+    use std::os::unix::fs::PermissionsExt;
+    let home = TempDir::new("inyon-shadowed-env-");
+    home.write("env", "#!/bin/sh\nexit 0\n");
+    std::fs::set_permissions(home.path("env"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    let proxy = proxy_environment_prefix(r#"{"http_proxy":"http://127.0.0.1:7890"}"#, false);
     let cmd = fork_launch_line("codex -c 'printf \"%s\\n\" \"$http_proxy\" \"$1\"' shell fork", "/bin/sh", &proxy);
-    let result = std::process::Command::new("/bin/sh").args(["-c", &cmd]).output().unwrap();
+    let result = std::process::Command::new("/bin/sh").env("PATH", home.path("")).args(["-c", &cmd]).output().unwrap();
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
     assert_eq!(String::from_utf8_lossy(&result.stdout), "http://127.0.0.1:7890\nfork\n");
 }
