@@ -9,7 +9,7 @@ from process_environment import selected, process_proxies
 class EnvironmentTest(unittest.TestCase):
     def test_allowlist_preserves_values_and_excludes_other_environment(self):
         self.assertEqual(selected(['https_proxy=http://localhost/a=b', 'NO_PROXY=localhost,::1', 'PATH=/bin', 'API_KEY=private']),
-                         {'https_proxy': 'http://localhost/a=b', 'NO_PROXY': 'localhost,::1'})
+                         {'https_proxy': 'http://localhost/a=b', 'no_proxy' if os.name == 'nt' else 'NO_PROXY': 'localhost,::1'})
 
     def test_reads_proxies_from_another_process_on_this_platform(self):
         env = os.environ.copy()
