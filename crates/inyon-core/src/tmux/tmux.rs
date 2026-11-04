@@ -1098,7 +1098,7 @@ fn nonempty_or(s: &str, fallback: &str) -> String {
 }
 
 /// Real-time pane activity from tmux itself (tmux/live.ts). One control-mode client per tmux
-/// session (read-only, and flagged so it never affects window sizes) reports `%output` for every
+/// session (flagged so it never affects window sizes) reports `%output` for every
 /// pane as it changes, plus structural events (windows/panes opened, closed, renamed).
 pub struct LiveTmux {
     host: Host,
@@ -1132,7 +1132,11 @@ impl LiveTmux {
 
     fn attach(&self, id: &str) {
         // exec skips the tmux() function that adds -u, so add it here (not for psmux, where tmux is a function)
-        let cmd = format!(r#"exec tmux $([ "$(command -v tmux)" = tmux ] || echo -u) -C attach-session -t {} -f read-only,ignore-size"#, shq(id));
+        // tmux 3.7 resolves send-keys against an attached client even when the command
+        // arrives separately over SSH. A read-only observer can therefore block all
+        // Chat/Terminal input when it is the only client. This authenticated Inyon
+        // client already drives the session; keep ignore-size without read-only.
+        let cmd = format!(r#"exec tmux $([ "$(command -v tmux)" = tmux ] || echo -u) -C attach-session -t {} -f ignore-size"#, shq(id));
         let (on_output, on_structure, clients, sid) = (self.on_output.clone(), self.on_structure.clone(), self.clients.clone(), id.to_owned());
         let on_line = move |line: String| {
             if line.starts_with("%output ") || line.starts_with("%extended-output ") {

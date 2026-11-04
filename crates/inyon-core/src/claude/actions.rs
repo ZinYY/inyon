@@ -2284,38 +2284,22 @@ async fn materialize_claude_fork(host: &Host, pane: &str, width: Option<u32>, ti
     }
 }
 
-/// A rewind may exist only in Claude's memory until its next local command or turn.
-/// Flush that branch through Claude before another process resumes it for a fork.
-async fn checkpoint_claude_rewind(host_id: &str, pane: &str, host: &Host) -> HubResult<()> {
-    if let Some(w) = watchers().peek(host_id, pane) { w.poll_screen().await; }
-    let Some(w) = watchers().peek(host_id, pane) else { return Ok(()) };
-    let Some(selected) = w.claude_rewind_selection() else { return Ok(()) };
-    let persisted = || async {
-        let r = host.run(&super::branch::command(&selected.path, None)).await?;
-        let b: super::branch::Branch = serde_json::from_str(&r.stdout).map_err(|_| http(409, "Could not verify the current Claude conversation branch"))?;
-        Ok::<bool, HubError>(b.discards(&selected.before))
-    };
-    if persisted().await? { return Ok(()); }
-    let screen = current_screen(host_id, pane).await?;
-    if screen.working || screen.prompt.is_some() || screen.input_visible != Some(true) {
-        return Err(http(409, "Finish the current Claude dialog before forking this rewind"));
+/// Fork a rewound conversation through Anthropic's public SDK. Native CLI resume
+/// can select an abandoned branch; the SDK accepts an exact message UUID. It creates
+/// a new session itself, so the resulting ID is resumed without --fork-session.
+async fn fork_claude_rewind(host: &Host, session: &str, selected: &super::branch::Selection, cwd: &str, title: Option<&str>) -> HubResult<String> {
+    let r = host.run(&super::branch::command(&selected.path, Some(selected))).await?;
+    let branch: super::branch::Branch = serde_json::from_str(&r.stdout).map_err(|_| http(409, "Could not identify the current Claude conversation branch"))?;
+    let leaf = branch.leaf().filter(|id| is_session_id_str(Some(id), Some(AgentKind::Claude)))
+        .ok_or_else(|| http(409, "Say something first; this rewind leaves no conversation to fork"))?;
+    let input = json!({"sessionId":session,"upToMessageId":leaf,"dir":cwd,"title":title,"transcript":selected.path});
+    let command = format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {}; fi; done", shq(include_str!("claude_fork.py")), shq(&input.to_string()));
+    let r = host.run(&command).await?;
+    let id = serde_json::from_str::<Value>(&r.stdout).ok().and_then(|v| v.get("sessionId").and_then(Value::as_str).map(str::to_owned));
+    if r.code != 0 || id.as_deref().is_none_or(|id| id == session || !is_session_id_str(Some(id), Some(AgentKind::Claude))) {
+        return Err(http(409, if r.stderr.jtrim().is_empty() { "The official Claude SDK could not create this branch" } else { r.stderr.jtrim() }));
     }
-    let title = w.info().title.unwrap_or_else(|| "Conversation".to_owned());
-    let name = re!(r"\s+", "g").replace_all(&title, " ");
-    let release = w.hold_draft(screen.draft.as_deref()).await;
-    let result = async {
-        if let Some(draft) = screen.draft.as_deref().filter(|s| !s.is_empty()) { clear_input(host_id, pane, draft).await?; }
-        type_into(host, pane, &format!("/rename {}", name.jtrim().to16(80)), true).await?;
-        for _ in 0..20 {
-            sleep(250).await;
-            if persisted().await? { return Ok(()); }
-        }
-        Err(http(409, "Claude has not saved this rewind yet; the fork was not opened"))
-    }.await;
-    release().await;
-    result?;
-    watchers().reload(host_id, pane)?;
-    Ok(())
+    Ok(id.unwrap())
 }
 
 pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String> {
@@ -2324,18 +2308,31 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     let Some(a) = found.pane.agent.clone().filter(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Opencode)) else {
         return Err(http(400, "Only Claude Code, Codex and OpenCode conversations can be forked"));
     };
-    let Some(session) = a.session_id.clone().filter(|s| !s.is_empty() && is_session_id_str(Some(s), Some(a.kind))) else {
+    let Some(mut session) = a.session_id.clone().filter(|s| !s.is_empty() && is_session_id_str(Some(s), Some(a.kind))) else {
         return Err(http(409, "No conversation to fork yet"));
     };
     if a.kind != AgentKind::Opencode && !saved_transcript(&host, a.transcript_path.as_deref()).await? {
         return Err(http(409, "Say something first; there is nothing to fork yet"));
     }
-    if a.kind == AgentKind::Claude { checkpoint_claude_rewind(host_id, pane_id, &host).await?; }
     let proc = registry().agent_proc(host_id, pane_id);
     let cwd = match proc.as_ref().and_then(|p| p.cwd.clone()) {
         Some(c) => c,
         None => found.pane.cwd.clone(),
     };
+    let mut sdk_fork = false;
+    if a.kind == AgentKind::Claude {
+        if let Some(w) = watchers().peek(host_id, pane_id) { w.poll_screen().await; }
+        if let Some(w) = watchers().peek(host_id, pane_id) {
+            if let Some(selected) = w.claude_rewind_selection() {
+                let screen = current_screen(host_id, pane_id).await?;
+                if screen.working || screen.prompt.is_some() || screen.input_visible != Some(true) {
+                    return Err(http(409, "Finish the current Claude dialog before forking this rewind"));
+                }
+                session = fork_claude_rewind(&host, &session, &selected, &cwd, w.info().title.as_deref()).await?;
+                sdk_fork = true;
+            }
+        }
+    }
     let resume = |kind, omit: Vec<&'static str>| {
         let host = host.clone();
         let proc = proc.clone();
@@ -2358,7 +2355,8 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
             let mut omit = vec![];
             if status.as_ref().and_then(|s| s.model_id.as_deref()).is_some_and(|m| !m.is_empty()) { omit.push("--model"); }
             if status.as_ref().and_then(|s| s.effort.as_deref()).is_some_and(|e| !e.is_empty()) { omit.push("--effort"); }
-            let mut cmd = format!("{} --fork-session", resume(AgentKind::Claude, omit).await);
+            let mut cmd = resume(AgentKind::Claude, omit).await;
+            if !sdk_fork { cmd.push_str(" --fork-session"); }
             if let Some(s) = status {
                 if let Some(model) = s.model_id.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --model {}", shq(&model))); }
                 if let Some(effort) = s.effort.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --effort {}", shq(&effort))); }
@@ -2396,7 +2394,7 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     shell_ready(&host, &new_pane, 8000).await?;
     let line = fork_launch_line(&cmd, &active_bin(&host, a.kind, proc.as_ref().map(|p| p.pid)).await?, &proxy);
     type_into(&host, &new_pane, &line, true).await?;
-    if a.kind == AgentKind::Claude {
+    if a.kind == AgentKind::Claude && !sdk_fork {
         let title = watchers().peek(host_id, pane_id).and_then(|w| w.info().title).unwrap_or_else(|| found.pane.title.clone());
         let title = bare_title(Some(&title));
         let (host, new_pane) = (host.clone(), new_pane.clone());
@@ -2506,7 +2504,7 @@ pub async fn rename_pane(host_id: &str, pane_id: &str, raw: &str) -> HubResult<(
         registry().refresh(host_id, 0);
         return Ok(());
     };
-    let Some(session) = a.session_id.clone().filter(|s| !s.is_empty()) else {
+    let Some(mut session) = a.session_id.clone().filter(|s| !s.is_empty()) else {
         return Err(http(409, "Send a first message, then name the session"));
     };
     // the title the agent made up, so the automatic name can put it back

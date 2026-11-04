@@ -1000,3 +1000,25 @@ fn fork_overrides_remove_old_model_flags_but_keep_other_configuration() {
     assert!(!cmd.contains("opus") && !cmd.contains("low"), "{cmd}");
     assert!(cmd.contains("'/home/u/my settings.json'") && cmd.contains("'in-process'"), "{cmd}");
 }
+
+#[test]
+fn rewound_claude_forks_use_the_official_sdk_without_typing_into_the_source() {
+    run(|| async {
+        let fork_id = "7409eef9-d507-4808-a592-0bfabe896e3a";
+        let leaf = "7409eef9-d507-4808-a592-0bfabe896e3b";
+        let fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("INYON_CLAUDE_SDK_FORK") {
+                assert!(cmd.contains(leaf));
+                return ok(&format!(r#"{{"sessionId":"{fork_id}"}}"#));
+            }
+            if cmd.contains("Index Claude") { return ok(&format!(r#"{{"leaf":"{leaf}"}}"#)); }
+            ok("")
+        });
+        fork_pane("claude", Some(FORK_ID));
+        super::super::branch::save_selection("h:%1", "/history.jsonl".into(), "41:0".into(), FORK_ID.into(), 100);
+        let selected = super::super::branch::selection("h:%1", "/history.jsonl", Some("41:0"), 0.0).unwrap();
+        let host = crate::hosts::registry::registry().host("h").unwrap();
+        assert_eq!(fork_claude_rewind(&host, FORK_ID, &selected, "/home/u/app", Some("Topic")).await.unwrap(), fork_id);
+        assert!(!fake.cmds().iter().any(|cmd| cmd.contains("send-keys") || cmd.contains("new-window")));
+    });
+}
