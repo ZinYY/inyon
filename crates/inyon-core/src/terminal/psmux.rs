@@ -10,7 +10,7 @@ use crate::platform::rt::spawn;
 use super::mirror::{draw_screen, parse_screen};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Reply { Ignore, Geometry, Capture, Input }
+enum Reply { Ignore, Geometry, Capture, Observe, Input }
 
 struct Decoder {
     pane: String,
@@ -19,6 +19,8 @@ struct Decoder {
     frame: Option<(Reply, Vec<String>)>,
     geometry: String,
     ready: bool,
+    observe_enter: bool,
+    observations: Vec<Vec<String>>,
 }
 
 fn raw_pane(qualified: &str) -> Option<String> {
@@ -66,7 +68,7 @@ fn restore_snapshot(geometry: &str, body: &[String]) -> Result<Vec<u8>, String> 
 
 impl Decoder {
     fn new(pane: String) -> Self {
-        Self { pane, pending: Vec::new(), replies: VecDeque::new(), frame: None, geometry: String::new(), ready: false }
+        Self { pane, pending: Vec::new(), replies: VecDeque::new(), frame: None, geometry: String::new(), ready: false, observe_enter: false, observations: Vec::new() }
     }
 
     fn snapshot(&mut self, cols: u16, rows: u16) -> String {
@@ -78,6 +80,13 @@ impl Decoder {
 
     fn input(&mut self, text: &str) -> String {
         let mut commands = String::new();
+        // Capture the confirmation *before* Enter dismisses it. Both commands use
+        // the existing ordered connection: no new process or network round trip
+        // before forwarding the key. A pasted newline must not trigger this.
+        if self.observe_enter && matches!(text, "\r" | "\n") {
+            self.replies.push_back(Reply::Observe);
+            commands.push_str(&format!("capture-pane -p -e -t {}\n", self.pane));
+        }
         // Hex is a byte channel: Unicode, bracketed paste and escape sequences remain exact.
         // A fixed target on every command prevents another client's window selection redirecting input.
         for chunk in text.as_bytes().chunks(4096) {
@@ -102,6 +111,7 @@ impl Decoder {
                     let body = std::mem::take(body);
                     self.frame = None;
                     if line.starts_with("%error ") {
+                        if kind == Reply::Observe { continue; }
                         // PSmux 3.4's SendBytes dispatch drops its response sender after enqueueing
                         // input. The control handler mislabels that immediate channel closure as a
                         // timeout. Treat only that known write-only response as fire-and-forget.
@@ -114,6 +124,7 @@ impl Decoder {
                             output.push(restore_snapshot(&self.geometry, &body)?);
                             self.ready = true;
                         }
+                        Reply::Observe => self.observations.push(body),
                         _ => {}
                     }
                 } else { body.push(line.to_owned()); }
@@ -136,6 +147,10 @@ impl Decoder {
 pub fn open(host: Host, session: &str, pane: &str, cols: u16, rows: u16, mut on_data: impl FnMut(Vec<u8>) + 'static) -> HubResult<PtyHandle> {
     let raw = raw_pane(pane).ok_or_else(|| http(400, "Invalid PSmux pane"))?;
     let decoder = Rc::new(RefCell::new(Decoder::new(raw)));
+    let host_id = host.config().id.clone();
+    let pane_id = pane.to_owned();
+    decoder.borrow_mut().observe_enter = crate::hosts::registry::registry().pane_agent(&host_id, pane)
+        .is_some_and(|a| a.kind == inyon_protocol::AgentKind::Claude);
     let closed = Rc::new(Cell::new(false));
     let handle: Rc<RefCell<Option<PtyHandle>>> = Rc::new(RefCell::new(None));
     let (d, c, h) = (decoder.clone(), closed.clone(), handle.clone());
@@ -143,6 +158,11 @@ pub fn open(host: Host, session: &str, pane: &str, cols: u16, rows: u16, mut on_
     let pipe = host.pty(&cmd, cols, rows, move |bytes| {
         if c.get() { return; }
         let result = d.borrow_mut().feed(&bytes);
+        for lines in std::mem::take(&mut d.borrow_mut().observations) {
+            if let Some(w) = crate::claude::watcher::watchers().peek(&host_id, &pane_id) {
+                w.observe_terminal_confirmation(&lines);
+            }
+        }
         match result {
             Ok(chunks) => { for bytes in chunks { on_data(bytes); } }
             Err(e) => {
@@ -177,6 +197,27 @@ pub fn open(host: Host, session: &str, pane: &str, cols: u16, rows: u16, mut on_
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn claude_confirmation_capture_precedes_enter_without_redrawing_the_terminal() {
+        let mut d = Decoder::new("%3".into()); d.ready = true; d.observe_enter = true;
+        assert_eq!(d.input("\r"), "capture-pane -p -e -t %3\nsend-keys -t %3 -H 0d\n");
+        let out=d.feed(b"%begin 1 1 1\nConfirm you want to restore to the point before this message:\n| question\n%end 1 1 1\n%begin 1 2 1\ncommand timed out\n%error 1 2 1\n%output %3 draft\n").unwrap();
+        assert_eq!(out,vec![b"draft".to_vec()]);
+        assert_eq!(d.observations.len(),1);
+        assert!(d.observations[0][0].starts_with("Confirm you want to restore"));
+        assert!(!d.input("\x1b[200~line\nline\x1b[201~").contains("capture-pane"));
+        let mut regular=Decoder::new("%3".into());
+        assert_eq!(regular.input("\r"),"send-keys -t %3 -H 0d\n");
+    }
+
+    #[test]
+    fn failed_observation_does_not_drop_input_or_close_terminal() {
+        let mut d=Decoder::new("%3".into()); d.ready=true; d.observe_enter=true; d.input("\r");
+        assert!(d.feed(b"%begin 1 1 1\ncapture unavailable\n%error 1 1 1\n%begin 1 2 1\n%end 1 2 1\n").is_ok());
+        assert!(d.observations.is_empty());
+        assert!(d.replies.is_empty());
+    }
 
     #[test]
     fn fragmented_output_is_decoded_and_other_panes_are_ignored() {

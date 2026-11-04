@@ -226,6 +226,11 @@ fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
         w.subscribe(phone.clone());
         w.read_screen().await.unwrap();
         assert!(w.st.borrow().claude_rewind.is_some());
+        // A fast terminal confirmation can disappear between screen polls. The
+        // control connection's pre-Enter snapshot must drive the same selection.
+        w.st.borrow_mut().claude_rewind = None;
+        w.observe_terminal_confirmation(&lines.borrow().lines().map(str::to_owned).collect::<Vec<_>>());
+        assert!(w.st.borrow().claude_rewind.is_some());
         *lines.borrow_mut() = format!("{}\n❯ \n{}\n", "─".repeat(100), "─".repeat(100));
         w.read_screen().await.unwrap();
         assert!(w.st.borrow().claude_rewind.is_some(), "the empty redraw is not cancellation");

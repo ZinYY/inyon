@@ -2571,6 +2571,15 @@ impl ChatWatcher {
         }
     }
 
+    /// Remember the exact confirmation frame before the terminal's Enter dismisses it.
+    pub fn observe_terminal_confirmation(&self, lines: &[String]) {
+        let selected = super::branch::confirmation(lines, &self.st.borrow().items);
+        if let Some((id, text)) = selected {
+            self.st.borrow_mut().claude_rewind = Some((id, text, now_ms()));
+            self.screen_changed();
+        }
+    }
+
     /// The pane printed something: re-read the screen soon (coalescing bursts of output).
     pub fn screen_changed(&self) {
         if self.st.borrow().change_timer.is_some() {
