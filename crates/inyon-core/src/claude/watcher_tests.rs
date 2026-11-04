@@ -64,6 +64,7 @@ fn native_claude_stream_is_independent_of_screen_polls_and_rejects_old_session_f
         {
             let mut st = w.st.borrow_mut();
             st.info.session_id = Some(id.into());
+            st.screen.working = true;
             st.items = vec![with_seq(Base::new("prompt", &ts).user("聊聊吉他", 0), 1)];
         }
         let raw = |sid: &str, text: &str| {
@@ -81,6 +82,10 @@ fn native_claude_stream_is_independent_of_screen_polls_and_rejects_old_session_f
         assert!(w.st.borrow().screen_live.is_some(), "heartbeat is not a clear");
         first.line("null");
         assert!(w.st.borrow().screen_live.is_none());
+        w.st.borrow_mut().screen.working = false;
+        first.line(&raw(id, "withdrawn reply"));
+        assert!(w.st.borrow().screen_live.is_none(), "an idle rewound session cannot replay its old cache");
+        w.st.borrow_mut().screen.working = true;
         {
             let mut st = w.st.borrow_mut();
             st.generation += 1;

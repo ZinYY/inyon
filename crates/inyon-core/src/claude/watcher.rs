@@ -2373,7 +2373,11 @@ impl ChatWatcher {
             if line != "{}" {
                 st.display_raw = (line != "null" && line.len() <= inyon_protocol::claude_stream::MAX_TEXT * 2).then(|| line.to_owned());
             }
-            let next = st.display_raw.as_deref().and_then(|raw| super::display_reply::preview(raw, &id, started, &st.items, now_ms()));
+            // Rewind may keep the same session ID and leave its last cache file.
+            // Once the preview is cleared, an idle pane must not replay it.
+            let next = if st.screen.working || st.screen_live.is_some() {
+                st.display_raw.as_deref().and_then(|raw| super::display_reply::preview(raw, &id, started, &st.items, now_ms()))
+            } else { None };
             let changed = st.screen_live != next;
             st.screen_live = next;
             changed
