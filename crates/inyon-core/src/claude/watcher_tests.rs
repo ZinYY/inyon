@@ -781,6 +781,29 @@ fn a_blank_codex_thread_discards_old_chat_even_when_the_process_is_unchanged() {
 }
 
 #[test]
+fn a_known_blank_codex_id_discards_the_previous_threads_items_before_its_first_file() {
+    run(|| async {
+        let _fake = Fake::install(|_, _, _| ok(""));
+        fresh_new_agent();
+        let w = chat_of_first();
+        let old = "00000000-0000-0000-0000-000000000001";
+        let new = "00000000-0000-0000-0000-000000000002";
+        w.st.borrow_mut().transcript = Some(format!("/sessions/rollout-{old}.jsonl"));
+        // A screen update can publish the new ID before the watcher syncs.
+        w.st.borrow_mut().info.session_id = Some(new.into());
+        machine("new-agent-test", "local", json!([{ "id":"%5", "agent":{
+            "kind":"codex", "pid":100, "startedAt":1000, "state":"idle", "sessionId":new
+        }}])).borrow_mut().hold_polls();
+        w.sync();
+        assert!(texts(&w).is_empty());
+        assert_eq!(w.info().session_id.as_deref(), Some(new));
+        assert!(w.info().transcript_path.is_none());
+        assert!(w.st.borrow().ready);
+        watchers().stop(NEW_KEY);
+    });
+}
+
+#[test]
 fn reopening_a_blank_codex_thread_does_not_revive_parked_or_persisted_history() {
     run(|| async {
         let _fake = Fake::install(|_, _, _| ok(""));

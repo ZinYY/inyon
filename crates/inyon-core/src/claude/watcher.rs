@@ -1352,16 +1352,23 @@ impl ChatWatcher {
             st.claude_start = st.claude_start.max(h.ts);
             changed && h.data.get("source").and_then(Value::as_str) == Some("resume")
         });
-        let (shown, held, tail_lost, transcript) = {
+        let (shown, held, tail_lost, transcript, shown_session) = {
             let st = self.st.borrow();
-            (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone())
+            (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone(), st.info.session_id.clone())
         };
         let blank_codex = registry().codex_is_empty(&self.host_id, &self.pane_id);
         let unidentified = agent.as_ref().is_some_and(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex) && a.session_id.is_none());
         // A /clear or /resume is confirmed by the new transcript identity, before that file
         // necessarily exists. Drop the previous chat now: a slow/failed initial read must not
         // leave it displayed under the new session id until someone forces a reload.
-        let switched = path.as_ref().is_some_and(|p| Some(p) != transcript.as_ref());
+        let switched = path.as_ref().is_some_and(|p| Some(p) != transcript.as_ref()) || agent.as_ref().is_some_and(|a| {
+            // /new has a reliable ID before it has any rollout file. Publishing
+            // that ID must not relabel the previous thread's buffered messages.
+            let attached = if a.kind == AgentKind::Codex {
+                transcript.as_deref().map(crate::agents::codex_live::codex_thread_id).or(shown_session.clone())
+            } else { shown_session.clone() };
+            a.session_id.as_ref().is_some_and(|id| attached.as_ref().is_some_and(|old| old != id))
+        });
         if online && agent.is_some() && held && (switched || resumed || unidentified || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
             self.forget();
         }
