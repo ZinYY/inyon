@@ -1668,6 +1668,10 @@ pub fn resume_command(kind: AgentKind, session_id: Option<&str>, args: &str) -> 
 
 /// `resumeCommand` with the real argument list where the machine can give it.
 pub fn resume_command_argv(kind: AgentKind, session_id: Option<&str>, tokens: &[String]) -> String {
+    resume_command_argv_omitting(kind, session_id, tokens, &[])
+}
+
+fn resume_command_argv_omitting(kind: AgentKind, session_id: Option<&str>, tokens: &[String], omit: &[&str]) -> String {
     // a terminal-first agent's flags aren't known, so which word is a value or a first message
     // isn't either: it starts again plain rather than repeat a task
     if !kind.chat() {
@@ -1697,8 +1701,9 @@ pub fn resume_command_argv(kind: AgentKind, session_id: Option<&str>, tokens: &[
         }
         let next_ok = rest.get(i + 1).is_some_and(|n| !n.is_empty() && !n.starts_with('-'));
         let has_value = takes.contains(&flag) && !t.contains('=') && next_ok;
-        let drop_value = drop.contains(&flag) && !t.contains('=') && next_ok && flag != "--fork-session";
-        if drop.contains(&flag) {
+        let dropped = drop.contains(&flag) || omit.contains(&flag);
+        let drop_value = dropped && !t.contains('=') && next_ok && flag != "--fork-session";
+        if dropped {
             i += if drop_value { 2 } else { 1 };
             continue;
         }
@@ -2331,13 +2336,18 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         Some(c) => c,
         None => found.pane.cwd.clone(),
     };
-    let resume = |kind| {
+    let resume = |kind, omit: Vec<&'static str>| {
         let host = host.clone();
         let proc = proc.clone();
         let session = session.clone();
         async move {
             match &proc {
-                Some(p) => resume_for(&host, kind, Some(&session), p.pid, &p.args).await,
+                Some(p) => {
+                    let tokens = argv(&host, p.pid).await.unwrap_or_else(|| {
+                        crate::js::re::split_plain(p.args.jtrim(), re!(r"\s+")).into_iter().map(str::to_owned).collect()
+                    });
+                    resume_command_argv_omitting(kind, Some(&session), &tokens, &omit)
+                },
                 None => resume_command(kind, Some(&session), &kind.def().launch),
             }
         }
@@ -2345,7 +2355,10 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     let cmd = match a.kind {
         AgentKind::Claude => {
             let status = watchers().peek(host_id, pane_id).and_then(|w| w.info().status).or(a.status.clone());
-            let mut cmd = format!("{} --fork-session", resume(AgentKind::Claude).await);
+            let mut omit = vec![];
+            if status.as_ref().and_then(|s| s.model_id.as_deref()).is_some_and(|m| !m.is_empty()) { omit.push("--model"); }
+            if status.as_ref().and_then(|s| s.effort.as_deref()).is_some_and(|e| !e.is_empty()) { omit.push("--effort"); }
+            let mut cmd = format!("{} --fork-session", resume(AgentKind::Claude, omit).await);
             if let Some(s) = status {
                 if let Some(model) = s.model_id.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --model {}", shq(&model))); }
                 if let Some(effort) = s.effort.filter(|s| !s.is_empty()) { cmd.push_str(&format!(" --effort {}", shq(&effort))); }
@@ -2353,12 +2366,14 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
             cmd
         },
         AgentKind::Codex => {
-            let mut cmd = re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex).await, 1, "$1 fork ").into_owned();
             // Codex's fork otherwise starts with the new process's defaults, which can
             // differ from the model/effort currently selected in the source terminal.
             let info = watchers().peek(host_id, pane_id).map(|w| w.info());
             let status = a.status.as_ref().or_else(|| info.as_ref().and_then(|i| i.status.as_ref()));
-            if let Some(model) = status.and_then(|s| s.model_id.as_deref()).or_else(|| info.as_ref().and_then(|i| i.model.as_deref())).filter(|m| !m.is_empty()) {
+            let model = status.and_then(|s| s.model_id.as_deref()).or_else(|| info.as_ref().and_then(|i| i.model.as_deref())).filter(|m| !m.is_empty());
+            let omit = if model.is_some() { vec!["-m", "--model"] } else { vec![] };
+            let mut cmd = re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex, omit).await, 1, "$1 fork ").into_owned();
+            if let Some(model) = model {
                 cmd.push_str(&format!(" -m {}", shq(model)));
             }
             if let Some(effort) = status.and_then(|s| s.effort.as_deref()).filter(|e| ["none", "minimal", "low", "medium", "high", "xhigh", "max"].contains(e)) {

@@ -2690,7 +2690,12 @@ impl ChatWatcher {
                         st.transcript.clone().zip(st.proc.clone()).map(|(path, process)| (path, process, st.reader.as_ref().map_or(0, |r| r.offset)))
                     };
                     if let Some((path, process, since)) = state {
-                        let _ = text;
+                        // Publish the restored input before replacing the reader. The new
+                        // reader first sends an empty screen, which remounts the composer;
+                        // it must already have the terminal's restored draft at that point.
+                        let restored = screen.draft.clone().unwrap_or_else(|| text.clone());
+                        set_draft(&self.key, Some(Draft { text: restored.clone(), source: DraftSource::Terminal, at: now_ms() as f64, mirrored: Some(restored) }));
+                        self.broadcast_draft(None);
                         super::branch::save_selection(&self.key, path, process, before.clone(), since);
                         watchers().reload(&self.host_id, &self.pane_id)?;
                         return Ok(());

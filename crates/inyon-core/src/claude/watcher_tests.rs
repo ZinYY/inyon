@@ -222,6 +222,8 @@ fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
             st.proc = Some("7:0".into());
             st.items = vec![with_seq(Base::new("question", "t").user("Explain training and test sets.", 0), 0)];
         }
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
         w.read_screen().await.unwrap();
         assert!(w.st.borrow().claude_rewind.is_some());
         *lines.borrow_mut() = format!("{}\n❯ \n{}\n", "─".repeat(100), "─".repeat(100));
@@ -230,6 +232,10 @@ fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
         *lines.borrow_mut() = format!("{}\n❯ Explain training and test sets.\n{}\n", "─".repeat(100), "─".repeat(100));
         w.read_screen().await.unwrap();
         assert!(super::super::branch::selection("delayed-rewind:%9", "/history.jsonl", Some("7:0"), 0.0).is_some());
+        let got = phone.got.borrow();
+        let restored = got.iter().position(|m| matches!(m, ServerMsg::ChatDraft { text, source: DraftSource::Terminal, .. } if text == "Explain training and test sets.")).unwrap();
+        let reset = got.iter().position(|m| matches!(m, ServerMsg::ChatReset { .. })).unwrap();
+        assert!(restored < reset, "the restored draft must arrive before the composer remounts");
         watchers().stop("delayed-rewind:%9");
     });
 }

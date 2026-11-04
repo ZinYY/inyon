@@ -727,6 +727,7 @@ fn codex_fork_keeps_the_source_terminals_model_and_effort() {
         fork_conversation("h", "%1").await.unwrap();
         let t = typed(&fake);
         assert!(t.contains(" -m 'gpt-6-astra' -c 'model_reasoning_effort=\"high\"'"), "{t}");
+        assert!(!t.contains("older-model"), "the model flag must be replaced, not repeated: {t}");
     });
 }
 
@@ -981,4 +982,21 @@ fn a_fork_launch_runs_the_resolved_binary_with_its_proxy_and_arguments() {
     let result = std::process::Command::new("/bin/sh").env("PATH", home.path("")).args(["-c", &cmd]).output().unwrap();
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
     assert_eq!(String::from_utf8_lossy(&result.stdout), "http://127.0.0.1:7890\nfork\n");
+}
+
+#[test]
+fn fork_overrides_remove_old_model_flags_but_keep_other_configuration() {
+    let id = "7409eef9-d507-4808-a592-0bfabe896e3a";
+    for flag in ["-m", "--model", "--model=old-model"] {
+        let mut args = vec!["codex".to_owned(), "fork".into(), id.into(), flag.into()];
+        if !flag.contains('=') { args.push("old-model".into()); }
+        args.extend(["-c".into(), "model_reasoning_effort=\"low\"".into(), "--sandbox".into(), "read-only".into()]);
+        let cmd = resume_command_argv_omitting(AgentKind::Codex, Some(id), &args, &["-m", "--model"]);
+        assert!(!cmd.contains("old-model"), "{cmd}");
+        assert!(cmd.contains("model_reasoning_effort") && cmd.contains("read-only"), "{cmd}");
+    }
+    let args = ["claude", "--model=opus", "--effort", "low", "--settings", "/home/u/my settings.json", "--teammate-mode", "in-process"].map(str::to_owned);
+    let cmd = resume_command_argv_omitting(AgentKind::Claude, Some(id), &args, &["--model", "--effort"]);
+    assert!(!cmd.contains("opus") && !cmd.contains("low"), "{cmd}");
+    assert!(cmd.contains("'/home/u/my settings.json'") && cmd.contains("'in-process'"), "{cmd}");
 }
