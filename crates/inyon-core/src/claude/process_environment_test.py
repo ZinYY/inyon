@@ -3,7 +3,7 @@ import subprocess
 import sys
 import time
 import unittest
-from process_environment import selected, process_proxies
+from process_environment import selected, process_proxies, process_start
 
 
 class EnvironmentTest(unittest.TestCase):
@@ -22,6 +22,9 @@ class EnvironmentTest(unittest.TestCase):
             self.assertEqual(found['http_proxy'], env['http_proxy'])
             self.assertEqual(found['no_proxy'], env['NO_PROXY'])
             self.assertTrue(set(found).issubset({'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy'}))
+            start = process_start(child.pid)
+            self.assertTrue(start)
+            self.assertEqual(process_start(child.pid), start)
         finally:
             child.terminate()
             child.wait()

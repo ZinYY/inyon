@@ -673,10 +673,36 @@ fn a_claude_conversation_forks_into_a_new_window_same_folder_and_flags() {
         let rt = fork_pane("claude", Some(FORK_ID));
         with_proc(&rt, "%1", 40.0, "/home/u/app", "claude --model opus");
         assert_eq!(fork_conversation("h", "%1").await.unwrap(), "%9");
+        crate::test_support::rt::wait(2000).await;
         assert_eq!(fake.cmds().into_iter().find(|c| c.contains("new-window")).unwrap(), "tmux new-window -t 'work' -c '/home/u/app' -P -F '#{pane_id}'");
         let t = typed(&fake);
         assert!(t.contains(&format!("-t '%9' -l -- 'claude --resume {FORK_ID} '--model' 'opus' --fork-session'")), "{t}");
         assert!(t.contains("/rename "), "the native rename must flush the inherited history: {t}");
+    });
+}
+
+#[test]
+fn fork_history_waits_for_trust_and_never_replaces_a_draft() {
+    run(|| async {
+        let screen = Rc::new(RefCell::new(crate::test_support::screen_fixture("claude", "trust-folder").join("\n")));
+        let current = screen.clone();
+        let fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("capture-pane") { return ok(&format!("@@CAP %9\n{}", current.borrow())); }
+            ok("")
+        });
+        fork_pane("claude", Some(FORK_ID));
+        let host = crate::hosts::registry::registry().host("h").unwrap();
+        let h = host.clone();
+        crate::platform::rt::spawn(async move { materialize_claude_fork(&h, "%9", None, "Inherited title").await });
+        crate::test_support::rt::wait(2500).await;
+        assert!(!typed(&fake).contains("/rename"));
+        *screen.borrow_mut() = format!("{}\n❯ \n{}\n", rule(100), rule(100));
+        crate::test_support::rt::wait(2000).await;
+        assert!(typed(&fake).contains("/rename Inherited title"));
+        *screen.borrow_mut() = format!("{}\n❯ Keep my draft\n{}\n", rule(100), rule(100));
+        let before = fake.cmds().len();
+        materialize_claude_fork(&host, "%9", None, "Different title").await;
+        assert!(!fake.cmds()[before..].iter().any(|s| s.contains("send-keys")));
     });
 }
 

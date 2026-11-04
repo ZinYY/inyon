@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import struct
+import subprocess
 import sys
 
 NAMES = {'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy'}
@@ -96,8 +97,34 @@ def process_proxies(pid):
     return selected(entries)
 
 
+def process_start(pid):
+    """The platform start token Claude writes in its PID record; guards PID reuse."""
+    if sys.platform == 'darwin':
+        env = dict(os.environ, TZ='UTC', LC_ALL='C')
+        return ' '.join(subprocess.check_output(['ps', '-p', str(pid), '-o', 'lstart='], env=env, text=True, timeout=2).split())
+    if os.name != 'nt':
+        return Path(f'/proc/{pid}/stat').read_text().rsplit(') ', 1)[1].split()[19]
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        raise OSError('Cannot open process')
+    try:
+        times = [wintypes.FILETIME() for _ in range(4)]
+        if not kernel.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
+            raise OSError('Cannot read process start')
+        return str((times[0].dwHighDateTime << 32) | times[0].dwLowDateTime)
+    finally:
+        kernel.CloseHandle(handle)
+
+
 if __name__ == '__main__':
     try:
-        print(json.dumps(process_proxies(int(sys.argv[1]))))
-    except (OSError, ValueError, IndexError):
-        print('{}')
+        pid = int(sys.argv[1])
+        print(process_start(pid) if sys.argv[2:] == ['start'] else json.dumps(process_proxies(pid)))
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+        print('' if sys.argv[2:] == ['start'] else '{}')

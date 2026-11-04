@@ -1025,15 +1025,20 @@ pub async fn send_keys(host: &Host, pane: &str, keys: &[&str]) -> HubResult<()> 
 /// Claude Code publishes its exact session under the owning PID. Prefer that over the
 /// newest file in a shared project directory, which can belong to another window.
 fn process_transcript(record: &str, home: &str, proc: &TranscriptProc<'_>) -> Option<String> {
-    let (record, stat) = record.split_once("\n@@PROCSTAT ").map_or((record, None), |(r, s)| (r, Some(s)));
+    let (record, kernel_start) = match record.split_once("\n@@PROCSTART ") {
+        Some((r, s)) => (r, Some(s.trim().to_owned()).filter(|s| !s.is_empty())),
+        None => record.split_once("\n@@PROCSTAT ").map_or((record, None), |(r, s)| {
+            (r, s.rsplit_once(") ").and_then(|(_, s)| s.split_whitespace().nth(19)).map(str::to_owned))
+        }),
+    };
     let v: serde_json::Value = serde_json::from_str(record).ok()?;
     if v.get("pid")?.as_u64()? != proc.pid as u64 { return None; }
     let started = v.get("startedAt")?.as_f64()? / 1000.0;
-    // Linux's kernel start ticks prove the PID has not been reused. Claude can
+    // The kernel's process start token proves the PID has not been reused. Claude can
     // publish its record minutes after starting while waiting at a trust prompt.
-    let kernel_start = stat.and_then(|s| s.rsplit_once(") ")).and_then(|(_, s)| s.split_whitespace().nth(19));
-    let exact_start = match (kernel_start, v.get("procStart").and_then(|v| v.as_str())) {
-        (Some(actual), Some(recorded)) if actual == recorded => true,
+    let normalize = |s: &str| s.split_whitespace().collect::<Vec<_>>().join(" ");
+    let exact_start = match (kernel_start.as_deref(), v.get("procStart").and_then(|v| v.as_str())) {
+        (Some(actual), Some(recorded)) if normalize(actual) == normalize(recorded) => true,
         (Some(_), Some(_)) => return None,
         _ => false,
     };
@@ -1067,6 +1072,11 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
     assert!(process_transcript(&format!("{late}\n@@PROCSTAT {stat}"), "C:/Users/me", &p).is_some());
     assert!(process_transcript(&format!("{late}\n@@PROCSTAT {}", stat.replace("12345", "99999")), "C:/Users/me", &p).is_none());
     assert!(process_transcript(&late.to_string(), "C:/Users/me", &p).is_none());
+    for start in ["Wed Nov  4 04:36:26 2026", "134382363415135628"] {
+        late["procStart"] = serde_json::json!(start);
+        assert!(process_transcript(&format!("{late}\n@@PROCSTART {}", start.split_whitespace().collect::<Vec<_>>().join(" ")), "C:/Users/me", &p).is_some());
+        assert!(process_transcript(&format!("{late}\n@@PROCSTART reused-pid"), "C:/Users/me", &p).is_none());
+    }
     let elsewhere = TranscriptProc { cwd: Some("C:/another"), ..p };
     assert!(process_transcript(&record.to_string(), "C:/Users/me", &elsewhere).is_none());
 }
@@ -1075,7 +1085,7 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
 /// project-directory or startup --resume guess: either can refer to an old chat.
 pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<(Option<String>, MappedBy)> {
     let record = format!("{home}/.claude/sessions/{}.json", proc.pid);
-    let r = host.run(&format!("cat {} 2>/dev/null; if [ -r /proc/{}/stat ]; then printf '\\n@@PROCSTAT '; cat /proc/{}/stat; fi", shq(&record), proc.pid, proc.pid)).await?;
+    let r = host.run(&format!("cat {} 2>/dev/null; if [ -r /proc/{}/stat ]; then printf '\\n@@PROCSTAT '; cat /proc/{}/stat; else printf '\\n@@PROCSTART '; for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {} start; fi; done; fi", shq(&record), proc.pid, proc.pid, shq(include_str!("../claude/process_environment.py")), proc.pid)).await?;
     Ok((process_transcript(&r.stdout, home, proc), MappedBy::Process))
 }
 

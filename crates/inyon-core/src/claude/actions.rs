@@ -2260,12 +2260,14 @@ fn fork_launch_line(cmd: &str, bin: &str, proxy: &str) -> String {
 /// name through the native command flushes that history without sending a model prompt or
 /// writing Claude's JSONL ourselves. Never type through a question or over a user's draft.
 async fn materialize_claude_fork(host: &Host, pane: &str, width: Option<u32>, title: &str) {
-    for _ in 0..40 {
-        sleep(250).await;
+    for _ in 0..150 {
+        sleep(1000).await;
         let Ok(caps) = capture_panes(host, &[pane.to_owned()]).await else { return };
         let lines = caps.get(pane).map(Vec::as_slice).unwrap_or(&[]);
         let s = parse_screen(lines, width, AgentKind::Claude);
-        if s.prompt.is_some() { return; }
+        // A newly opened home/workspace may ask for trust first. Let the person answer it;
+        // keep watching in the background so its inherited history is then materialized.
+        if s.prompt.is_some() { continue; }
         if s.input_visible == Some(true) && !s.working {
             if s.draft.as_deref().is_none_or(str::is_empty) {
                 let name = re!(r"\s+", "g").replace_all(title, " ");
@@ -2333,7 +2335,9 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     if a.kind == AgentKind::Claude {
         let title = watchers().peek(host_id, pane_id).and_then(|w| w.info().title).unwrap_or_else(|| found.pane.title.clone());
         let title = bare_title(Some(&title));
-        materialize_claude_fork(&host, &new_pane, width_of(&found.pane), if title.is_empty() { "Forked conversation" } else { &title }).await;
+        let (host, new_pane) = (host.clone(), new_pane.clone());
+        let title = if title.is_empty() { "Forked conversation".to_owned() } else { title.to_owned() };
+        spawn(async move { materialize_claude_fork(&host, &new_pane, None, &title).await });
     }
     registry().refresh(host_id, 1500);
     Ok(new_pane)
