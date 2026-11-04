@@ -446,6 +446,18 @@ mod other_agents {
         assert_eq!(parse_screen(&cap, Some(120), AgentKind::Codex).prompt, None);
     }
 
+    #[test]
+    fn psmux_rewind_reads_combined_inverse_styles_without_mistaking_colour_values() {
+        let cap = [
+            "\x1b[0;2;100m› \x1b[0;7;100m再用挑选咖啡配方举个例子，简短一点。\x1b[0m",
+            "› \x1b[0;38;2;7;100;100mAn unselected colour\x1b[0m",
+            "› \x1b[7m\x1b[27mNo longer selected",
+            "› \x1b[7m\x1b[0mReset before the text",
+            "  Browsing transcript · ↑↓/jk scroll · ←→/hl prompts · ↵ rewind · esc back",
+        ].map(str::to_owned);
+        assert_eq!(codex_browsing(&cap).unwrap().selected.as_deref(), Some("再用挑选咖啡配方举个例子，简短一点。"));
+    }
+
     /// a numbered list in a reply is not a prompt
     #[test]
     fn a_numbered_list_in_a_reply_is_not_a_prompt() {

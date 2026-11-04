@@ -1493,6 +1493,40 @@ pub struct CodexBrowsing {
     pub screen: Option<String>,
 }
 
+/// PSmux combines reverse video and background colour in one SGR (0;7;100m).
+/// Read the style of the prompt text, including resets and extended colour values,
+/// rather than depending on tmux's particular arrangement of escape sequences.
+fn inverse_prompt_text(line: &str) -> bool {
+    let mut inverse = false;
+    let mut rest = line;
+    while let Some(ch) = rest.chars().next() {
+        if ch == '\x1b' {
+            if let Some(sgr) = re!(r"^\x1b\[([\d;:]*)m").captures(rest) {
+                let codes = sgr_codes(&sgr[1]);
+                let mut k = 0;
+                while k < codes.len() {
+                    match codes[k] as u32 {
+                        0 | 27 => inverse = false,
+                        7 => inverse = true,
+                        38 | 48 | 58 => {
+                            k += match codes.get(k + 1).copied().map(|c| c as u32) { Some(5) => 2, Some(2) => 4, _ => 0 };
+                        }
+                        _ => {}
+                    }
+                    k += 1;
+                }
+                rest = &rest[sgr[0].len()..];
+            } else {
+                rest = &rest[other_escape(rest)..];
+            }
+        } else {
+            if !crate::js::text::is_space(ch) && !matches!(ch, '›' | '»') { return inverse; }
+            rest = &rest[ch.len_utf8()..];
+        }
+    }
+    false
+}
+
 /// Codex's rewind browser (Esc Esc: "Browsing transcript · ↑↓/jk scroll · ←→/hl prompts · ↵ rewind
 /// · esc back"; older versions say "Browsing ·") shows the chosen past message in reverse video
 /// after its "›". Returns that message's first line, or None when not browsing.
@@ -1502,7 +1536,7 @@ pub fn codex_browsing(captured: &[String]) -> Option<CodexBrowsing> {
         return None;
     }
     for i in (0..captured.len()).rev() {
-        if re!(r"^(?:\x1b\[[\d;]*m)*[›»] (?:\x1b\[[\d;]*m)*\x1b\[(?:0;)?7m").is_match(&captured[i]) {
+        if re!(r"^[›»] ").is_match(&text[i]) && inverse_prompt_text(&captured[i]) {
             let selected = re!(r"^[›»]\s?").replacen(&text[i], 1, "").jtrim().to_owned();
             return Some(CodexBrowsing { selected: Some(selected), screen: Some(captured.join("\n")) });
         }
