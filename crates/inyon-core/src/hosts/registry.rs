@@ -1289,7 +1289,7 @@ impl Registry {
             // the conversation whose presence lock the process holds: exact, no guessing
             if let (Some(id), Some(home)) = (agy_conversation.filter(|c| !c.is_empty()), home.as_deref()) {
                 info.transcript_path = Some(agy_transcript(home, &id));
-                info.session_id = Some(if proc.kind == AgentKind::Codex { crate::agents::codex_live::codex_thread_id(&path) } else { id });
+                info.session_id = Some(id);
                 info.mapped_by = Some(MappedBy::Process);
             }
         } else if empty_codex {
@@ -1355,7 +1355,7 @@ impl Registry {
                 let id = re!(r"\.jsonl?$").replacen(last, 1, "");
                 let id = re!(r"^(rollout-[\dT-]+-|session-)").replacen(&id, 1, "");
                 let id = re!(r"_[0-9a-f-]{36}$").replacen(&id, 1, "").into_owned();
-                info.session_id = Some(id);
+                info.session_id = Some(if proc.kind == AgentKind::Codex { crate::agents::codex_live::codex_thread_id(&path) } else { id });
                 if proc.kind == AgentKind::Copilot {
                     let parts: Vec<&str> = path.split('/').collect();
                     info.session_id = parts.len().checked_sub(2).map(|i| parts[i].to_owned());
