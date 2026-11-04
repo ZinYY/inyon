@@ -1131,6 +1131,46 @@ fn claude_status_identity_supersedes_an_older_hook_after_a_clear() {
 }
 
 #[test]
+fn claude_native_branch_record_supersedes_a_status_line_still_naming_the_parent() {
+    run(|| async {
+        let b = ModeBox::new();
+        let parent = "00000000-0000-0000-0000-000000000001";
+        let child = "00000000-0000-0000-0000-000000000002";
+        let record = Rc::new(RefCell::new(String::new()));
+        let native = record.clone();
+        let _fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", idle(""))) }
+            else if cmd.contains("/.claude/sessions/7.json") { ok(&native.borrow()) }
+            else { ok("") }
+        });
+        let now = now_ms() as f64 / 1000.0;
+        let probe = || {
+            let mut p = mode_probe(now);
+            p.home = "/home/u".into();
+            p.status_panes.insert("%9".into(), crate::tmux::tmux::StatusPane { ts: now,
+                data: json!({"session_id":parent,"transcript_path":format!("/home/u/.claude/projects/-w/{parent}.jsonl")}), account: None, account_now: None });
+            Rc::new(RefCell::new(p))
+        };
+        for id in [child, parent, child] {
+            *record.borrow_mut() = format!("{}\n@@PROCSTART live-process", json!({"pid":7,"sessionId":id,"cwd":"/w","startedAt":(now-100.0)*1000.0,"procStart":"live-process"}));
+            let pr = probe();
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            let a = pr.borrow().sessions[0].windows[0].panes[0].agent.clone().unwrap();
+            assert_eq!(a.session_id.as_deref(), Some(id));
+            assert_eq!(a.mapped_by, Some(MappedBy::Process));
+        }
+        // A record left by a reused PID cannot override a valid current status report.
+        let reused = record.borrow().replace("@@PROCSTART live-process", "@@PROCSTART reused-process");
+        *record.borrow_mut() = reused;
+        let pr = probe();
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        let a = pr.borrow().sessions[0].windows[0].panes[0].agent.clone().unwrap();
+        assert_eq!(a.session_id.as_deref(), Some(parent));
+        assert_eq!(a.mapped_by, Some(MappedBy::Hook));
+    });
+}
+
+#[test]
 fn claude_titles_in_overview_do_not_require_a_chat_subscription_or_cross_a_clear() {
     run(|| async {
         let b = ModeBox::new();

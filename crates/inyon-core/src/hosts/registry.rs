@@ -1323,10 +1323,23 @@ impl Registry {
             .and_then(|h| claude_hook_identity(&h.data).map(|i| (h.ts, i)));
         let hook_identity = [event_identity, status_identity].into_iter().flatten()
             .max_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, identity)| identity);
+        // Older Claude versions redraw statusLine with the parent ID after /branch.
+        // Its own PID record already names the child. find_transcript validates the
+        // owning PID and kernel start token; it never searches by folder or title.
+        let process_identity = if proc.kind == AgentKind::Claude && parked.is_none() {
+            if let Some(home) = home.as_deref() {
+                find_transcript(host, home, &TranscriptProc { pid: proc.pid as u32, cwd: proc.cwd.as_deref(), started_at: proc.started_at, resume: None })
+                    .await.ok().and_then(|found| found.0)
+            } else { None }
+        } else { None };
         if let Some(b) = parked {
             // the window shows the background session it moved its conversation to, and types into it
             info.transcript_path = Some(b.transcript);
             info.session_id = Some(b.session_id);
+            info.mapped_by = Some(MappedBy::Process);
+        } else if let Some(path) = process_identity {
+            info.session_id = path.rsplit('/').next().and_then(|name| name.strip_suffix(".jsonl")).map(str::to_owned);
+            info.transcript_path = Some(path);
             info.mapped_by = Some(MappedBy::Process);
         } else if proc.kind == AgentKind::Claude && hook_identity.is_some() {
             let (id, path) = hook_identity.unwrap();
@@ -1340,8 +1353,8 @@ impl Registry {
                 info.session_id = Some(id);
                 info.mapped_by = Some(MappedBy::Process);
             }
-        } else if empty_codex {
-            // No transcript exists for this blank thread. Do not borrow an older same-folder chat.
+        } else if empty_codex || proc.kind == AgentKind::Claude {
+            // Without a current native/hook identity, never reuse a cached same-folder chat.
         } else if let Some(home) = home.as_deref().filter(|_| proc.kind.chat()) {
             // a terminal-first agent has no transcript Inyon reads, so none is looked for
             let cached = rt.borrow().cwd_map.get(&pid).filter(|c|
