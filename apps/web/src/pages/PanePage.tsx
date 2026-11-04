@@ -125,7 +125,7 @@ export function PanePage() {
           }}
         />
         {/* an agent that stays in its terminal asks you to sign in there itself */}
-        {agent && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
+        {agent && agent !== 'claude' && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
           <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">
             <LogIn className="size-4 shrink-0 text-warn" />
             <span className="min-w-0 flex-1">No default {agentDef(agent).name} sign-in detected on {ref.host.config.name}. This session may use its own API configuration.</span>

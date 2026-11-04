@@ -52,7 +52,7 @@ def active_thread(conn, pid, started_at, owned, transport='in-process', single_c
 
 
 def shared_daemon_pid(output, pid):
-    """A single live client of a Codex Unix daemon is unambiguous.
+    """A single live Codex TUI client of a Unix daemon is unambiguous.
 
     Kernel socket peer inodes establish the relationship, never directories or
     thread names. Multiple clients/owners deliberately yield no identity.
@@ -62,10 +62,12 @@ def shared_daemon_pid(output, pid):
         cols = line.split()
         if len(cols) < 9 or cols[0] != 'u_str' or cols[1] != 'ESTAB':
             continue
-        owners = {int(p) for p in re.findall(r'pid=(\d+),', ' '.join(cols[8:]))}
-        rows[cols[5]] = (cols[4], cols[7], owners)
+        processes = re.findall(r'\("([^"]+)",pid=(\d+),', ' '.join(cols[8:]))
+        owners = {int(p) for _, p in processes}
+        tui_owners = {int(p) for name, p in processes if name == 'codex'}
+        rows[cols[5]] = (cols[4], cols[7], owners, tui_owners)
     servers = set()
-    for inode, (_, peer, owners) in rows.items():
+    for inode, (_, peer, owners, _) in rows.items():
         server = rows.get(peer)
         if owners != {pid} or not server or not server[0].startswith(f'/tmp/codex-daemon-{os.getuid()}/'):
             continue
@@ -73,11 +75,11 @@ def shared_daemon_pid(output, pid):
             continue
         server_pid = next(iter(server[2]))
         clients = set()
-        for address, other, owning in rows.values():
+        for address, other, owning, _ in rows.values():
             if owning == {server_pid} and address == server[0]:
                 if other not in rows or len(rows[other][2]) != 1:
                     return None
-                clients.update(rows[other][2])
+                clients.update(rows[other][3])
         if clients == {pid}:
             servers.add(server_pid)
     return next(iter(servers)) if len(servers) == 1 else None
@@ -126,7 +128,9 @@ def mac_shared_daemon_pid(output, pid, uid):
         return None
     server = next(iter(servers))
     endpoints = {device for owner, _, device, path in rows if owner == server and path.startswith(prefixes)}
-    clients = {owner for owner, _, _, peer in rows if peer.startswith('->') and peer[2:] in endpoints}
+    # Inyon's node helper also connects here briefly for live output. Only Codex TUI clients
+    # participate in foreground identity; the log query independently requires client_name=codex-tui.
+    clients = {owner for owner, name, _, peer in rows if name == 'codex' and peer.startswith('->') and peer[2:] in endpoints}
     return server if clients == {pid} else None
 
 
