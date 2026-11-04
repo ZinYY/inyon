@@ -1347,7 +1347,7 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
         state.model = Some(foot[1].to_owned());
         state.effort = Some(foot[2].to_owned());
     }
-    if lines[foot_at].ends_with(" Plan mode") {
+    if re!(r"(?:^| )Plan mode(?: \((?:⇧|shift\+)tab to cycle\))?$").is_match(&lines[foot_at]) {
         state.mode = Some("plan".into());
     }
     let mut rows: Vec<String> = lines[bx..foot_at].to_vec();

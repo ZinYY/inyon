@@ -132,4 +132,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Preserve the confirmed Windows Codex conversation title when PSmux loses OSC titles and the native footer is clipped. Retain titles only for the same PID and exact session ID. Includes Claude spinner-free streaming and native ID fixes.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Recognize Codex Plan mode when its footer includes the macOS or Linux keyboard hint. Preserve exact-ID Windows Codex titles when the footer is clipped. Includes Claude streaming and session identity fixes.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

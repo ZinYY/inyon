@@ -9,6 +9,22 @@ fn claude(lines: &[String], width: Option<u32>) -> ScreenState {
 }
 
 #[test]
+fn codex_plan_footer_accepts_the_native_keyboard_hint() {
+    for prefix in ["", "00000000-0000-0000-0000-000000000001 · "] {
+        for plan in ["Plan mode", "Plan mode (⇧tab to cycle)", "Plan mode (shift+tab to cycle)"] {
+            let lines = vec!["› A draft".into(), "".into(),
+                format!("  {prefix}GPT-6.1-Sol medium · Full Access        {plan}"),
+                "  ? for shortcuts".into()];
+            let state = parse_screen(&lines, Some(200), AgentKind::Codex);
+            assert_eq!(state.mode.as_deref(), Some("plan"), "{plan}");
+            assert_eq!(state.input_visible, Some(true));
+        }
+    }
+    let lines = ["• Plan mode (shift+tab to cycle)", "", "› A draft", "", "  GPT-6.1-Sol medium · Full Access", "  ? for shortcuts"].map(str::to_owned);
+    assert_eq!(parse_screen(&lines, Some(200), AgentKind::Codex).mode, None);
+}
+
+#[test]
 fn codex_custom_status_lines_without_a_directory_keep_the_composer_visible() {
     for footer in [
         "  \x1b[38;2;246;226;183mGPT-6-Astra high\x1b[0m · Full Access · Context 36% used · weekly 12% left",
