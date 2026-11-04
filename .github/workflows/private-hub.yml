@@ -30,6 +30,7 @@ jobs:
       - run: python3 -m unittest discover -s crates/inyon-backends/tests -p windows_herdr_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p branch_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_identity_test.py
+      - run: python3 -m unittest discover -s scripts -p claude_auto_title_test.py
       - run: bun run typecheck
       - run: bun test
         working-directory: apps/web
