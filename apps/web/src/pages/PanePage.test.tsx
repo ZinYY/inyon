@@ -40,7 +40,7 @@ test('the side panel holds its room while it loads, comes in from its edge, and 
 })
 
 test('the chat comes in the way the terminal does, and again for another session', async () => {
-  useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'claude'), agentPane('%2', 'claude')] })], hostsLoaded: true, connected: true })
+  useStore.setState({ hosts: [host('box', { panes: ['%1', '%2'].map((id) => agentPane(id, 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: `session-${id}` } })) })], hostsLoaded: true, connected: true })
   const { container } = await page()
   await waitFor(() => expect(screen.getByText('Loading the conversation')).toBeTruthy())
   const chat = screen.getByText('Loading the conversation').closest('.animate-page')
