@@ -803,6 +803,15 @@ fn claude_keeps_streaming_when_its_spinner_disappears_during_text_output() {
         w.poll_screen().await;
         assert!(w.screen().working);
 
+        // Claude 2.1.217 hides the spinner before it paints the first token.
+        // Several empty captures must not lose the turn before a preview exists.
+        *frame.borrow_mut() = "  Thought for 2s (ctrl+o to expand)\n\n────────────────────\n❯\n────────────────────".into();
+        w.poll_screen().await;
+        assert!(!w.screen().working);
+        wait(400).await;
+        w.poll_screen().await;
+        assert!(live_of(&phone).is_none_or(|items| items.is_empty()));
+
         *frame.borrow_mut() = crate::test_support::fixture("screens/claude/reply-streaming-macos.txt");
         w.poll_screen().await;
         wait(200).await;
@@ -963,6 +972,25 @@ fn nothing_is_live_while_the_agent_isnt_working() {
         wait(200).await;
         assert!(live_of(&phone).is_none_or(|l| l.is_empty()));
         watchers().stop("live-idle:%8");
+    });
+}
+
+#[test]
+fn claude_spinner_grace_expires_and_is_discarded_when_the_live_session_stops() {
+    run(|| async {
+        let rt = machine("spinner-grace", "local", json!([{ "id": "%8", "width": 100, "agent": { "kind": "claude", "pid": 7, "state": "idle" } }]));
+        rt.borrow_mut().hold_polls();
+        let w = watchers().get("spinner-grace", "%8");
+        let rows: Vec<String> = crate::test_support::fixture("screens/claude/reply-long.txt").lines().map(str::to_owned).collect();
+        w.st.borrow_mut().screen_working_at = Some(now_ms());
+        wait(SCREEN_LIVE_WAIT_MS + 1).await;
+        assert!(!w.read_screen_live(&rows, Some(100), AgentKind::Claude, false, false));
+        assert!(w.st.borrow().screen_live.is_none(), "an expired spinner cannot revive stale text");
+        w.st.borrow_mut().screen_working_at = Some(now_ms());
+        w.stop_live();
+        assert!(!w.read_screen_live(&rows, Some(100), AgentKind::Claude, false, false));
+        assert!(w.st.borrow().screen_live.is_none(), "a clear/resume must not inherit the previous turn's grace");
+        watchers().stop("spinner-grace:%8");
     });
 }
 

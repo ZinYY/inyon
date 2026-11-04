@@ -235,6 +235,9 @@ struct State {
     live: CodexLiveState,
     /// the reply Claude Code, Copilot or Antigravity is writing, read off the screen (screen_reply.rs)
     screen_live: Option<LiveItem>,
+    /// Claude can hide its spinner before the first response character appears.
+    /// Keep that observed turn across a short empty repaint, never across sessions.
+    screen_working_at: Option<u64>,
     display_live: bool,
     display_session: Option<(String, u64, u64)>,
     display_raw: Option<String>,
@@ -341,6 +344,7 @@ impl ChatWatcher {
                 generation: 0,
                 live: CodexLiveState::new(),
                 screen_live: None,
+                screen_working_at: None,
                 display_live: false,
                 display_session: None,
                 display_raw: None,
@@ -2456,13 +2460,17 @@ impl ChatWatcher {
     /// The reply being written on screen, carried on from the last read when its start has
     /// scrolled away, without what a record holds already. True when it changed.
     fn read_screen_live(&self, lines: &[String], width: Option<u32>, kind: AgentKind, working: bool, active_codex_turn: bool) -> bool {
+        if kind == AgentKind::Claude && working {
+            self.st.borrow_mut().screen_working_at = Some(now_ms());
+        }
         // the turn is over: what was read waits for its record, so the reply doesn't blink out
         // between the two, and goes after a while if no record has it
         if !working {
             let st = self.st.borrow();
             // Claude hides its spinner while painting the response. Continue a turn we
             // observed working, but never start streaming arbitrary text on an idle screen.
-            if kind != AgentKind::Claude || (!st.screen.working && st.screen_live.is_none()) {
+            let just_worked = st.screen_working_at.is_some_and(|at| now_ms().saturating_sub(at) < SCREEN_LIVE_WAIT_MS);
+            if kind != AgentKind::Claude || (!st.screen.working && st.screen_live.is_none() && !just_worked) {
                 drop(st);
                 self.expire_screen_live_soon();
                 return false;
@@ -2542,6 +2550,7 @@ impl ChatWatcher {
             let had = !st.live.items.is_empty() || st.screen_live.is_some();
             st.live.clear();
             st.screen_live = None;
+            st.screen_working_at = None;
             st.display_live = false;
             st.display_session = None;
             st.display_raw = None;
