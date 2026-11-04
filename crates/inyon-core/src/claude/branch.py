@@ -39,7 +39,15 @@ def index(lines, before=None, since=0, windows_psmux=False):
             pending_tool_result = False
         # Compaction starts a new context, but its earlier conversation is still history.
         if row.get('subtype') == 'compact_boundary' and parent is None:
-            parent = row.get('logicalParentUuid') or leaf
+            # The logical parent can be an attachment that Claude never persisted.
+            # Its preserved segment names the last actual message on the active
+            # branch, including when compaction follows a rewind.
+            metadata = row.get('compactMetadata') or {}
+            segment = metadata.get('preservedSegment') or {}
+            preserved = metadata.get('preservedMessages') or {}
+            candidates = [row.get('logicalParentUuid'), segment.get('tailUuid'),
+                          *reversed(preserved.get('allUuids') or []), leaf]
+            parent = next((p for p in candidates if isinstance(p, str) and p in parents), None)
         if uid not in parents:
             parents[uid] = parent if isinstance(parent, str) else None
         leaf = uid

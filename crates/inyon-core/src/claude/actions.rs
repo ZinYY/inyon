@@ -1370,7 +1370,7 @@ pub async fn codex_rewind(host_id: &str, pane_id: &str, text: Option<&str>) -> H
                 sleep(150).await;
                 let caps = capture_panes(&host, &[pane_id.to_owned()]).await?;
                 let lines = caps.get(pane_id).map(Vec::as_slice).unwrap_or(&[]);
-                let text = squash(&lines.join("\n"));
+                let text = re!(r"\s+", "g").replace_all(&lines.join("\n"), " ").into_owned();
                 if text.contains("Failed to edit the selected prompt:") {
                     nudge(host_id, pane_id);
                     return Err(http(409, if text.contains("selected prompt is a steer") {

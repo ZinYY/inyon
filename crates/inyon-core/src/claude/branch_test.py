@@ -43,6 +43,28 @@ class BranchTests(unittest.TestCase):
         raw = [line('a', None), line('b', None, type='system', subtype='compact_boundary'), line('c', 'b')]
         self.assertFalse(index(raw)['discarded'])
 
+    def test_compaction_uses_the_preserved_branch_when_the_logical_attachment_is_missing(self):
+        raw = [line('a', None), line('b', 'a', type='assistant'),
+               line('discarded-question', 'b'), line('discarded-answer', 'discarded-question', type='assistant'),
+               line('compact', None, type='system', subtype='compact_boundary',
+                    logicalParentUuid='runtime-attachment',
+                    compactMetadata={'preservedSegment': {'tailUuid': 'b'},
+                                     'preservedMessages': {'allUuids': ['b', 'runtime-attachment']}}),
+               line('summary', 'compact', isCompactSummary=True),
+               line('b', 'summary', type='assistant'),
+               line('after', 'b')]
+        self.assertEqual(set(index(raw)['known']), {'a', 'b', 'after'})
+        # With the compact summary as the latest context, history still follows
+        # the preserved original chain, never the abandoned physical file tail.
+        self.assertEqual(set(index(raw[:-2])['known']), {'a', 'b', 'compact', 'summary'})
+
+    def test_compaction_prefers_a_known_logical_parent_and_supports_legacy_missing_attachments(self):
+        prefix = [line('a', None), line('b', 'a'), line('c', 'b')]
+        known = line('compact', None, type='system', subtype='compact_boundary', logicalParentUuid='b')
+        self.assertEqual(set(index(prefix + [known])['known']), {'a', 'b', 'compact'})
+        missing = line('compact', None, type='system', subtype='compact_boundary', logicalParentUuid='runtime-only')
+        self.assertFalse(index(prefix + [missing])['discarded'])
+
     def test_metadata_partial_lines_and_unicode_do_not_change_the_chain(self):
         raw = [line('a', None, message={'content': '你好'}), b'{"type":"custom-title","customTitle":"Coffee"}\n', b'{incomplete']
         self.assertEqual(index(raw)['known'], ['a'])
