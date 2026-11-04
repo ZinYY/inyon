@@ -204,7 +204,7 @@ pub struct ProbeResult {
     /// Antigravity CLI: process id → the conversation it has open (from the presence lock it holds)
     pub agy_conversations: IndexMap<i64, String>,
     /// Codex TUI process → active thread, from its held writer lock (not its title).
-    pub codex_threads: IndexMap<i64, String>,
+    pub codex_threads: IndexMap<i64, Vec<String>>,
     /// Antigravity CLI: pane id → last status line payload
     pub agy_status: IndexMap<String, AgyStatusPane>,
     /// Antigravity conversation id → its title
@@ -433,7 +433,8 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
             res.status_panes.insert(format!("%{}", &m[1]), StatusPane { ts: num(&m[2]), account: acct(&m[3]), account_now: acct(&m[4]), data });
         }
     }
-    // A daemon can hold several locks; only a unique lock identifies a TUI.
+    // A TUI can retain its previous thread for a minute after switching. Keep all
+    // owned IDs so the foreground request can disambiguate them without cwd guesses.
     let mut codex_locks: IndexMap<i64, IndexSet<String>> = IndexMap::new();
     for line in section("CODEX") {
         if let Some(m) = re!(r"^(\d+) ([0-9a-f-]{36})$").captures(line.jtrim()) {
@@ -441,8 +442,8 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
         }
     }
     for (pid, ids) in codex_locks {
-        if ids.len() == 1 && procs.contains_key(&pid) {
-            res.codex_threads.insert(pid, ids.into_iter().next().unwrap());
+        if procs.contains_key(&pid) {
+            res.codex_threads.insert(pid, ids.into_iter().collect());
         }
     }
     for line in section("AGY") {
@@ -1177,8 +1178,9 @@ mod tests {
     fn codex_writer_locks_identify_a_unique_live_tui_but_not_a_shared_daemon() {
         let out = "@@HOST box\n@@PS\n7 1 10 codex codex\n8 1 10 codex codex app-server\n@@CODEX\n7 00000000-0000-0000-0000-000000000001\n8 00000000-0000-0000-0000-000000000002\n8 00000000-0000-0000-0000-000000000003\n9 00000000-0000-0000-0000-000000000004\n@@END\n";
         let p = parse_probe(out, "", 0, 0.0).unwrap();
-        assert_eq!(p.codex_threads.len(), 1);
-        assert_eq!(p.codex_threads.get(&7).map(String::as_str), Some("00000000-0000-0000-0000-000000000001"));
+        assert_eq!(p.codex_threads.len(), 2);
+        assert_eq!(p.codex_threads.get(&7).unwrap(), &["00000000-0000-0000-0000-000000000001"]);
+        assert_eq!(p.codex_threads.get(&8).unwrap().len(), 2);
     }
 
     #[test]

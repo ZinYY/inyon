@@ -1014,7 +1014,7 @@ fn a_codex_process_that_releases_its_thread_lock_never_borrows_another_folders_c
             p.home = "/home/u".into();
             p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
             p.sessions[0].windows[0].panes[0].title = "Previous title | w".into();
-            if let Some(id) = id { p.codex_threads.insert(7, id.into()); }
+            if let Some(id) = id { p.codex_threads.insert(7, vec![id.into()]); }
             Rc::new(RefCell::new(p))
         };
         let pr = probe(Some(first));

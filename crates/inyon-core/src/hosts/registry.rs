@@ -1224,7 +1224,7 @@ impl Registry {
         live: Rc<RefCell<HashSet<i64>>>,
     ) -> HubResult<PaneInfo> {
         let host_id = host.id();
-        let (proc, hook, home, agy_conversation, parked, codex_thread) = {
+        let (proc, hook, home, agy_conversation, parked, codex_threads) = {
             let pr = pr.borrow();
             let proc = pr.agent_procs.get(&p.id).cloned().expect("an agent pane");
             let conv = pr.agy_conversations.get(&(proc.pid as i64)).cloned();
@@ -1235,7 +1235,11 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
-        if codex_thread.is_some() { rt.borrow_mut().codex_identified.insert(pid); }
+        if codex_threads.as_ref().is_some_and(|ids| !ids.is_empty()) { rt.borrow_mut().codex_identified.insert(pid); }
+        let codex_thread = match (&home, &codex_threads) {
+            (Some(home), Some(ids)) => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, ids).await,
+            _ => None,
+        };
         let empty_codex = proc.kind == AgentKind::Codex && (
             (codex_thread.is_none() && rt.borrow().codex_identified.contains(&pid))
             || screens.get(&p.id).is_some_and(|lines| codex_empty_conversation(lines, &p.title, proc.cwd.as_deref())));
@@ -1285,7 +1289,7 @@ impl Registry {
             // the conversation whose presence lock the process holds: exact, no guessing
             if let (Some(id), Some(home)) = (agy_conversation.filter(|c| !c.is_empty()), home.as_deref()) {
                 info.transcript_path = Some(agy_transcript(home, &id));
-                info.session_id = Some(id);
+                info.session_id = Some(if proc.kind == AgentKind::Codex { crate::agents::codex_live::codex_thread_id(&path) } else { id });
                 info.mapped_by = Some(MappedBy::Process);
             }
         } else if empty_codex {

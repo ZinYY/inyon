@@ -29,6 +29,7 @@ jobs:
           path: packages/protocol/src/gen/index.ts
       - run: python3 -m unittest discover -s crates/inyon-backends/tests -p windows_herdr_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p branch_test.py
+      - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_identity_test.py
       - run: bun run typecheck
       - run: bun test
         working-directory: apps/web

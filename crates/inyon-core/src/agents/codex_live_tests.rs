@@ -198,6 +198,7 @@ mod codex_live_state {
 /// the helper is run with node on the machine, for the thread the rollout file names
 #[test]
 fn the_helper_is_run_with_node_on_the_machine_for_the_thread_the_rollout_file_names() {
+    assert_eq!(codex_thread_id("/x/rollout-2026-01-01T00-00-00-00000000-0000-0000-0000-000000000001.jsonl"), "00000000-0000-0000-0000-000000000001");
     assert_eq!(
         codex_thread_id("/home/me/.codex/sessions/2026/10/17/rollout-2026-10-17T16-53-18-01a14ac8-3abe-7402-9e85-7440d1fce2e7.jsonl"),
         "01a14ac8-3abe-7402-9e85-7440d1fce2e7"

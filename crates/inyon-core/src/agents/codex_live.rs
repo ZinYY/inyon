@@ -69,6 +69,9 @@ pub fn codex_live_command(thread_id: &str) -> String {
 
 /// The thread a rollout file belongs to (`rollout-<time>-<thread>[_<segment>].jsonl`).
 pub fn codex_thread_id(path: &str) -> String {
+    if let Some(m) = re!(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:_[0-9a-f-]{36})?\.jsonl$").captures(path) {
+        return m[1].to_owned();
+    }
     let name = path.rsplit('/').next().unwrap_or("");
     let name = re!(r"\.jsonl$").replace(name, "");
     let name = re!(r"^rollout-[\dT-]+-").replace(&name, "");
