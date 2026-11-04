@@ -305,7 +305,7 @@ pub fn parse_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKi
         AgentKind::Copilot => return finish(parse_copilot_screen(&raw, pane_width)),
         AgentKind::Opencode => return finish(parse_opencode_screen(&raw, pane_width, Some(captured))),
         AgentKind::Antigravity => return finish(parse_antigravity(&raw, pane_width)),
-        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width)),
+        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width, false)),
         AgentKind::Claude => {}
         _ => return finish(parse_generic(&raw, pane_width)),
     }
@@ -1306,11 +1306,23 @@ fn terminals(n: &str) -> String {
 /// at the end in Plan mode) and a hint line. While it works, "• Working (5s • esc to interrupt)"
 /// sits above the composer, then "• Queued follow-up inputs" with "↳ text" rows. Menus (approvals,
 /// /model, /permissions) replace the composer: a title, "› 1. Option  detail" rows and a key hint.
-fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> ScreenState {
-    let lines = trimmed_rows(raw);
+pub fn parse_psmux_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKind) -> ScreenState {
+    if agent != AgentKind::Codex { return parse_screen(captured, pane_width, agent); }
+    let styled: Vec<_> = captured.iter().map(|l| unstyle(l)).collect();
+    let raw: Vec<_> = styled.iter().map(|l| l.text.clone()).collect();
+    finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width, true))
+}
+
+fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>, native_id: bool) -> ScreenState {
+    let mut lines = trimmed_rows(raw);
+    let id_footer = native_id.then(|| (0..lines.len()).rev().find(|&i| i + 4 >= lines.len()
+        && re!(r"^ {2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?: · | …$|$)").is_match(&lines[i]))).flatten();
+    if let Some(i) = id_footer {
+        lines[i] = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(&lines[i], "  ").into_owned();
+    }
     let width = width_of(pane_width, &lines);
     let mut state = new_state(width);
-    let foot_at = (0..lines.len()).rev().find(|&i| i + 4 >= lines.len() && CX_FOOTER!().is_match(&lines[i]));
+    let foot_at = id_footer.or_else(|| (0..lines.len()).rev().find(|&i| i + 4 >= lines.len() && CX_FOOTER!().is_match(&lines[i])));
     let mut bx: Option<usize> = None;
     if let Some(foot_at) = foot_at.filter(|&f| f > 0) {
         for i in (0..foot_at).rev() {
@@ -1332,10 +1344,11 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
         return state;
     };
     let foot_at = foot_at.unwrap();
-    let foot = CX_FOOTER!().captures(&lines[foot_at]).unwrap();
     state.input_visible = Some(true);
-    state.model = Some(foot[1].to_owned());
-    state.effort = Some(foot[2].to_owned());
+    if let Some(foot) = CX_FOOTER!().captures(&lines[foot_at]) {
+        state.model = Some(foot[1].to_owned());
+        state.effort = Some(foot[2].to_owned());
+    }
     if lines[foot_at].ends_with(" Plan mode") {
         state.mode = Some("plan".into());
     }

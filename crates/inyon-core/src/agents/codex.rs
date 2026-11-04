@@ -555,7 +555,7 @@ pub fn codex_footer_thread(lines: &[String], owned: &[String]) -> Option<String>
     let footer = clean[prompt + 1..].iter().filter(|l| !l.trim().is_empty()).collect::<Vec<_>>();
     if footer.len() > 3 { return None; }
     let line = footer.first()?.trim();
-    let m = re!(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · |$)").captures(line)?;
+    let m = re!(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · | …$|$)").captures(line)?;
     owned.iter().find(|id| id.as_str() == &m[1]).cloned()
 }
 

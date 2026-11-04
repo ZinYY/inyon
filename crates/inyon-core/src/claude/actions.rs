@@ -62,7 +62,7 @@ pub async fn current_screen(host_id: &str, pane_id: &str) -> HubResult<ScreenSta
     let pane = registry().find_pane(host_id, pane_id).map(|f| f.pane);
     let width = pane.as_ref().and_then(width_of);
     let kind = pane.and_then(|p| p.agent).map(|a| a.kind).unwrap_or(AgentKind::Claude);
-    Ok(parse_screen(caps.get(pane_id).map(Vec::as_slice).unwrap_or(&[]), width, kind))
+    Ok(crate::hosts::registry::parse_host_screen(host_id, caps.get(pane_id).map(Vec::as_slice).unwrap_or(&[]), width, kind))
 }
 
 fn nudge(host_id: &str, pane_id: &str) {

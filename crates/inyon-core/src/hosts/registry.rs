@@ -484,6 +484,15 @@ pub fn registry() -> Rc<Registry> {
     REGISTRY.with(Rc::clone)
 }
 
+pub fn parse_host_screen(host_id: &str, lines: &[String], width: Option<u32>, kind: AgentKind) -> ScreenState {
+    let windows_psmux = registry().get(host_id).is_some_and(|r| {
+        let r = r.borrow();
+        r.state.os.as_deref() == Some("Windows") && !crate::tmux::herdr::enabled(&r.host)
+    });
+    if windows_psmux { crate::claude::screen::parse_psmux_screen(lines, width, kind) }
+    else { parse_screen(lines, width, kind) }
+}
+
 fn turn_key(host: &str, pane: &str) -> String {
     crate::js::stringify(&serde_json::json!([host, pane]))
 }
@@ -1252,7 +1261,18 @@ impl Registry {
         // locks alone cannot tell two TUI windows apart after a reboot.
         let footer_thread = if proc.kind == AgentKind::Codex && pr.borrow().os == "Windows" && !crate::tmux::herdr::enabled(host) {
             let owned: Vec<String> = pr.borrow().codex_threads.values().flatten().cloned().collect();
-            screens.get(&p.id).and_then(|lines| crate::agents::codex::codex_footer_thread(lines, &owned))
+            screens.get(&p.id).and_then(|lines| {
+                crate::agents::codex::codex_footer_thread(lines, &owned).or_else(|| {
+                    // A native picker temporarily replaces the footer, not the
+                    // conversation. Carry only this process's previously proven
+                    // ID while that ID is still live and the picker is visible.
+                    let was = self.state_agent(rt, &p.id)?;
+                    let same = was.pid == proc.pid as u32 && was.started_at.is_some_and(|at|
+                        at.abs_diff((proc.started_at * 1000.0) as u64) <= 5000);
+                    let id = was.session_id.filter(|id| owned.contains(id))?;
+                    (same && crate::claude::screen::parse_psmux_screen(lines, width_of(&p), proc.kind).prompt.is_some()).then_some(id)
+                })
+            })
         } else { None };
         let codex_thread = match &home {
             _ if footer_thread.is_some() => footer_thread,
@@ -1488,7 +1508,7 @@ impl Registry {
         let mode = info.mode.clone();
         p.agent = Some(info);
         if let Some(lines) = screens.get(&p.id) {
-            let sc = parse_screen(lines, width_of(&p), proc.kind);
+            let sc = parse_host_screen(&host_id, lines, width_of(&p), proc.kind);
             rt.borrow_mut().screens.insert(p.id.clone(), sc.clone());
             let hook = live_hook(&pr.borrow(), &p.id);
             apply_screen(&mut p, sc.clone(), host, lines, hook.as_ref(), was.as_ref(), mode);
@@ -2010,7 +2030,7 @@ impl Registry {
             let (Some(pane), Some(lines)) = (self.find_pane(&host_id, id).map(|f| f.pane), screens.get(id)) else { continue };
             let Some(agent) = pane.agent.clone() else { continue };
             let before = to_json(&agent);
-            let sc = parse_screen(lines, width_of(&pane), agent.kind);
+            let sc = parse_host_screen(&host_id, lines, width_of(&pane), agent.kind);
             rt.borrow_mut().screens.insert(id.clone(), sc.clone());
             let hook = rt.borrow().probe.as_ref().and_then(|p| live_hook(&p.borrow(), id));
             let base = self.off_screen_mode(rt, id, &agent);

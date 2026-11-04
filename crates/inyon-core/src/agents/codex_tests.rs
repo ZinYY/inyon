@@ -891,6 +891,7 @@ fn windows_native_footer_requires_a_current_composer_and_live_id() {
     let screen = |id: &str| vec![format!("Quoted old ID {a}"), "› Ask Codex to do anything".into(), "".into(), format!("  {id} · GPT-6-Astra high · ~\\work"), "? for shortcuts".into()];
     assert_eq!(codex_footer_thread(&screen(&b), &[a.clone(), b.clone()]), Some(b.clone()));
     assert_eq!(codex_footer_thread(&screen(&a), &[a.clone(), b.clone()]), Some(a.clone()));
+    assert_eq!(codex_footer_thread(&["› Draft".into(), format!("  {a} …")], std::slice::from_ref(&a)), Some(a.clone()));
     assert_eq!(codex_footer_thread(&screen(&b), std::slice::from_ref(&a)), None);
     let mut quoted = screen(&a);
     quoted.push("› New unsent prompt".into());

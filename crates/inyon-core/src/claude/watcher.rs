@@ -22,7 +22,6 @@ use super::chat_cache::{load_chat, remove_chat, save_chat, CachedChat, ChatAt, K
 use super::delivery::{has_paste_preview, input_contains, SendLedger};
 use super::drafts::{get_draft, mirror_to_terminal, set_draft, squash, Draft, DraftSource};
 use super::driving::{is_driving, start_driving};
-use super::screen::parse_screen;
 use super::screen_reply::{carry_on, codex_reply, continued_screen_reply, reads_reply, unrecorded};
 use super::transcript::{load_meta, new_meta, normalize, save_meta, with_seq, TranscriptMeta};
 use super::transcript_tail::{codex_meta_command, meta_command, parse_size, range_command, size_command, tail_command, TranscriptReader};
@@ -2012,7 +2011,7 @@ impl ChatWatcher {
             let branch = host.run(&super::branch::command(&path, selected.as_ref(), windows_psmux)).await.ok()
                 .and_then(|r| serde_json::from_str::<super::branch::Branch>(&r.stdout).ok());
             if self.stale(gen) { return; }
-            if again && branch.as_ref().is_some_and(|b| b.has_rewind()) {
+            if again && branch.as_ref().is_some_and(|b| b.needs_replay()) {
                 again = false;
                 self.restart();
             }
@@ -2734,7 +2733,7 @@ impl ChatWatcher {
         };
         let agent = pane.agent.clone().expect("an agent");
         let width = (*pane.width >= 0.0 && pane.width.is_finite()).then_some(*pane.width as u32);
-        let mut screen = parse_screen(lines, width, agent.kind);
+        let mut screen = crate::hosts::registry::parse_host_screen(&self.host_id, lines, width, agent.kind);
         // New Codex TUIs hide both the spinner and the queue hint during token output.
         // The exact transcript still marks the active turn. Ignore unfinished turns copied
         // from history or left by an older process, and let approval/question menus win.

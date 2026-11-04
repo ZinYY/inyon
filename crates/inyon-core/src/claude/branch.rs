@@ -14,9 +14,11 @@ pub struct Branch {
     leaf: Option<String>,
     #[serde(default)]
     size: u64,
+    #[serde(default)]
+    bridged: bool,
 }
 impl Branch {
-    pub fn has_rewind(&self) -> bool { !self.discarded.is_empty() }
+    pub fn needs_replay(&self) -> bool { !self.discarded.is_empty() || self.bridged }
     pub fn leaf(&self) -> Option<&str> { self.leaf.as_deref() }
     pub fn includes(&self, entry: &Value) -> bool {
         entry.get("uuid").and_then(Value::as_str).is_none_or(|id| !self.discarded.contains(id))
@@ -98,6 +100,13 @@ pub fn confirmation(lines: &[String], items: &[inyon_protocol::ChatItem]) -> Opt
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn repaired_windows_branches_replay_old_caches_without_invalidating_other_hosts() {
+        let normal: Branch = serde_json::from_value(json!({"known":["a"],"leaf":"a","size":10})).unwrap();
+        assert!(!normal.needs_replay());
+        let repaired: Branch = serde_json::from_value(json!({"known":["a"],"leaf":"a","size":10,"bridged":true})).unwrap();
+        assert!(repaired.needs_replay());
+    }
     #[test]
     fn process_clock_rounding_does_not_undo_a_rewind_on_reconnect() {
         assert!(same_process("42:10000", Some("42:11000")));

@@ -53,7 +53,8 @@ def index(lines, before=None, since=0, windows_psmux=False):
     while at in parents and at not in active:
         active.add(at)
         at = parents[at]
-    return {'known': list(active), 'discarded': list(set(parents) - active), 'leaf': leaf, 'size': size}
+    return {'known': list(active), 'discarded': list(set(parents) - active), 'leaf': leaf, 'size': size,
+            'bridged': any(parent not in parents for parent, _ in tool_gaps.values())}
 
 
 if __name__ == '__main__':
