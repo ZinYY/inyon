@@ -2179,7 +2179,10 @@ pub async fn launch(host_id: &str, opts: &LaunchOpts) -> HubResult<String> {
     let tdir = if home { format!("\"$HOME\"{}", shq(&tmux_literal(&cwd[1..], win))) } else { shq(&tmux_literal(cwd, win)) };
     let fmt = shq("#{pane_id}");
     let cmd = match opts.session.as_deref().filter(|s| !s.is_empty()) {
-        Some(session) => format!("tmux new-window -t {} -c {tdir} -P -F {fmt}", shq(session)),
+        Some(session) => {
+            let target = if win { format!("{session}:") } else { session.to_owned() };
+            format!("tmux new-window -t {} -c {tdir} -P -F {fmt}", shq(&target))
+        },
         None => {
             let raw = opts.name.as_deref().map(JsStr::jtrim).filter(|n| !n.is_empty()).or(agent_name).unwrap_or("shell");
             // tmux won't take . or : in a session name, and # would start a format
@@ -2395,7 +2398,10 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         Some(p) => fork_proxy_environment(&host, p.pid).await,
         None => String::new(),
     };
-    let r = host.run(&format!("tmux new-window -t {} -c {} -P -F {}", shq(&found.session.name), shq(&tmux_literal(&cwd, on_psmux(host_id))), shq("#{pane_id}"))).await?;
+    // PSmux treats a bare session name as window zero. The trailing colon lets it
+    // choose a free window index in that session, as tmux does for a bare name.
+    let target = if on_psmux(host_id) { format!("{}:", found.session.name) } else { found.session.name.clone() };
+    let r = host.run(&format!("tmux new-window -t {} -c {} -P -F {}", shq(&target), shq(&tmux_literal(&cwd, on_psmux(host_id))), shq("#{pane_id}"))).await?;
     let new_pane = r.stdout.jtrim().to_owned();
     if r.code != 0 || !new_pane.starts_with('%') {
         let err = r.stderr.jtrim();

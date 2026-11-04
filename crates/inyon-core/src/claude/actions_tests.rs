@@ -757,6 +757,18 @@ fn a_claude_conversation_forks_into_a_new_window_same_folder_and_flags() {
 }
 
 #[test]
+fn windows_forks_let_psmux_choose_a_free_window_in_the_source_session() {
+    run(|| async {
+        let fake = fork_host();
+        let rt = fork_pane("codex", Some(FORK_ID));
+        rt.borrow_mut().state.os = Some("Windows".into());
+        with_proc(&rt, "%1", 41.0, "/home/u/app", "codex --model opus");
+        fork_conversation("h", "%1").await.unwrap();
+        assert_eq!(fake.cmds().into_iter().find(|c| c.contains("new-window")).unwrap(), "tmux new-window -t 'work:' -c '/home/u/app' -P -F '#{pane_id}'");
+    });
+}
+
+#[test]
 fn fork_history_waits_for_trust_and_never_replaces_a_draft() {
     run(|| async {
         let screen = Rc::new(RefCell::new(crate::test_support::screen_fixture("claude", "trust-folder").join("\n")));
