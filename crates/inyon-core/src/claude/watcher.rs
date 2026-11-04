@@ -205,7 +205,7 @@ struct State {
     /// those earlier lines wait here until scrolling back reaches the start of this file.
     held_history: Option<Vec<String>>,
     claude_branch: Option<super::branch::Branch>,
-    claude_rewind: Option<(String, String)>,
+    claude_rewind: Option<(String, String, u64)>,
     claude_start: f64,
     /// Earlier Codex segments may precede a cached/trimmed first item. Resolve them again
     /// at the file boundary; the raw held history is intentionally not stored on disk.
@@ -447,6 +447,11 @@ impl ChatWatcher {
         let st = self.st.borrow();
         if st.info.session_id.as_deref() != Some(session) { return None; }
         st.meta.custom_title.clone().filter(|s| !s.is_empty()).or_else(|| st.meta.title.clone().filter(|s| !s.is_empty()))
+    }
+
+    pub fn claude_rewind_selection(&self) -> Option<super::branch::Selection> {
+        let st = self.st.borrow();
+        super::branch::selection(&self.key, st.transcript.as_deref()?, st.proc.as_deref(), st.claude_start)
     }
 
     pub fn subscribers(&self) -> usize {
@@ -2673,20 +2678,25 @@ impl ChatWatcher {
         if agent.kind == AgentKind::Claude {
             let selected = super::branch::confirmation(lines, &self.st.borrow().items);
             if let Some(selected) = selected {
-                self.st.borrow_mut().claude_rewind = Some(selected);
+                self.st.borrow_mut().claude_rewind = Some((selected.0, selected.1, now_ms()));
             } else if screen.prompt.is_none() && !screen.working {
-                let pending = self.st.borrow_mut().claude_rewind.take();
-                if let Some((before, text)) = pending.filter(|(_, text)| screen.draft.as_deref().is_some_and(|d| squash(d) == squash(text))) {
+                // Claude may paint an empty input box before restoring the prompt. Do not
+                // discard the selected branch on that intermediate frame.
+                let pending = self.st.borrow().claude_rewind.clone();
+                if let Some((before, text, _)) = pending.as_ref().filter(|(_, text, _)| screen.draft.as_deref().is_some_and(|d| squash(d) == squash(text))) {
+                    self.st.borrow_mut().claude_rewind = None;
                     let state = {
                         let st = self.st.borrow();
                         st.transcript.clone().zip(st.proc.clone()).map(|(path, process)| (path, process, st.reader.as_ref().map_or(0, |r| r.offset)))
                     };
                     if let Some((path, process, since)) = state {
                         let _ = text;
-                        super::branch::save_selection(&self.key, path, process, before, since);
+                        super::branch::save_selection(&self.key, path, process, before.clone(), since);
                         watchers().reload(&self.host_id, &self.pane_id)?;
                         return Ok(());
                     }
+                } else if pending.is_some_and(|(_, _, at)| now_ms().saturating_sub(at) > 10_000) {
+                    self.st.borrow_mut().claude_rewind = None;
                 }
             }
         }

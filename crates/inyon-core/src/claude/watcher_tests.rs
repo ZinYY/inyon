@@ -208,6 +208,32 @@ fn draft_box() -> (Rc<Fake>, Rc<ChatWatcher>) {
     (fake, watchers().get("draft-test", "%9"))
 }
 
+#[test]
+fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
+    run(|| async {
+        let lines = Rc::new(RefCell::new("Confirm you want to restore to the point before this message:\n│ Explain training and test sets.\n│ (1 minute ago)\n❯ 1. Restore conversation\n".to_owned()));
+        let current = lines.clone();
+        let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %9\n{}", current.borrow())) } else { ok("") });
+        machine("delayed-rewind", "local", json!([{ "id":"%9", "width":100, "agent":{"kind":"claude","pid":7,"state":"idle","sessionId":"session","transcriptPath":"/history.jsonl"} }])).borrow_mut().hold_polls();
+        let w = watchers().get("delayed-rewind", "%9");
+        {
+            let mut st = w.st.borrow_mut();
+            st.transcript = Some("/history.jsonl".into());
+            st.proc = Some("7:0".into());
+            st.items = vec![with_seq(Base::new("question", "t").user("Explain training and test sets.", 0), 0)];
+        }
+        w.read_screen().await.unwrap();
+        assert!(w.st.borrow().claude_rewind.is_some());
+        *lines.borrow_mut() = format!("{}\n❯ \n{}\n", "─".repeat(100), "─".repeat(100));
+        w.read_screen().await.unwrap();
+        assert!(w.st.borrow().claude_rewind.is_some(), "the empty redraw is not cancellation");
+        *lines.borrow_mut() = format!("{}\n❯ Explain training and test sets.\n{}\n", "─".repeat(100), "─".repeat(100));
+        w.read_screen().await.unwrap();
+        assert!(super::super::branch::selection("delayed-rewind:%9", "/history.jsonl", Some("7:0"), 0.0).is_some());
+        watchers().stop("delayed-rewind:%9");
+    });
+}
+
 fn draft(text: &str, at: f64, mirrored: Option<&str>) -> Option<Draft> {
     Some(Draft { text: text.into(), source: DraftSource::App, at, mirrored: mirrored.map(str::to_owned) })
 }

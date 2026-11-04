@@ -2278,6 +2278,40 @@ async fn materialize_claude_fork(host: &Host, pane: &str, width: Option<u32>, ti
     }
 }
 
+/// A rewind may exist only in Claude's memory until its next local command or turn.
+/// Flush that branch through Claude before another process resumes it for a fork.
+async fn checkpoint_claude_rewind(host_id: &str, pane: &str, host: &Host) -> HubResult<()> {
+    if let Some(w) = watchers().peek(host_id, pane) { w.poll_screen().await; }
+    let Some(w) = watchers().peek(host_id, pane) else { return Ok(()) };
+    let Some(selected) = w.claude_rewind_selection() else { return Ok(()) };
+    let persisted = || async {
+        let r = host.run(&super::branch::command(&selected.path, None)).await?;
+        let b: super::branch::Branch = serde_json::from_str(&r.stdout).map_err(|_| http(409, "Could not verify the current Claude conversation branch"))?;
+        Ok::<bool, HubError>(b.discards(&selected.before))
+    };
+    if persisted().await? { return Ok(()); }
+    let screen = current_screen(host_id, pane).await?;
+    if screen.working || screen.prompt.is_some() || screen.input_visible != Some(true) {
+        return Err(http(409, "Finish the current Claude dialog before forking this rewind"));
+    }
+    let title = w.info().title.unwrap_or_else(|| "Conversation".to_owned());
+    let name = re!(r"\s+", "g").replace_all(&title, " ");
+    let release = w.hold_draft(screen.draft.as_deref()).await;
+    let result = async {
+        if let Some(draft) = screen.draft.as_deref().filter(|s| !s.is_empty()) { clear_input(host_id, pane, draft).await?; }
+        type_into(host, pane, &format!("/rename {}", name.jtrim().to16(80)), true).await?;
+        for _ in 0..20 {
+            sleep(250).await;
+            if persisted().await? { return Ok(()); }
+        }
+        Err(http(409, "Claude has not saved this rewind yet; the fork was not opened"))
+    }.await;
+    release().await;
+    result?;
+    watchers().reload(host_id, pane)?;
+    Ok(())
+}
+
 pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String> {
     require_tmux_management(host_id)?;
     let (host, found) = agent_pane(host_id, pane_id)?;
@@ -2290,6 +2324,7 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
     if a.kind != AgentKind::Opencode && !saved_transcript(&host, a.transcript_path.as_deref()).await? {
         return Err(http(409, "Say something first; there is nothing to fork yet"));
     }
+    if a.kind == AgentKind::Claude { checkpoint_claude_rewind(host_id, pane_id, &host).await?; }
     let proc = registry().agent_proc(host_id, pane_id);
     let cwd = match proc.as_ref().and_then(|p| p.cwd.clone()) {
         Some(c) => c,

@@ -17,6 +17,7 @@ pub struct Branch {
 }
 impl Branch {
     pub fn has_rewind(&self) -> bool { !self.discarded.is_empty() }
+    pub fn discards(&self, id: &str) -> bool { self.discarded.contains(id) }
     pub fn includes(&self, entry: &Value) -> bool {
         entry.get("uuid").and_then(Value::as_str).is_none_or(|id| !self.discarded.contains(id))
     }
@@ -40,9 +41,9 @@ impl Branch {
 
 #[derive(Serialize, Deserialize)]
 pub struct Selection {
-    path: String,
+    pub path: String,
     process: String,
-    before: String,
+    pub before: String,
     since: u64,
     at: u64,
 }
