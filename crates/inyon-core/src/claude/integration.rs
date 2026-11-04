@@ -16,7 +16,7 @@ use crate::re;
 pub const HOOK_SCRIPT: &str = r#"#!/bin/sh
 # Inyon: records coding agents' events so Inyon knows which tmux pane runs which session.
 # Safe to delete; turning Inyon's integration off removes it from each agent's settings.
-# inyon-integration 9
+# inyon-integration 10
 # the events hold your prompts: readable by you only
 umask 077
 d="$HOME/.inyon"
@@ -64,7 +64,7 @@ exit 0
 /// and rate limits. The wrapper saves it per tmux pane, then runs the user's own status line.
 pub const STATUS_SCRIPT: &str = r#"#!/bin/sh
 # Inyon: saves Claude Code's status line data per tmux pane, then runs your own status line.
-# inyon-integration 9
+# inyon-integration 10
 in=$(cat)
 pane=${TMUX_PANE:-}
 if [ -n "$pane" ] && [ -n "${PSMUX_SESSION:-}" ]; then
@@ -92,7 +92,7 @@ exit 0
 pub const AGY_STATUS_SCRIPT: &str = r#"#!/bin/sh
 # Inyon: saves Antigravity CLI's status line data per tmux pane, then runs your own status line.
 # Safe to delete; remove "statusLine" from ~/.gemini/antigravity-cli/settings.json too.
-# inyon-integration 9
+# inyon-integration 10
 in=$(cat)
 pane=${TMUX_PANE:-}
 if [ -n "$pane" ] && [ -n "${PSMUX_SESSION:-}" ]; then

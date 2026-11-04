@@ -2,13 +2,13 @@
 //! text is byte for byte the TS's (fixtures/expected/scripts.json checks it).
 
 /// Bump when the scripts change; the probe reports older copies as outdated.
-pub const MARKER_VERSION: u32 = 9;
-pub const MARKER: &str = r"inyon-integration 9";
+pub const MARKER_VERSION: u32 = 10;
+pub const MARKER: &str = r"inyon-integration 10";
 
 /// Shell test: the script in file $1 is this version of the integration or a newer one. A phone
 /// still on an older app then leaves scripts a newer one wrote alone, instead of the two putting
 /// their own version back in turn.
-pub const CURRENT_SH: &str = r#"current() { v=$(sed -n 's/^# inyon-integration \([0-9][0-9]*\)$/\1/p' "$1" 2>/dev/null | head -n 1); [ -n "$v" ] && [ "$v" -ge 9 ]; }"#;
+pub const CURRENT_SH: &str = r#"current() { v=$(sed -n 's/^# inyon-integration \([0-9][0-9]*\)$/\1/p' "$1" 2>/dev/null | head -n 1); [ -n "$v" ] && [ "$v" -ge 10 ]; }"#;
 
 /// Sets $pane to the pane the script runs in, as the hub names it. psmux (Windows) numbers panes per
 /// session, so every session has a %1: the hub calls them %<session>.<pane> (win-prelude.sh), and the
