@@ -224,6 +224,8 @@ struct State {
     pending: Vec<ChatItem>,
     flush_timer: Option<Timer>,
     screen_timer: Option<Timer>,
+    screen_polling: bool,
+    screen_again: bool,
     idle_timer: Option<Timer>,
     stopped: bool,
     screen_json: String,
@@ -331,6 +333,8 @@ impl ChatWatcher {
                 pending: vec![],
                 flush_timer: None,
                 screen_timer: None,
+                screen_polling: false,
+                screen_again: false,
                 idle_timer: None,
                 stopped: false,
                 screen_json: String::new(),
@@ -2678,15 +2682,28 @@ impl ChatWatcher {
             if st.stopped {
                 return;
             }
+            if st.screen_polling {
+                st.screen_again = true;
+                return;
+            }
+            st.screen_polling = true;
             rt::clear(&mut st.screen_timer);
         }
         let _ = self.read_screen().await;
+        let again = {
+            let mut st = self.st.borrow_mut();
+            st.screen_polling = false;
+            std::mem::take(&mut st.screen_again) && !st.stopped
+        };
         self.next_screen();
+        if again { self.screen_changed(); }
     }
 
     async fn read_screen(&self) -> HubResult<()> {
+        let gen = self.st.borrow().generation;
         let host = self.host()?;
         let caps = capture_panes(&host, std::slice::from_ref(&self.pane_id)).await?;
+        if self.stale(gen) { return Ok(()); }
         let lines = caps.get(&self.pane_id);
         let pane = registry().find_pane(&self.host_id, &self.pane_id).map(|f| f.pane);
         let (Some(lines), Some(pane), true) = (lines, &pane, pane.as_ref().is_some_and(|p| p.agent.is_some())) else {

@@ -40,6 +40,19 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn bursts_of_terminal_output_do_not_overlap_screen_reads() {
+    run(|| async {
+        let (fake, w) = draft_box();
+        wait(30).await;
+        fake.calls.borrow_mut().clear();
+        futures_util::join!(w.poll_screen(), w.poll_screen(), w.poll_screen());
+        assert_eq!(fake.cmds().iter().filter(|s| s.contains("capture-pane")).count(), 1);
+        assert!(!w.st.borrow().screen_polling);
+        w.stop();
+    });
+}
+
+#[test]
 fn native_claude_stream_is_independent_of_screen_polls_and_rejects_old_session_frames() {
     run(|| async {
         use inyon_protocol::claude_stream::{DisplayEvent, DisplaySnapshot};
