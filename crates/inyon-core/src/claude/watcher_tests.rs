@@ -807,7 +807,7 @@ fn claude_keeps_streaming_when_its_spinner_disappears_during_text_output() {
         // Several empty captures must not lose the turn before a preview exists.
         *frame.borrow_mut() = "  Thought for 2s (ctrl+o to expand)\n\n────────────────────\n❯\n────────────────────".into();
         w.poll_screen().await;
-        assert!(!w.screen().working);
+        assert!(w.screen().working, "Stop and queue stay available while the registry holds the active turn");
         wait(400).await;
         w.poll_screen().await;
         assert!(live_of(&phone).is_none_or(|items| items.is_empty()));
@@ -845,8 +845,12 @@ fn claude_keeps_streaming_when_its_spinner_disappears_during_text_output() {
         w.live_soon();
         wait(200).await;
         assert_eq!(live_of(&phone), Some(vec![]));
+        registry().update_pane("claude-hidden-spinner", "%7", |p| {
+            p.agent.as_mut().unwrap().state = inyon_protocol::AgentState::Idle;
+        });
         w.poll_screen().await;
         wait(200).await;
+        assert!(!w.screen().working, "the completed registry turn releases the controls");
         assert_eq!(live_of(&phone), Some(vec![]));
         watchers().stop("claude-hidden-spinner:%7");
     });
@@ -1000,7 +1004,7 @@ fn after_its_turn_the_screens_copy_waits_for_the_record_then_goes_on_its_own() {
         let screen = Rc::new(RefCell::new(crate::test_support::fixture("screens/claude/reply-streaming.txt")));
         let s = screen.clone();
         let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %6\n{}", s.borrow())) } else { ok("") });
-        machine("live-wait", "local", json!([{ "id": "%6", "width": 100, "agent": { "kind": "claude", "pid": 7, "state": "working" } }]));
+        machine("live-wait", "local", json!([{ "id": "%6", "width": 100, "agent": { "kind": "claude", "pid": 7, "state": "working" } }])).borrow_mut().hold_polls();
         let w = watchers().get("live-wait", "%6");
         let phone = Rc::new(Phone::default());
         let sub: Sub = phone.clone();
@@ -1011,6 +1015,9 @@ fn after_its_turn_the_screens_copy_waits_for_the_record_then_goes_on_its_own() {
 
         // the turn ends (no spinner) before the record lands: the reply stays meanwhile
         *screen.borrow_mut() = crate::test_support::fixture("screens/claude/reply-long.txt");
+        registry().update_pane("live-wait", "%6", |p| {
+            p.agent.as_mut().unwrap().state = inyon_protocol::AgentState::Idle;
+        });
         w.poll_screen().await;
         wait(200).await;
         assert!(live_of(&phone).is_some_and(|l| l.len() == 1), "kept until its record");
