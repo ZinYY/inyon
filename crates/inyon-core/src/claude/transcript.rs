@@ -902,6 +902,22 @@ fn user_items(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta, sidecha
     if text.contains("<task-notification>") {
         return task_notification(meta, &text, base);
     }
+    // Older Claude forks coalesce local-command metadata and the following real
+    // prompt into one isMeta user record. Keep the separate trailing user blocks;
+    // never expose the command caveat or treat its generated output as a prompt.
+    if let Some(blocks) = content.arr().filter(|bs| bs.iter().any(|b| Some(b).at("text").str().is_some_and(|t| t.trim_start().starts_with("<local-command-caveat>")))) {
+        if let Some(last) = blocks.iter().rposition(|b| Some(b).at("text").str().is_some_and(|t| {
+            t.trim_start().starts_with("<local-command-stdout>") || t.trim_start().starts_with("<local-command-stderr>")
+        })) {
+            let tail = &blocks[last + 1..];
+            if !tail.is_empty() && tail.iter().all(|b| Some(b).at("type").str() == Some("image") || Some(b).at("text").str().is_some_and(|t| !t.trim_start().starts_with('<'))) {
+                let mut user = e.cloned().unwrap_or(Value::Null);
+                user["isMeta"] = Value::Bool(false);
+                user["message"]["content"] = Value::Array(tail.to_vec());
+                return user_items(Some(&user), base, meta, sidechain);
+            }
+        }
+    }
     if e.at("isMeta").truthy() {
         return vec![];
     }
@@ -948,6 +964,23 @@ mod tests {
     use super::*;
     use crate::test_support::assert_match;
     use serde_json::json;
+
+    #[test]
+    fn forked_local_command_metadata_keeps_the_following_real_user_prompt() {
+        let mut e = json!({"type":"user", "uuid":"original-question", "isMeta":true, "message":{"content":[
+            {"type":"text", "text":"<local-command-caveat>generated commands</local-command-caveat>"},
+            {"type":"text", "text":"<command-name>/effort</command-name><command-args>high</command-args>"},
+            {"type":"text", "text":"<local-command-stdout>Effort set to high</local-command-stdout>"},
+            {"type":"text", "text":"What model are you?"}
+        ]}});
+        let items = normalize(&e, &mut new_meta(), false);
+        assert_eq!(items.len(), 1);
+        assert_match(&items[0], json!({"kind":"user", "uuid":"original-question", "text":"What model are you?"}));
+        e["message"]["content"].as_array_mut().unwrap().pop();
+        assert!(normalize(&e, &mut new_meta(), false).is_empty());
+        e["message"]["content"].as_array_mut().unwrap().push(json!({"type":"text","text":"<system-reminder>internal metadata</system-reminder>"}));
+        assert!(normalize(&e, &mut new_meta(), false).is_empty());
+    }
 
     #[test]
     fn claude_controls_survive_reload_for_both_local_command_record_formats() {

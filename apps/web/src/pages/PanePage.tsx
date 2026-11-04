@@ -128,7 +128,7 @@ export function PanePage() {
         {agent && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
           <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">
             <LogIn className="size-4 shrink-0 text-warn" />
-            <span className="min-w-0 flex-1">{agentDef(agent).name} isn't signed in on {ref.host.config.name}.</span>
+            <span className="min-w-0 flex-1">No default {agentDef(agent).name} sign-in detected on {ref.host.config.name}. This session may use its own API configuration.</span>
             <Button size="xs" variant="primary" onClick={() => setSignIn(true)}>Sign in</Button>
           </div>
         )}
