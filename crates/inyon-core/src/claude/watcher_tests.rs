@@ -718,6 +718,24 @@ fn codex_screen_text_grows_before_the_record_and_exact_deltas_take_priority() {
 }
 
 #[test]
+fn codex_overview_activity_requires_the_current_session_and_process_lifetime() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        {
+            let mut st = w.st.borrow_mut();
+            st.info.session_id = Some("current-thread".into());
+            st.meta.turn = Some(serde_json::from_value(json!({"id":"turn","startedAt":2000})).unwrap());
+        }
+        assert!(w.codex_turn_active("current-thread", 1000));
+        assert!(!w.codex_turn_active("other-thread", 1000));
+        assert!(!w.codex_turn_active("current-thread", 3000));
+        w.st.borrow_mut().meta.turn = None;
+        assert!(!w.codex_turn_active("current-thread", 1000));
+        w.stop();
+    });
+}
+
+#[test]
 fn codex_current_transcript_turn_streams_without_spinner_or_queue_hint() {
     run(|| async {
         let frame = |text: &str| format!("› Explain photography\n\n• {text}\n\n› Ask Codex to do anything\n\n  GPT-6-Astra high · ~/project · Read Only · weekly 27% left\n  ? for shortcuts");

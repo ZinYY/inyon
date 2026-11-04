@@ -445,6 +445,13 @@ impl ChatWatcher {
         self.st.borrow().info.clone()
     }
 
+    /// Only the current process's exact conversation can supply activity to the overview.
+    pub fn codex_turn_active(&self, session: &str, started_at: u64) -> bool {
+        let st = self.st.borrow();
+        st.info.session_id.as_deref() == Some(session)
+            && st.live.turn.as_ref().or(st.meta.turn.as_ref()).is_some_and(|t| t.started_at.0 >= started_at as f64)
+    }
+
     /// A confirmed local setting only belongs to the transcript this watcher is reading.
     pub fn claude_status(&self, path: &str, live: Option<&inyon_protocol::AgentStatus>) -> Option<inyon_protocol::AgentStatus> {
         let st = self.st.borrow();

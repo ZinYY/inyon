@@ -2215,6 +2215,15 @@ fn apply_screen(p: &mut PaneInfo, mut sc: ScreenState, host: &Host, lines: &[Str
     if is_driving(&host_id, &p.id) {
         sc.prompt = None;
     }
+    // Codex hides its spinner during token output. Use the same exact, current turn
+    // as Chat, so the header and overview do not switch to Idle while text arrives.
+    if info.kind == AgentKind::Codex {
+        if let Some((session, started)) = info.session_id.as_deref().zip(info.started_at) {
+            if crate::claude::watcher::watchers().peek(&host_id, &p.id).is_some_and(|w| w.codex_turn_active(session, started)) {
+                sc.working = true;
+            }
+        }
+    }
     // a question Codex asked mid-turn waits for you like a prompt does, even while it keeps working
     let shown = if sc.prompt.is_some() || sc.questions.is_some_and(|q| q != 0) {
         Shown::Waiting
