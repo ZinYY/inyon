@@ -99,6 +99,9 @@ fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts()
         let phone = Rc::new(Phone::default());
         let sub: Sub = phone.clone();
         old.subscribe(sub.clone());
+        old.track_send("in-flight", "/resume another-session", false);
+        old.track_send("confirmed", "/model opus", true);
+        old.settle_send("confirmed", Some(SendStatus::Delivered), None);
         old.save();
         set_draft("reload-test:%9", draft("unsent work", now_ms() as f64, None));
         assert!(load_chat("reload-test:%9").is_some());
@@ -107,6 +110,10 @@ fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts()
         assert!(!Rc::ptr_eq(&old, &fresh));
         assert!(old.st.borrow().stopped);
         assert_eq!(fresh.subscribers(), 1);
+        assert_eq!(fresh.delivery("in-flight").unwrap().state, SendStatus::Sending);
+        assert_eq!(fresh.delivery("confirmed").unwrap().state, SendStatus::Delivered);
+        fresh.settle_send("in-flight", Some(SendStatus::Delivered), None);
+        assert_eq!(fresh.delivery("in-flight").unwrap().state, SendStatus::Delivered);
         assert!(load_chat("reload-test:%9").is_none());
         assert_eq!(get_draft("reload-test:%9").unwrap().text, "unsent work");
         wait(20).await;

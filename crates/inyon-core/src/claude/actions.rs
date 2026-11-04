@@ -170,6 +170,8 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
         confirm_delivery(host_id, pane_id, &id, text).await
     }
     .await;
+    // /resume or a full reload can replace the watcher while the key is in flight.
+    let w = watchers().get(host_id, pane_id);
     if let Err(e) = &r {
         w.settle_send(&id, Some(SendStatus::Failed), Some(e.message.clone()));
         keep_failure(host_id, pane_id, &e.message, text).await;
@@ -206,13 +208,13 @@ async fn confirm_delivery(host_id: &str, pane_id: &str, id: &str, text: &str) ->
     }
     w.settle_send(id, Some(SendStatus::Sent), None);
     for _ in 0..48 {
-        if matches!(w.delivery(id).map(|d| d.state), Some(SendStatus::Queued | SendStatus::Delivered)) {
+        if matches!(watchers().get(host_id, pane_id).delivery(id).map(|d| d.state), Some(SendStatus::Queued | SendStatus::Delivered)) {
             return Ok(());
         }
         sleep(250).await;
     }
     let agent = registry().find_pane(host_id, pane_id).and_then(|f| f.pane.agent);
-    if agent.is_some_and(|a| a.kind == AgentKind::Claude) && w.following() {
+    if agent.is_some_and(|a| a.kind == AgentKind::Claude) && watchers().get(host_id, pane_id).following() {
         return Err(http(
             409,
             "Claude didn't record the message, so it may not have reached it (a dialog on screen can take the keys). Open the terminal to check before retrying.",

@@ -14,6 +14,13 @@ export interface PendingMessage {
   remote?: boolean
 }
 
+/** The send API confirms slash commands after the terminal accepts them. They
+ * need no transcript entry (resume can replace the transcript entirely). */
+export function accepted(pending: PendingMessage[], id: string): PendingMessage[] {
+  return pending.flatMap((p) => p.id !== id ? [p]
+    : p.text.trimStart().startsWith('/') ? [] : [{ ...p, status: 'sent' as const }])
+}
+
 export const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
 const clean = (s: string) => {
   // Codex expands attachment paths into image envelopes and substitutes numbered labels.

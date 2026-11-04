@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, setSystemTime, test } from 'bun:test'
 import type { ChatItem, SendState } from '@inyon/protocol'
-import { msgKey, norm, othersSends, reconcile, settle, type PendingMessage } from './pending.ts'
+import { accepted, msgKey, norm, othersSends, reconcile, settle, type PendingMessage } from './pending.ts'
 import { item } from '../test/fixtures.ts'
 
 const T = Date.UTC(2026, 9, 11, 12, 0, 0)
@@ -9,6 +9,16 @@ let id = 0
 const msg = (text: string, at = T): PendingMessage => ({ id: `p${++id}`, text, status: 'sent', at })
 const said = (text: string, at = T + 1000, more: Partial<Extract<ChatItem, { kind: 'user' }>> = {}) => item.user(text, { ts: iso(at), ...more })
 const left = (pending: PendingMessage[], items: ChatItem[]) => reconcile(pending, items).map((p) => p.text)
+
+test('successful slash commands need no transcript receipt after resume or reload', () => {
+  const command = { ...msg('  /resume exact-id'), status: 'sending' as const }
+  const ordinary = { ...msg('hello'), status: 'sending' as const }
+  expect(accepted([command, ordinary], command.id)).toEqual([ordinary])
+  expect(accepted([command, ordinary], ordinary.id)).toEqual([command, { ...ordinary, status: 'sent' }])
+  // Failed requests do not call accepted; an unrelated success must preserve them.
+  const failed = { ...command, status: 'failed' as const, error: 'Not delivered' }
+  expect(accepted([failed], ordinary.id)).toEqual([failed])
+})
 
 describe('reconcile', () => {
   test('the transcript entry confirms the bubble', () => {

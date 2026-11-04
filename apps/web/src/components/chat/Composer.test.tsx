@@ -202,6 +202,18 @@ describe('Composer send button', () => {
     expect(api.send.mock.calls).toEqual([['box', pane, 'ship it', p.id]])
   })
 
+  test('an accepted resume command is complete even when it writes no transcript entry', async () => {
+    const user = userEvent.setup()
+    const pane = nextPane()
+    api.commands.mockResolvedValue([])
+    await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    await user.type(box(), '/resume exact-session')
+    await user.click(sendButton())
+    await flush()
+    expect(api.send.mock.calls.at(-1)?.[2]).toBe('/resume exact-session')
+    expect(useStore.getState().chats[`box:${pane}`].pending).toEqual([])
+  })
+
   test("an Android keyboard putting the sent message back doesn't bring it back as a draft", async () => {
     const user = userEvent.setup()
     const pane = nextPane()

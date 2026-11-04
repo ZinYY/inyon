@@ -13,6 +13,7 @@ import { bytes } from '../../lib/format.ts'
 import { openMenu } from '../ui/primitives.tsx'
 import { contextMenu } from '../ui/ContextMenu.tsx'
 import { keyLabel } from '../../lib/keys.ts'
+import { accepted } from '../../lib/pending.ts'
 
 /** commands that open a picker in the agent's terminal; the composer's own menus (and OpenCode's providers sheet) do the job */
 const MENU_COMMANDS: Record<string, string> = { '/model': 'model', '/models': 'model', '/effort': 'effort', '/variants': 'effort', '/agents': 'mode', '/agent': 'mode', '/connect': 'providers' }
@@ -477,7 +478,7 @@ export function Composer({
       // the same id on every try: the hub submits it once however many times it arrives
       await withRetries(() => api.send(host, pane, msg, id, steering || undefined))
       // the tap on Send was the tick; the agent's reply is the confirmation
-      patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'sent' } : p)) }))
+      patchChat(key, (c) => ({ pending: accepted(c.pending, id) }))
     } catch (e) {
       haptic('error')
       patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'failed', error: (e as Error).message, retryable: isTransient(e) } : p)) }))

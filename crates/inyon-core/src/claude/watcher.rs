@@ -3013,19 +3013,21 @@ impl WatchersRef {
         }
         let key = chat_key(host_id, pane_id);
         let old = self.with(|ws| ws.map.borrow_mut().shift_remove(&key));
-        let subs = if let Some(old) = old {
+        let (subs, ledger) = if let Some(old) = old {
             let subs = std::mem::take(&mut old.st.borrow_mut().subs);
+            let ledger = std::mem::take(&mut old.st.borrow_mut().ledger);
             let info = old.st.borrow().info.clone();
             old.stop();
             for sub in &subs {
                 sub.send(&ServerMsg::ChatReset { key: key.clone(), info: Box::new(info.clone()), items: vec![], has_more: false });
                 sub.send(&ServerMsg::ChatProgress { key: key.clone(), done: 0, total: 1 });
             }
-            subs
-        } else { vec![] };
+            (subs, ledger)
+        } else { (vec![], SendLedger::new()) };
         self.with(|ws| ws.parked.borrow_mut().shift_remove(&key));
         remove_chat(&key);
         let fresh = ChatWatcher::new(host_id, pane_id, None, true);
+        fresh.st.borrow_mut().ledger = ledger;
         self.with(|ws| ws.map.borrow_mut().insert(key, fresh.clone()));
         for sub in subs {
             fresh.subscribe(sub);

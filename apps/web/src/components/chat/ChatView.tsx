@@ -6,7 +6,7 @@ import { lastAsk } from '../../lib/lastAsk.ts'
 import { socket } from '../../lib/socket.ts'
 import { msgKey, notifyTag, patchChat, PENDING_MS, toast, useStore, type PendingMessage } from '../../lib/store.ts'
 import { clearNativeNotification } from '../../lib/native.ts'
-import { othersSends, settle as settleSends } from '../../lib/pending.ts'
+import { accepted, othersSends, settle as settleSends } from '../../lib/pending.ts'
 import { buildRows } from '../../lib/chat.ts'
 import { api, isTransient, withRetries } from '../../lib/api.ts'
 import { AgentLogo, useReplyFont } from '../../lib/skin.tsx'
@@ -285,7 +285,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'sending', at: Date.now(), retryable: false } : p)) }))
     try {
       await (auto ? api.send(host, pane, text, id) : withRetries(() => api.send(host, pane, text, id)))
-      patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'sent' } : p)) }))
+      patchChat(key, (c) => ({ pending: accepted(c.pending, id) }))
     } catch (e) {
       patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'failed', error: (e as Error).message, retryable: !auto && isTransient(e) } : p)) }))
     }
