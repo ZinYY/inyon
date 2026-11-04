@@ -1252,10 +1252,11 @@ fn parse_agy_menu(lines: &[String]) -> Option<ScreenPrompt> {
 
 // ---------- Codex ----------
 
-/// "GPT-6-Luna high · ~/project" under the composer; the effort reads "default" until you pick one
+/// The model and effort under the composer. The remaining status-line items are
+/// configurable: a directory is optional, and the model can be the only item.
 macro_rules! CX_FOOTER {
     () => {
-        re!(r"^ {2}(\S.*?) (default|none|minimal|low|medium|high|xhigh|max|ultra) · [~/]")
+        re!(r"^ {2}(\S.*?) (default|none|minimal|low|medium|high|xhigh|max|ultra)(?: · |$)")
     };
 }
 /// "• Working (1m 16s • esc to interrupt) · 1 background terminal running": the verb, the time so far, the rest

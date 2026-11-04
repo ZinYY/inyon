@@ -164,6 +164,45 @@ fn fake_claude(start: Vec<Piece>) -> Rc<RefCell<ClaudeBox>> {
     b
 }
 
+fn codex_custom_footer_delivery(steer: bool) {
+    run(move || async move {
+        let state = Rc::new(RefCell::new((String::new(), Vec::<(String, String)>::new())));
+        let current = state.clone();
+        let re = keys_re();
+        Fake::install(move |cmd, input| {
+            let mut b = current.borrow_mut();
+            if cmd.contains("@@CAP") {
+                return ok(&format!("@@CAP %9\n• Working (5s • esc to interrupt)\n\n› {}\n\n  GPT-6-Astra high · Full Access · Context 36% used\n  tab to queue message\n", b.0));
+            }
+            if cmd.contains("paste-buffer") {
+                b.0.push_str(input.unwrap_or(""));
+            } else {
+                for part in cmd.split(" && ") {
+                    let Some(k) = re.captures(part) else { continue };
+                    if let Some(key) = k.get(2).map(|m| m.as_str()).filter(|k| matches!(*k, "Enter" | "Tab")) {
+                        let text = std::mem::take(&mut b.0);
+                        b.1.push((key.to_owned(), text));
+                    }
+                }
+            }
+            ok("")
+        });
+        pane("local", json!([{ "id": "%9", "width": 120, "agent": { "kind": "codex", "pid": 7, "state": "working" } }]));
+        send_message_to_pane("local", "%9", "Use a coffee example", true, steer).await.unwrap();
+        assert_eq!(state.borrow().1, vec![(if steer { "Enter" } else { "Tab" }.to_owned(), "Use a coffee example".to_owned())]);
+    });
+}
+
+#[test]
+fn codex_steer_sends_enter_with_a_custom_footer_that_omits_the_directory() {
+    codex_custom_footer_delivery(true);
+}
+
+#[test]
+fn codex_queue_still_sends_tab_with_a_custom_footer_that_omits_the_directory() {
+    codex_custom_footer_delivery(false);
+}
+
 /// A background shell's details panel, opened by accident from Claude's "↓ to manage", took every
 /// key of the next message: the send failed and the message never arrived (a laptop, 26 Oct 2026).
 #[test]

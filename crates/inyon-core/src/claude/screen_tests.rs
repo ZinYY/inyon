@@ -9,6 +9,30 @@ fn claude(lines: &[String], width: Option<u32>) -> ScreenState {
 }
 
 #[test]
+fn codex_custom_status_lines_without_a_directory_keep_the_composer_visible() {
+    for footer in [
+        "  \x1b[38;2;246;226;183mGPT-6-Astra high\x1b[0m · Full Access · Context 36% used · weekly 12% left",
+        "  GPT-6-Astra high · main · Full Access",
+        "  GPT-6-Astra high",
+    ] {
+        let rows = vec!["• Working (5s • esc to interrupt)".into(), "".into(), "› Use a coffee example".into(),
+                        "".into(), footer.into(), "  tab to queue message".into()];
+        let s = parse_screen(&rows, Some(120), AgentKind::Codex);
+        assert_eq!(s.input_visible, Some(true), "{footer}");
+        assert_eq!(s.model.as_deref(), Some("GPT-6-Astra"));
+        assert_eq!(s.effort.as_deref(), Some("high"));
+        assert_eq!(s.draft.as_deref(), Some("Use a coffee example"));
+        assert!(s.working);
+    }
+    for rows in [
+        vec!["An old response".into(), "  GPT-6-Astra high · Full Access".into()],
+        vec!["Select effort".into(), "› 1. High".into(), "  GPT-6-Astra high · Full Access".into(), "  enter select · esc back".into()],
+    ] {
+        assert_ne!(parse_screen(&rows, Some(120), AgentKind::Codex).input_visible, Some(true));
+    }
+}
+
+#[test]
 fn psmux_codex_id_footer_preserves_input_working_and_model_on_narrow_screens() {
     let id = "00000000-0000-0000-0000-000000000001";
     let capture = |footer: String| vec!["• Working (5s • esc to interrupt)".into(), "".into(), "› A draft".into(), "".into(), footer, "  tab to queue message".into()];

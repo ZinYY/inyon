@@ -159,7 +159,11 @@ def main():
         daemon = daemon_owner(pid)
         if not daemon:
             return
-        pid, started_at, owned = daemon
+        pid, daemon_started, owned = daemon
+        # The daemon can outlive many TUI processes. Only this TUI's lifetime
+        # may contribute foreground requests, even when an older connection
+        # used a thread that the current TUI has just resumed.
+        started_at = max(started_at, daemon_started)
         shared = True
     if os.name == 'nt' and re.match(r'^/[a-zA-Z]/', home):
         home = home[1] + ':' + home[2:]

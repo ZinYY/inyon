@@ -1,7 +1,12 @@
 import sqlite3
 import unittest
 import os
-from codex_identity import active_thread, shared_daemon_pid, mac_shared_daemon_pid
+import contextlib
+import io
+from pathlib import Path
+import tempfile
+from unittest.mock import patch
+from codex_identity import active_thread, shared_daemon_pid, mac_shared_daemon_pid, main
 
 
 class ForegroundThreadTest(unittest.TestCase):
@@ -58,6 +63,25 @@ class ForegroundThreadTest(unittest.TestCase):
         self.assertEqual(active_thread(self.db, 42, 800, ['parent', 'fork'], 'unix_socket', True), 'fork')
         self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=1') WHERE thread_id='parent'")
         self.assertIsNone(active_thread(self.db, 42, 800, ['parent', 'fork'], 'unix_socket', True))
+
+    def test_a_new_tui_resuming_an_old_thread_ignores_the_previous_tui_connection(self):
+        self.add('parent', 7, ts=900)
+        self.add('empty-startup', 'startup-thread-start-current', ts=1100, method='start')
+        self.add('parent', 8, ts=1101)
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'in-process', 'unix_socket')")
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=1') WHERE ts<1000")
+        self.db.commit()
+        with tempfile.TemporaryDirectory() as home:
+            folder = Path(home) / '.codex'
+            folder.mkdir()
+            with sqlite3.connect(folder / 'logs_2.sqlite') as disk:
+                self.db.backup(disk)
+            output = io.StringIO()
+            with patch('sys.argv', ['identity', home, '99', '1000']), \
+                    patch('codex_identity.daemon_owner', return_value=(42, 800, ['parent', 'empty-startup'])), \
+                    contextlib.redirect_stdout(output):
+                main()
+            self.assertEqual(output.getvalue().strip(), 'parent')
 
     def test_kernel_socket_peers_identify_one_daemon_client_without_folder_matching(self):
         path = f'/tmp/codex-daemon-{os.getuid()}/server'
