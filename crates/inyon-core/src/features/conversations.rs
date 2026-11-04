@@ -622,12 +622,15 @@ mod steps {
         crate::claude::actions::shell_ready(&registry().host(host_id)?, pane_id, 8000).await
     }
 
-    pub async fn start(host_id: &str, pane_id: &str, kind: AgentKind, id: &str) -> HubResult<()> {
+    pub async fn start(host_id: &str, pane_id: &str, kind: AgentKind, id: &str, command: Option<&str>) -> HubResult<()> {
         #[cfg(test)]
         if let Some(f) = swapped(&START) {
             return f(host_id, pane_id, kind, id).await;
         }
-        crate::claude::actions::type_start(host_id, pane_id, kind, Some(id)).await
+        match command {
+            Some(command) => crate::claude::actions::type_start_command(host_id, pane_id, kind, command).await,
+            None => crate::claude::actions::type_start(host_id, pane_id, kind, Some(id)).await,
+        }
     }
 }
 
@@ -661,11 +664,19 @@ pub async fn switch_conversation(host_id: &str, pane_id: &str, asked: Option<&Va
         return Err(http(409, "Already switching conversations in this session"));
     }
     let result = async {
+        // Read the actual argv while the process still exists. In particular, --settings can
+        // select a third-party API; losing it silently starts an unsigned-in default Claude.
+        let command = if running.is_some() && matches!(kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Antigravity) {
+            match registry().agent_proc(host_id, pane_id) {
+                Some(p) => Some(crate::claude::actions::resume_for(&registry().host(host_id)?, kind, Some(&id), p.pid, &p.args).await),
+                None => None,
+            }
+        } else { None };
         if running.is_some() {
             steps::exit(host_id, pane_id, kind, &id).await?;
             steps::ready(host_id, pane_id, kind, &id).await?;
         }
-        steps::start(host_id, pane_id, kind, &id).await
+        steps::start(host_id, pane_id, kind, &id, command.as_deref()).await
     }
     .await;
     SWITCHING.with(|s| s.borrow_mut().remove(&key));

@@ -73,6 +73,19 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const paneAgent = machine?.sessions.flatMap((s) => s.windows).flatMap((w) => w.panes).find((p) => p.id === pane)?.agent
   const identifying = connected && !!paneAgent && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !paneAgent.sessionId
   const switching = connected && !!paneAgent?.sessionId && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !!chat?.loaded && chat.info?.sessionId !== paneAgent.sessionId
+  useEffect(() => {
+    if (!switching) return
+    // Overview and chat arrive separately. If a switch's reset was missed, ask for the current
+    // snapshot instead of leaving this pane disabled until a manual reload or reconnect.
+    let delay = 3000
+    const refresh = () => {
+      socket.refreshChat(host, pane)
+      delay = Math.min(delay * 2, 15000)
+      timer = setTimeout(refresh, delay)
+    }
+    let timer = setTimeout(refresh, delay)
+    return () => clearTimeout(timer)
+  }, [host, pane, switching, paneAgent?.sessionId])
   const running = chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent
   const working = !!screen?.working
   const prompt = screen?.prompt

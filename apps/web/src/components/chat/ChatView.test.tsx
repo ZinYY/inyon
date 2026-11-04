@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, mock, spyOn, test } from 'bun:test'
+import { afterAll, describe, expect, jest, mock, spyOn, test } from 'bun:test'
 import { act, render, screen } from '@testing-library/react'
 import type { ChatItem, SendState } from '@inyon/protocol'
 import { ChatView, reconnect } from './ChatView.tsx'
@@ -73,6 +73,30 @@ function longConversation(turns: number): ChatItem[] {
 describe('ChatView', () => {
   const view = () => <ChatView host="box" pane="%1" agent="claude" onTerminal={() => {}} />
   const load = (items: ChatItem[], info = chatInfo({ sessionId: 'current' })) => act(() => emit({ t: 'chat.reset', key: 'box:%1', info, items, hasMore: true }))
+
+  test('a missed session reset is recovered without exposing the previous conversation', () => {
+    jest.useFakeTimers()
+    const refresh = spyOn(socket, 'refreshChat')
+    refresh.mockClear()
+    const h = host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: 'current' } })] })
+    useStore.setState({ connected: true, hosts: [h] })
+    const rendered = render(view())
+    try {
+      load([item.user('Previous session message')], chatInfo({ sessionId: 'previous' }))
+      expect(screen.queryByText('Previous session message')).toBeNull()
+      act(() => jest.advanceTimersByTime(2999))
+      expect(refresh).not.toHaveBeenCalled()
+      act(() => jest.advanceTimersByTime(1))
+      expect(refresh).toHaveBeenCalledWith('box', '%1')
+      load([], chatInfo({ sessionId: 'current' }))
+      expect(screen.queryByText('Loading the conversation')).toBeNull()
+      act(() => jest.advanceTimersByTime(15000))
+      expect(refresh).toHaveBeenCalledTimes(1)
+    } finally {
+      rendered.unmount()
+      jest.useRealTimers()
+    }
+  })
 
   test('a message that failed because the connection dropped goes out again once it is back', async () => {
     useStore.setState({ connected: false, hosts: [host('box')] })

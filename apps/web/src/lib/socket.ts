@@ -248,6 +248,14 @@ export class Socket {
     this.raw({ t: 'sub.overview' })
   }
 
+  /** Ask for a fresh snapshot of an already-followed chat. */
+  refreshChat(host: string, pane: string) {
+    if (!this.started || this.quiet || !this.chats.has(`${host}:${pane}`)) return
+    // Request the reader's current snapshot without re-reading the transcript or changing refs.
+    this.raw({ t: 'unsub.chat', host, pane })
+    this.raw({ t: 'sub.chat', host, pane })
+  }
+
   /** Reference-counted chat subscription; returns an unsubscribe function. */
   subscribeChat(host: string, pane: string) {
     const key = `${host}:${pane}`

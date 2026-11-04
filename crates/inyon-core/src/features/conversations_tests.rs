@@ -366,6 +366,42 @@ fn switching_with_nothing_running_just_starts_it() {
 }
 
 #[test]
+fn switching_keeps_api_settings_from_the_process_before_it_exits() {
+    run(|| async {
+        use crate::test_support::fake::{ok, Fake};
+        use crate::tmux::tmux::{AgentProc, ProbeResult};
+        let calls = noting();
+        running_claude();
+        let rt = registry().get("convos").unwrap();
+        let mut probe = ProbeResult::at_home("/home/u");
+        probe.agent_procs.insert("%7".into(), AgentProc {
+            kind: Claude, pid: 42.0, started_at: 0.0, cwd: Some(CWD.into()), resume: None,
+            args: "claude --settings truncated".into(), pane_pid: 0.0, custom: None,
+        });
+        rt.borrow_mut().probe = Some(Rc::new(RefCell::new(probe)));
+        let fake = Fake::install(|_, command, _| {
+            if command.contains("/42/cmdline") {
+                return ok("/usr/bin/claude\n--settings\n/home/u/api config.json\n--dangerously-skip-permissions\n--resume\n00000000-0000-4000-8000-000000000001\n");
+            }
+            ok("")
+        });
+        // The process is gone before start: the command must already have captured argv.
+        let exit_calls = calls.clone();
+        steps::EXIT.with(|s| *s.borrow_mut() = Some(Rc::new(move |_, _, _, _| {
+            exit_calls.borrow_mut().push("exit".into());
+            registry().get("convos").unwrap().borrow_mut().probe = None;
+            Box::pin(async { Ok(()) })
+        })));
+        steps::START.with(|s| *s.borrow_mut() = None);
+        switch_conversation("convos", "%7", Some(&json!("claude")), Some(&json!(id(2)))).await.unwrap();
+        let typed = fake.cmds().into_iter().filter(|c| c.contains("send-keys")).collect::<Vec<_>>().join("\n").replace(r"'\''", "'");
+        assert!(typed.contains(&format!("claude --resume {}", id(2))), "{typed}");
+        assert!(typed.contains("'--settings' '/home/u/api config.json' '--dangerously-skip-permissions'"), "{typed}");
+        assert!(!typed.contains(&id(1)), "{typed}");
+    });
+}
+
+#[test]
 fn switching_to_the_open_conversation_leaves_it_as_it_is() {
     run(|| async {
         let calls = noting();

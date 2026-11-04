@@ -1503,8 +1503,6 @@ pub async fn start_agent(host_id: &str, pane_id: &str, agent: Option<&Value>, re
 /// Types the command that starts the agent (resuming `resume`, if given) at the pane's shell
 /// prompt. The caller has checked the agent and the id, and that the pane is at its shell.
 pub async fn type_start(host_id: &str, pane_id: &str, agent: AgentKind, resume: Option<&str>) -> HubResult<()> {
-    require_tmux_management(host_id)?;
-    let (host, _) = agent_pane(host_id, pane_id)?;
     let def = agent.def();
     let cmd = match resume.filter(|r| !r.is_empty()) {
         None => def.launch.clone(),
@@ -1515,7 +1513,15 @@ pub async fn type_start(host_id: &str, pane_id: &str, agent: AgentKind, resume: 
             _ => format!("{} --resume {r}", def.launch),
         },
     };
-    let line = with_bin(&cmd, &launch_bin(&host, &def.launch).await?);
+    type_start_command(host_id, pane_id, agent, &cmd).await
+}
+
+/// Starts a command prepared before the previous process exited. Its launch flags can include
+/// the session's API configuration, so a conversation switch must not rebuild a plain command.
+pub async fn type_start_command(host_id: &str, pane_id: &str, agent: AgentKind, cmd: &str) -> HubResult<()> {
+    require_tmux_management(host_id)?;
+    let (host, _) = agent_pane(host_id, pane_id)?;
+    let line = with_bin(cmd, &launch_bin(&host, &agent.def().launch).await?);
     type_into(&host, pane_id, &line, true).await?;
     registry().refresh(host_id, 1500);
     Ok(())
@@ -1723,7 +1729,7 @@ pub async fn argv(host: &Host, pid: f64) -> Option<Vec<String>> {
 }
 
 /// The resume command for an agent process: from its real arguments, else from `ps`'s.
-async fn resume_for(host: &Host, kind: AgentKind, session_id: Option<&str>, pid: f64, ps_args: &str) -> String {
+pub(crate) async fn resume_for(host: &Host, kind: AgentKind, session_id: Option<&str>, pid: f64, ps_args: &str) -> String {
     match argv(host, pid).await {
         Some(a) => resume_command_argv(kind, session_id, &a),
         None => resume_command(kind, session_id, ps_args),

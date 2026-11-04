@@ -210,6 +210,26 @@ describe('in the background', () => {
     document.dispatchEvent(new Event('visibilitychange'))
   }
 
+  test('refreshing a chat requests its snapshot and preserves subscription references', async () => {
+    const s = new Socket()
+    s.start()
+    const ws = await hubSocket()
+    ws.open()
+    const one = s.subscribeChat('hub:h1/local', '%3')
+    const two = s.subscribeChat('hub:h1/local', '%3')
+    ws.sent = []
+    s.refreshChat('hub:h1/local', '%9')
+    expect(sent(ws)).toEqual([])
+    s.refreshChat('hub:h1/local', '%3')
+    expect(sent(ws)).toEqual([{ t: 'unsub.chat', host: 'local', pane: '%3' }, { t: 'sub.chat', host: 'local', pane: '%3' }])
+    ws.sent = []
+    one()
+    expect(sent(ws)).toEqual([])
+    two()
+    expect(sent(ws)).toEqual([{ t: 'unsub.chat', host: 'local', pane: '%3' }])
+    s.stop()
+  })
+
   test('the app stops following chats after a while, and follows them again on return', async () => {
     jest.useFakeTimers()
     const s = new Socket()

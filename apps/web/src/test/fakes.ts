@@ -46,6 +46,7 @@ export const socket = {
   watching: () => false,
   subscribeOverview() {},
   subscribeChat: mock((_host: string, _pane: string) => () => {}),
+  refreshChat: mock((_host: string, _pane: string) => {}),
 }
 
 /** The app stops watching a chat, as leaving its page does. */
