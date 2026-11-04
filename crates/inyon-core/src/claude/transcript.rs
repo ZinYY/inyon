@@ -902,12 +902,13 @@ fn user_items(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta, sidecha
     if text.contains("<task-notification>") {
         return task_notification(meta, &text, base);
     }
-    // Older Claude forks coalesce local-command metadata and the following real
+    // Older Claude forks coalesce local-command/name metadata and the following real
     // prompt into one isMeta user record. Keep the separate trailing user blocks;
     // never expose the command caveat or treat its generated output as a prompt.
-    if let Some(blocks) = content.arr().filter(|bs| bs.iter().any(|b| Some(b).at("text").str().is_some_and(|t| t.trim_start().starts_with("<local-command-caveat>")))) {
+    let name_reminder = |t: &str| t.trim_start().starts_with("<system-reminder>") && t.contains("The user named this session") && t.trim_end().ends_with("</system-reminder>");
+    if let Some(blocks) = content.arr().filter(|bs| bs.iter().any(|b| Some(b).at("text").str().is_some_and(|t| t.trim_start().starts_with("<local-command-caveat>") || name_reminder(t)))) {
         if let Some(last) = blocks.iter().rposition(|b| Some(b).at("text").str().is_some_and(|t| {
-            t.trim_start().starts_with("<local-command-stdout>") || t.trim_start().starts_with("<local-command-stderr>")
+            t.trim_start().starts_with("<local-command-stdout>") || t.trim_start().starts_with("<local-command-stderr>") || name_reminder(t)
         })) {
             let tail = &blocks[last + 1..];
             if !tail.is_empty() && tail.iter().all(|b| Some(b).at("type").str() == Some("image") || Some(b).at("text").str().is_some_and(|t| !t.trim_start().starts_with('<'))) {
@@ -979,6 +980,19 @@ mod tests {
         e["message"]["content"].as_array_mut().unwrap().pop();
         assert!(normalize(&e, &mut new_meta(), false).is_empty());
         e["message"]["content"].as_array_mut().unwrap().push(json!({"type":"text","text":"<system-reminder>internal metadata</system-reminder>"}));
+        assert!(normalize(&e, &mut new_meta(), false).is_empty());
+    }
+
+    #[test]
+    fn forked_session_name_metadata_keeps_the_question_without_showing_the_reminder() {
+        let mut e = json!({"type":"user", "uuid":"renamed-question", "isMeta":true, "message":{"content":[
+            {"type":"text", "text":"<system-reminder>\nThe user named this session \"Learning\". This may indicate the session's focus or intent.\n</system-reminder>\n"},
+            {"type":"text", "text":"Explain regularization in two sentences."}
+        ]}});
+        let items = normalize(&e, &mut new_meta(), false);
+        assert_eq!(items.len(), 1);
+        assert_match(&items[0], json!({"kind":"user", "uuid":"renamed-question", "text":"Explain regularization in two sentences."}));
+        e["message"]["content"].as_array_mut().unwrap().pop();
         assert!(normalize(&e, &mut new_meta(), false).is_empty());
     }
 
