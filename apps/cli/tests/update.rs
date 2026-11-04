@@ -700,8 +700,8 @@ fn ignores_the_key_from_the_environment(base: &str) {
 }
 
 #[test]
-fn the_websites_copy_ignores_a_signing_key_from_the_environment() {
-    assert_eq!(update::RELEASES, "https://inyon.tech/download");
+fn the_default_fork_release_ignores_a_signing_key_from_the_environment() {
+    assert_eq!(update::RELEASES, "https://github.com/ZinYY/inyon/releases/latest/download");
     ignores_the_key_from_the_environment(update::RELEASES);
 }
 
