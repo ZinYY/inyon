@@ -735,7 +735,7 @@ fn only_a_mock_release_may_name_another_signing_key() {
         format!("https://github.com/{RELEASES_REPO}/releases/download/v{VERSION}"),
         "https://inyon.tech/download".into(),
         "https://inyon.abhashchakraborty.tech/download".into(),
-        "HTTPS://GitHub.com/abhash-chakraborty/inyon/releases/latest/download".into(),
+        "HTTPS://GitHub.com/ZinYY/inyon/releases/latest/download".into(),
     ] {
         assert_eq!(signing_key(&base), RELEASE_KEY, "{base}");
     }

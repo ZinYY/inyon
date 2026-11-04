@@ -1094,12 +1094,12 @@ mod tests {
     }
 
     #[test]
-    fn the_releases_are_the_websites_copy() {
+    fn the_releases_come_from_the_fork() {
         assert_eq!(RELEASES, format!("https://github.com/{RELEASES_REPO}/releases/latest/download"));
         assert!(!from_listing(RELEASES));
         assert!(from_listing("http://127.0.0.1:8000/download/"));
-        assert!(!from_listing("https://github.com/Abhash-Chakraborty/inyon/releases/latest/download"));
-        assert!(!from_listing("https://github.com/Abhash-Chakraborty/inyon/releases/download/v0.13.3/"));
+        assert!(!from_listing("https://github.com/ZinYY/inyon/releases/latest/download"));
+        assert!(!from_listing("https://github.com/ZinYY/inyon/releases/download/v0.13.3/"));
     }
 
     #[test]

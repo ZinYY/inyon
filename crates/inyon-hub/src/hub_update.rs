@@ -1,6 +1,6 @@
 //! The hub's side of features/hub-update.ts: is there an update, and start one from Settings.
 //!
-//! Run as the inyon program, the hub looks for a new release on the website and `inyon update
+//! Run as the inyon program, the hub looks for a new release in this fork and `inyon update
 //! --background` swaps it in and restarts the hub. A development build (`cargo run` in a checkout)
 //! doesn't update itself: Settings says how to update the checkout instead. Nothing here runs by
 //! itself: the hub only looks for a new release, at most every half hour, when the app asks.
