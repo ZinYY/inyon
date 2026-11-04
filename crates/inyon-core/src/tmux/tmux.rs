@@ -389,6 +389,14 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
                     });
                 }
                 if let Some(kind) = detect_agent(&p.comm, &p.args) {
+                    // npm's Codex launcher is a Node shim. Its native child owns
+                    // the thread locks; the shim's PID cannot identify a chat.
+                    if kind == AgentKind::Codex && matches!(p.comm.as_str(), "node" | "node.exe" | "bun" | "bun.exe") {
+                        if let Some(native) = children.get(&pid).into_iter().flatten().filter_map(|c| procs.get(c))
+                            .find(|cp| matches!(cp.comm.as_str(), "codex" | "codex.exe") && detect_agent(&cp.comm, &cp.args) == Some(kind)) {
+                            return Some((native, kind, None));
+                        }
+                    }
                     return Some((p, kind, None));
                 }
             }
@@ -1323,6 +1331,11 @@ mod tests {
         let w = &wrapped.agent_procs["%1"];
         assert_eq!((w.pid, w.kind, w.custom.as_deref(), w.resume.as_deref()), (101.0, AgentKind::Claude, Some("Wrapped"), Some("7409eef9-d507-4808-a592-0bfabe896e3a")));
         set(vec![]);
+        let npm_codex = parse_probe(
+            &out.replace("  101   100   40 /usr/bin/claude claude", "  102   100   41 /usr/bin/node node /usr/lib/node_modules/@openai/codex/bin/codex.js\n  101   102   40 /usr/bin/codex codex"),
+            "", 0, 12.0,
+        ).unwrap();
+        assert_eq!((npm_codex.agent_procs["%1"].pid, npm_codex.agent_procs["%1"].kind), (101.0, AgentKind::Codex));
         assert_eq!(parse_probe("oops\nfirst\nsecond", "", 1, 0.0), Err("first second".into()));
     }
 

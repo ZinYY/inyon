@@ -1100,13 +1100,13 @@ pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, other
 /// No title or folder fallback is allowed when this identity is available.
 pub async fn resolve_codex_thread(host: &Host, home: &str, pid: i64, started_at: f64, ids: &[String]) -> Option<String> {
     if ids.len() == 1 { return ids.first().cloned(); }
-    if ids.is_empty() { return None; }
     let args = ids.iter().map(|id| shq(id)).collect::<Vec<_>>().join(" ");
     let cmd = format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {} {pid} {} {args}; fi; done",
         shq(include_str!("codex_identity.py")), shq(home), crate::js::fmt_number(started_at));
     let r = host.exec(&cmd, crate::hosts::host::ExecOptions::timeout(3000)).await.ok()?;
     let id = r.stdout.jtrim();
-    (r.code == 0 && ids.iter().any(|candidate| candidate == id)).then(|| id.to_owned())
+    (r.code == 0 && re!(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").is_match(id)
+        && (ids.is_empty() || ids.iter().any(|candidate| candidate == id))).then(|| id.to_owned())
 }
 
 pub async fn find_codex_thread_rollout(host: &Host, home: &str, id: &str) -> HubResult<Option<String>> {

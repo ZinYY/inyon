@@ -1,6 +1,7 @@
 import sqlite3
 import unittest
-from codex_identity import active_thread
+import os
+from codex_identity import active_thread, shared_daemon_pid
 
 
 class ForegroundThreadTest(unittest.TestCase):
@@ -49,6 +50,25 @@ class ForegroundThreadTest(unittest.TestCase):
         self.add('parent', 7)
         self.add('fork', 8, process='pid:42:another')
         self.assertIsNone(active_thread(self.db, 42, 800, ['parent', 'fork']))
+
+    def test_shared_daemon_uses_only_a_single_foreground_connection(self):
+        self.add('parent', 7)
+        self.add('fork', 27, method='fork')
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'in-process', 'unix_socket')")
+        self.assertEqual(active_thread(self.db, 42, 800, ['parent', 'fork'], 'unix_socket', True), 'fork')
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=1') WHERE thread_id='parent'")
+        self.assertIsNone(active_thread(self.db, 42, 800, ['parent', 'fork'], 'unix_socket', True))
+
+    def test_kernel_socket_peers_identify_one_daemon_client_without_folder_matching(self):
+        path = f'/tmp/codex-daemon-{os.getuid()}/server'
+        rows = f'''u_str ESTAB 0 0 * 101 * 201 users:(("codex",pid=42,fd=4))
+u_str ESTAB 0 0 {path} 201 * 101 users:(("codex",pid=90,fd=4))'''
+        self.assertEqual(shared_daemon_pid(rows, 42), 90)
+        self.assertIsNone(shared_daemon_pid(rows, 43))
+        another = f'''\nu_str ESTAB 0 0 * 102 * 202 users:(("codex",pid=43,fd=4))
+u_str ESTAB 0 0 {path} 202 * 102 users:(("codex",pid=90,fd=5))'''
+        self.assertIsNone(shared_daemon_pid(rows + another, 42))
+        self.assertIsNone(shared_daemon_pid(rows.replace(path, '/tmp/some-other-server'), 42))
 
 
 if __name__ == '__main__':

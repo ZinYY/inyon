@@ -1225,8 +1225,8 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
-        let codex_thread = match (&home, &codex_threads) {
-            (Some(home), Some(ids)) => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, ids).await,
+        let codex_thread = match &home {
+            Some(home) if proc.kind == AgentKind::Codex => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, codex_threads.as_deref().unwrap_or(&[])).await,
             _ => None,
         };
         let empty_codex = proc.kind == AgentKind::Codex && codex_thread.is_none();

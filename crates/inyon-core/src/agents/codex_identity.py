@@ -9,12 +9,14 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import subprocess
 import sys
 import time
 
 
-def active_thread(conn, pid, started_at, owned):
+def active_thread(conn, pid, started_at, owned, transport='in-process', single_connection=False):
     events = []
+    connections = set()
     for tid in owned:
         rows = conn.execute("""
             SELECT ts, ts_nanos, process_uuid, feedback_log_body FROM logs
@@ -22,13 +24,18 @@ def active_thread(conn, pid, started_at, owned):
             AND process_uuid LIKE ? ORDER BY ts DESC, ts_nanos DESC LIMIT 12
         """, (tid, int(started_at) - 5, f'pid:{pid}:%'))
         for ts, nanos, process, body in rows:
-            if not body or 'rpc.transport="in-process"' not in body or 'app_server.client_name="codex-tui"' not in body:
+            if not body or f'rpc.transport="{transport}"' not in body or 'app_server.client_name="codex-tui"' not in body:
                 continue
             if not re.search(r'rpc.method="thread/(start|resume|fork|revert)"', body):
                 continue
             request = re.search(r'rpc.request_id=(?:"([^"]+)"|([^ ]+))', body)
             if not request:
                 continue
+            connection = re.search(r'app_server.connection_id=(\d+)', body)
+            if single_connection:
+                if not connection:
+                    return None
+                connections.add(connection[1])
             rid = request[1] or request[2]
             # Numeric TUI request IDs increase even if an older asynchronous
             # snapshot finishes later. The named startup request precedes them.
@@ -39,13 +46,80 @@ def active_thread(conn, pid, started_at, owned):
             else:
                 continue
             events.append((process, order, ts, nanos, tid))
-    if not events or len({e[0] for e in events}) != 1:
+    if not events or len({e[0] for e in events}) != 1 or (single_connection and len(connections) != 1):
         return None
     return max(events, key=lambda e: (e[1], e[2], e[3]))[4]
 
 
+def shared_daemon_pid(output, pid):
+    """A single live client of a Codex Unix daemon is unambiguous.
+
+    Kernel socket peer inodes establish the relationship, never directories or
+    thread names. Multiple clients/owners deliberately yield no identity.
+    """
+    rows = {}
+    for line in output.splitlines():
+        cols = line.split()
+        if len(cols) < 9 or cols[0] != 'u_str' or cols[1] != 'ESTAB':
+            continue
+        owners = {int(p) for p in re.findall(r'pid=(\d+),', ' '.join(cols[8:]))}
+        rows[cols[5]] = (cols[4], cols[7], owners)
+    servers = set()
+    for inode, (_, peer, owners) in rows.items():
+        server = rows.get(peer)
+        if owners != {pid} or not server or not server[0].startswith(f'/tmp/codex-daemon-{os.getuid()}/'):
+            continue
+        if server[1] != inode or len(server[2]) != 1:
+            continue
+        server_pid = next(iter(server[2]))
+        clients = set()
+        for address, other, owning in rows.values():
+            if owning == {server_pid} and address == server[0]:
+                if other not in rows or len(rows[other][2]) != 1:
+                    return None
+                clients.update(rows[other][2])
+        if clients == {pid}:
+            servers.add(server_pid)
+    return next(iter(servers)) if len(servers) == 1 else None
+
+
+def daemon_owner(pid):
+    if not sys.platform.startswith('linux'):
+        return None
+    try:
+        result = subprocess.run(['ss', '-xnpH'], capture_output=True, text=True, timeout=1)
+        server = shared_daemon_pid(result.stdout, pid) if result.returncode == 0 else None
+        if server is None:
+            return None
+        proc = Path('/proc') / str(server)
+        if proc.joinpath('exe').resolve().name != 'codex':
+            return None
+        owned = []
+        for fd in proc.joinpath('fd').iterdir():
+            try:
+                target = fd.readlink()
+                if target.parent.name == 'thread-writer-locks' and target.suffix == '.lock':
+                    owned.append(target.stem)
+            except OSError:
+                pass
+        stat = proc.joinpath('stat').read_text().rsplit(')', 1)[1].split()
+        boot = next(int(line.split()[1]) for line in Path('/proc/stat').read_text().splitlines() if line.startswith('btime '))
+        started = boot + int(stat[19]) / os.sysconf('SC_CLK_TCK')
+        return server, started, sorted(set(owned))
+    except (OSError, ValueError, StopIteration, subprocess.TimeoutExpired):
+        return None
+
+
 def main():
     home, pid, started_at, *owned = sys.argv[1:]
+    pid, started_at = int(pid), float(started_at)
+    shared = False
+    if not owned:
+        daemon = daemon_owner(pid)
+        if not daemon:
+            return
+        pid, started_at, owned = daemon
+        shared = True
     if os.name == 'nt' and re.match(r'^/[a-zA-Z]/', home):
         home = home[1] + ':' + home[2:]
     path = Path(home) / '.codex' / 'logs_2.sqlite'
@@ -54,7 +128,7 @@ def main():
         with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=0.1) as conn:
             conn.execute('PRAGMA query_only=ON')
             conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
-            selected = active_thread(conn, int(pid), float(started_at), owned)
+            selected = active_thread(conn, pid, started_at, owned, 'unix_socket' if shared else 'in-process', shared)
             if selected:
                 print(selected)
     except (OSError, ValueError, sqlite3.Error):
