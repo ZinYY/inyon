@@ -229,6 +229,7 @@ fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
         *lines.borrow_mut() = format!("{}\n❯ \n{}\n", "─".repeat(100), "─".repeat(100));
         w.read_screen().await.unwrap();
         assert!(w.st.borrow().claude_rewind.is_some(), "the empty redraw is not cancellation");
+        phone.got.borrow_mut().clear();
         *lines.borrow_mut() = format!("{}\n❯ Explain training and test sets.\n{}\n", "─".repeat(100), "─".repeat(100));
         w.read_screen().await.unwrap();
         assert!(super::super::branch::selection("delayed-rewind:%9", "/history.jsonl", Some("7:0"), 0.0).is_some());
