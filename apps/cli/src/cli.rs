@@ -432,6 +432,10 @@ pub fn main() {
     // Hooks must not initialise services, inspect updates, or wait for stdin EOF.
     if argv.get(1).is_some_and(|s| s == "claude-display") {
         if argv.get(2).is_some_and(|s| s == "--supported") { println!("1"); return; }
+        if argv.get(2).is_some_and(|s| s == "read") {
+            if let Some(session) = argv.get(3) { crate::claude_display::read_snapshot(session); }
+            return;
+        }
         crate::claude_display::run();
         return;
     }

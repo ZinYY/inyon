@@ -784,6 +784,23 @@ fn windows_herdr_chat_waits_for_recorded_blocks_instead_of_screen_previews() {
     });
 }
 
+
+#[test]
+fn idle_windows_claude_does_not_launch_preview_readers() {
+    run(|| async {
+        let screen = crate::test_support::fixture("screens/claude/reply-long.txt");
+        let _fake = Fake::install(move |_, cmd, _| {
+            assert!(!cmd.contains("claude-display read "), "idle panes must not add polling processes");
+            if cmd.contains("capture-pane") { ok(&format!("@@CAP %8.10\n{screen}")) } else { ok("") }
+        });
+        let rt = machine("windows-display-idle", "local", json!([{ "id":"%8.10", "width":120,"agent":{"kind":"claude","pid":7,"state":"idle","sessionId":"11111111-1111-4111-8111-111111111111","startedAt":1000} }]));
+        rt.borrow_mut().hold_polls(); rt.borrow_mut().state.os = Some("Windows x64".into());
+        let w = watchers().get("windows-display-idle", "%8.10");
+        w.poll_screen().await;
+        watchers().stop("windows-display-idle:%8.10");
+    });
+}
+
 #[test]
 fn windows_claude_streams_official_batches_while_its_terminal_only_shows_a_spinner() {
     run(|| async {
@@ -796,7 +813,7 @@ fn windows_claude_streams_official_batches_while_its_terminal_only_shows_a_spinn
         let screen=crate::test_support::fixture("screens/claude/reply-thinking.txt");
         let _fake=Fake::install(move |_,cmd,_| {
             if cmd.contains("capture-pane") { ok(&format!("@@CAP %8.10\n{screen}")) }
-            else if cmd.contains("claude-live/") { ok(&serde_json::to_string(&*captured.borrow()).unwrap()) }
+            else if cmd.contains("claude-display read ") { ok(&serde_json::to_string(&*captured.borrow()).unwrap()) }
             else { ok("") }
         });
         let rt=machine("windows-display","local",json!([{"id":"%8.10","width":120,"agent":{"kind":"claude","pid":7,"state":"working","sessionId":id,"startedAt":now-2000}}]));

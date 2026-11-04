@@ -2645,8 +2645,9 @@ impl ChatWatcher {
             // Reading is separate from the input/control connection, so streaming cannot queue keys.
             let gen = self.st.borrow().generation;
             let sid = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s));
-            let raw = if let Some(id) = sid {
-                host.run(&format!(r#"head -c 2097153 "$HOME/.inyon/claude-live/{id}.json" 2>/dev/null; true"#)).await.ok().map(|r| r.stdout)
+            let wants_preview = { let st = self.st.borrow(); screen.working || st.screen.working || st.screen_live.is_some() };
+            let raw = if let Some(id) = sid.filter(|_| wants_preview) {
+                host.exec(&format!(r#""$HOME/.inyon/bin/inyon.exe" claude-display read {id} 2>/dev/null"#), ExecOptions::timeout(1500)).await.ok().map(|r| r.stdout)
             } else { None };
             let changed = {
                 let mut st = self.st.borrow_mut();

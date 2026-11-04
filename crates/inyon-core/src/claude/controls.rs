@@ -35,7 +35,7 @@ impl Controls {
     /// Only call for Claude's local-command stdout, never a command request or an assistant reply.
     pub fn record(&mut self, output: &str, at: u64) {
         let output = output.trim();
-        if let Some(c) = crate::re!(r#"^Branched conversation [\s\S]*?You are now in the new branch \(session ([0-9a-f-]{36})\)\. Use /resume ([0-9a-f-]{36})\b"#).captures(output) {
+        if let Some(c) = crate::re!(r#"^Branched conversation[ .][\s\S]*?You are now in the new branch \(session ([0-9a-f-]{36})\)\. Use /resume ([0-9a-f-]{36})\b"#).captures(output) {
             if self.branch.as_ref().is_none_or(|old| at >= old.at) {
                 self.branch = Some(NativeBranch { session: c[1].to_owned(), parent: c[2].to_owned(), at });
             }
@@ -154,6 +154,17 @@ mod tests {
         assert!(c.status(None).is_none());
     }
 
+
+    #[test]
+    fn unnamed_native_branch_also_preserves_confirmed_controls() {
+        let child = "11111111-1111-4111-8111-111111111111";
+        let parent = "22222222-2222-4222-8222-222222222222";
+        let mut c = Controls::default();
+        c.record(&format!("Branched conversation. You are now in the new branch (session {child}). Use /resume {parent} (\"Music\") to return to the original."), 3000);
+        let inherited = c.branch_status(child, 1000, parent, &live(2000), None).unwrap();
+        assert_eq!(inherited.effort.as_deref(), Some("high"));
+        assert!(inherited.cost_usd.is_none());
+    }
     #[test]
     fn native_branch_inherits_only_controls_from_its_proven_parent() {
         let child = "11111111-1111-4111-8111-111111111111";

@@ -23,6 +23,28 @@ fn private_file(path: &Path) -> io::Result<fs::File> {
     options.open(path)
 }
 
+fn replace_snapshot(temp: &Path, file: &Path) -> io::Result<()> {
+    // Windows readers such as CRT/head may omit FILE_SHARE_DELETE. A brief read
+    // must not drop a batch; never hold up Claude for an indefinitely open file.
+    let until = Instant::now() + Duration::from_millis(200);
+    loop {
+        match fs::rename(temp, file) {
+            Err(e) if cfg!(windows) && matches!(e.raw_os_error(), Some(5 | 32 | 33)) && Instant::now() < until => std::thread::sleep(Duration::from_millis(2)),
+            result => return result,
+        }
+    }
+}
+
+pub fn read_snapshot(session: &str) {
+    if !valid_id(session) { return; }
+    let path = crate::paths::home().join(format!(".inyon/claude-live/{session}.json"));
+    // Rust's Windows File reader shares deletion, so the normal polling reader
+    // never prevents an atomic replacement. The size cap also bounds bad files.
+    if let Ok(file) = fs::File::open(path) {
+        let _ = io::copy(&mut file.take((MAX_TEXT * 2 + 1) as u64), &mut io::stdout().lock());
+    }
+}
+
 fn save(home: &Path, input: Value) -> io::Result<()> {
     let session = input["session_id"].as_str().unwrap_or("");
     let name = input["hook_event_name"].as_str().unwrap_or("");
@@ -59,7 +81,7 @@ fn save(home: &Path, input: Value) -> io::Result<()> {
         out.set_len(0)?;
         out.write_all(&serde_json::to_vec(&value)?)?;
         drop(out);
-        fs::rename(&temp, &file)
+        replace_snapshot(&temp, &file)
     })();
     if result.is_err() { let _ = fs::remove_file(&temp); }
     result
@@ -77,6 +99,29 @@ mod tests {
     const S: &str = "11111111-1111-4111-8111-111111111111";
     fn event(index: u64, text: &str, finished: bool) -> DisplayEvent {
         serde_json::from_value(serde_json::json!({"hook_event_name":"MessageDisplay","session_id":S,"turn_id":S,"message_id":S,"index":index,"delta":text,"final":finished})).unwrap()
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_brief_non_delete_sharing_reader_does_not_drop_a_batch() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir=std::env::temp_dir().join(format!("inyon-display-reader-{}",std::process::id()));
+        let input=|i,delta| serde_json::json!({"hook_event_name":"MessageDisplay","session_id":S,"turn_id":S,"message_id":S,"index":i,"delta":delta,"final":false});
+        save(&dir,input(0,"one")).unwrap();
+        let path=dir.join(format!(".inyon/claude-live/{S}.json"));
+        let reader=OpenOptions::new().read(true).share_mode(3).open(&path).unwrap();
+        let release=std::thread::spawn(move || { std::thread::sleep(Duration::from_millis(40)); drop(reader); });
+        save(&dir,input(1," two")).unwrap();
+        release.join().unwrap();
+        let snapshot:DisplaySnapshot=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(snapshot.text,"one two"); assert!(snapshot.valid); assert_eq!(snapshot.index,1);
+        let held=OpenOptions::new().read(true).share_mode(3).open(&path).unwrap();
+        let start=Instant::now(); assert!(save(&dir,input(2," blocked")).is_err());
+        assert!(start.elapsed()<Duration::from_secs(1)); drop(held);
+        save(&dir,input(2," three")).unwrap();
+        let snapshot:DisplaySnapshot=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(snapshot.text,"one two three"); assert!(snapshot.valid);
+        fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn utf8_input_finishes_without_waiting_for_eof() {
