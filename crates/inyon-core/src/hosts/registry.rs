@@ -1490,6 +1490,17 @@ impl Registry {
                 }
             }
             p.title = codex_title(&p.title, Some(proc.cwd.as_deref().unwrap_or(&p.cwd)));
+            if pr.borrow().os == "Windows" && !crate::tmux::herdr::enabled(host)
+                && p.title.eq_ignore_ascii_case(&pr.borrow().hostname) {
+                // PSmux can lose OSC titles while Codex's footer is clipped or covered.
+                // Keep a confirmed title only for the same identified conversation.
+                let previous = self.find_pane(&host_id, &p.id);
+                p.title = previous.filter(|old| {
+                    info.session_id.is_some() && old.pane.agent.as_ref().is_some_and(|agent| {
+                        agent.pid == info.pid && agent.session_id == info.session_id
+                    }) && !old.pane.title.eq_ignore_ascii_case(&pr.borrow().hostname)
+                }).map(|old| old.pane.title).unwrap_or_default();
+            }
         }
         // OpenCode titles the terminal "OC | <conversation>", or "OpenCode" before there is one
         if proc.kind == AgentKind::Opencode {

@@ -1203,3 +1203,39 @@ fn claude_titles_in_overview_do_not_require_a_chat_subscription_or_cross_a_clear
         assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, "My terminal title");
     });
 }
+
+#[test]
+fn windows_codex_clipped_footer_keeps_only_the_same_threads_title() {
+    run(|| async {
+        let b = ModeBox::new();
+        let screen = b.screen.clone();
+        let first = "00000000-0000-0000-0000-000000000001";
+        let next = "00000000-0000-0000-0000-000000000002";
+        let _fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") {
+                ok(&format!("@@CAP %9\n{}\n", screen.borrow()))
+            } else if cmd.starts_with("find ") {
+                let id = if cmd.contains(next) { next } else { first };
+                ok(&format!("/home/u/.codex/sessions/rollout-2026-01-01T00-00-00-{id}.jsonl\n"))
+            } else { ok("") }
+        });
+        for (id, footer, expected) in [
+            (first, "Explain coffee demand", "Explain coffee demand"),
+            (first, "Explain coffee…", "Explain coffee demand"),
+            (next, "Another topic…", ""),
+        ] {
+            let mut p = mode_probe(now_ms() as f64 / 1000.0);
+            p.os = "Windows".into();
+            p.home = "/home/u".into();
+            p.hostname = "Qian-PC".into();
+            p.sessions[0].windows[0].panes[0].title = "QIAN-PC".into();
+            p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+            p.codex_threads.insert(900, vec![first.into(), next.into()]);
+            b.draw(&format!("› Ask Codex to do anything\n  {id} · GPT-6-Astra high · /w · {footer}\n? for shortcuts\n"));
+            let pr = Rc::new(RefCell::new(p));
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, expected);
+            b.rt.borrow_mut().state.sessions = pr.borrow().sessions.clone();
+        }
+    });
+}
