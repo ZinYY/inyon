@@ -169,7 +169,7 @@ fn codex_custom_footer_delivery(steer: bool) {
         let state = Rc::new(RefCell::new((String::new(), Vec::<(String, String)>::new())));
         let current = state.clone();
         let re = keys_re();
-        Fake::install(move |cmd, input| {
+        Fake::install(move |_, cmd, input| {
             let mut b = current.borrow_mut();
             if cmd.contains("@@CAP") {
                 return ok(&format!("@@CAP %9\n• Working (5s • esc to interrupt)\n\n› {}\n\n  GPT-6-Astra high · Full Access · Context 36% used\n  tab to queue message\n", b.0));
