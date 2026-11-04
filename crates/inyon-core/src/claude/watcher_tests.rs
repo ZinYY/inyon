@@ -214,7 +214,7 @@ fn claude_rewind_waits_through_an_empty_frame_for_the_restored_prompt() {
         let lines = Rc::new(RefCell::new("Confirm you want to restore to the point before this message:\n│ Explain training and test sets.\n│ (1 minute ago)\n❯ 1. Restore conversation\n".to_owned()));
         let current = lines.clone();
         let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %9\n{}", current.borrow())) } else { ok("") });
-        machine("delayed-rewind", "local", json!([{ "id":"%9", "width":100, "agent":{"kind":"claude","pid":7,"state":"idle","sessionId":"session","transcriptPath":"/history.jsonl"} }])).borrow_mut().hold_polls();
+        machine("delayed-rewind", "local", json!([{ "id":"%9", "width":100, "agent":{"kind":"claude","pid":7,"startedAt":0,"state":"idle","sessionId":"session","transcriptPath":"/history.jsonl"} }])).borrow_mut().hold_polls();
         let w = watchers().get("delayed-rewind", "%9");
         {
             let mut st = w.st.borrow_mut();

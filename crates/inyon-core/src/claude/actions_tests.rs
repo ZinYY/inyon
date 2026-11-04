@@ -762,6 +762,7 @@ fn resume_keeps_launch_flags_drops_the_old_session_and_any_prompt() {
         format!("claude --resume {id} '--model' 'opus'")
     );
     assert_eq!(resume_command(AgentKind::Claude, s, "claude -c --permission-mode plan"), format!("claude --resume {id} '--permission-mode' 'plan'"));
+    assert_eq!(resume_command(AgentKind::Claude, s, "claude --teammate-mode in-process"), format!("claude --resume {id} '--teammate-mode' 'in-process'"));
     assert_eq!(resume_command(AgentKind::Codex, s, "node /usr/lib/node_modules/@openai/codex/bin/codex.js -m gpt-5 --yolo"), format!("codex resume {id} '-m' 'gpt-5' '--yolo'"));
     assert_eq!(
         resume_command(AgentKind::Antigravity, s, "/home/u/.local/bin/agy --conversation 11111111-2222-3333-4444-555555555555 --mode plan -p hi --dangerously-skip-permissions"),

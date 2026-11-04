@@ -1628,6 +1628,7 @@ fn value_flags(kind: AgentKind) -> &'static [&'static str] {
             "--agent",
             "--effort",
             "--plugin-dir",
+            "--teammate-mode",
         ],
         AgentKind::Codex => &["-m", "--model", "-c", "--config", "-p", "--profile", "-a", "--ask-for-approval", "-s", "--sandbox", "-C", "--cd"],
         AgentKind::Antigravity => &["--model", "--effort", "--mode", "--add-dir", "--agent", "--project", "--log-file"],
