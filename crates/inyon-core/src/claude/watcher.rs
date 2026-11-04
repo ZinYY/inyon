@@ -441,10 +441,10 @@ impl ChatWatcher {
         st.meta.claude_controls.as_ref().and_then(|c| c.status(live))
     }
 
-    pub fn claude_branch_status(&self, path: &str, session: &str, started_at: u64, parent_id: &str, parent: &inyon_protocol::AgentStatus) -> Option<inyon_protocol::AgentStatus> {
+    pub fn claude_branch_status(&self, path: &str, session: &str, started_at: u64, parent_id: &str, parent: &inyon_protocol::AgentStatus, current: Option<&inyon_protocol::AgentStatus>) -> Option<inyon_protocol::AgentStatus> {
         let st = self.st.borrow();
         if st.transcript.as_deref() != Some(path) { return None; }
-        st.meta.claude_controls.as_ref()?.branch_status(session, started_at, parent_id, parent)
+        st.meta.claude_controls.as_ref()?.branch_status(session, started_at, parent_id, parent, current)
     }
 
     /// The agent's persisted title, without a pending Inyon rename or terminal-title fallback.
@@ -2371,23 +2371,17 @@ impl ChatWatcher {
         // the turn is over: what was read waits for its record, so the reply doesn't blink out
         // between the two, and goes after a while if no record has it
         if !working {
-            if self.st.borrow().screen_live.is_some() && self.st.borrow().screen_live_expiry.is_none() {
-                let t = self.later(SCREEN_LIVE_WAIT_MS, |w| {
-                    let had = {
-                        let mut st = w.st.borrow_mut();
-                        st.screen_live_expiry = None;
-                        st.screen_live.take().is_some()
-                    };
-                    if had {
-                        w.live_soon();
-                    }
-                });
-                self.st.borrow_mut().screen_live_expiry = Some(t);
+            let st = self.st.borrow();
+            // Claude hides its spinner while painting the response. Continue a turn we
+            // observed working, but never start streaming arbitrary text on an idle screen.
+            if kind != AgentKind::Claude || (!st.screen.working && st.screen_live.is_none()) {
+                drop(st);
+                self.expire_screen_live_soon();
+                return false;
             }
-            return false;
         }
         let mut st = self.st.borrow_mut();
-        rt::clear(&mut st.screen_live_expiry);
+        if working { rt::clear(&mut st.screen_live_expiry); }
         let read = screen_reply(lines, kind, width);
         let no_reply = read.is_none();
         let before = st.screen_live.take();
@@ -2414,7 +2408,24 @@ impl ChatWatcher {
         });
         let changed = next.as_ref().map(|n| &n.text) != before.as_ref().map(|b| &b.text);
         st.screen_live = next;
+        // Only new text extends this grace period. A stale screen must eventually disappear.
+        if !working && changed { rt::clear(&mut st.screen_live_expiry); }
+        drop(st);
+        if !working { self.expire_screen_live_soon(); }
         changed
+    }
+
+    fn expire_screen_live_soon(&self) {
+        if self.st.borrow().screen_live.is_none() || self.st.borrow().screen_live_expiry.is_some() { return; }
+        let t = self.later(SCREEN_LIVE_WAIT_MS, |w| {
+            let had = {
+                let mut st = w.st.borrow_mut();
+                st.screen_live_expiry = None;
+                st.screen_live.take().is_some()
+            };
+            if had { w.live_soon(); }
+        });
+        self.st.borrow_mut().screen_live_expiry = Some(t);
     }
 
     /// Records came in: what they hold leaves the live text. The app drops the screen's copy when
@@ -2754,7 +2765,7 @@ impl ChatWatcher {
         let (stopped, streaming) = {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.screen_timer);
-            (st.stopped, st.screen.working && st.agent.is_some_and(|kind| self.reads_live_reply(kind)))
+            (st.stopped, (st.screen.working || st.screen_live.is_some()) && st.agent.is_some_and(|kind| self.reads_live_reply(kind)))
         };
         if !stopped {
             let t = self.later(if hidden() { QUIET_SCREEN_MS } else if streaming { LIVE_SCREEN_MS } else { SCREEN_MS }, |w| w.kick_screen());

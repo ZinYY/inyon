@@ -675,6 +675,48 @@ fn a_reply_claude_writes_shows_live_until_its_record_lands_and_doesnt_come_back(
 }
 
 #[test]
+fn claude_keeps_streaming_when_its_spinner_disappears_during_text_output() {
+    run(|| async {
+        let frame = Rc::new(RefCell::new(crate::test_support::fixture("screens/claude/reply-thinking.txt")));
+        let captured = frame.clone();
+        let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %7\n{}", captured.borrow())) } else { ok("") });
+        machine("claude-hidden-spinner", "local", json!([{ "id": "%7", "width": 200, "agent": { "kind": "claude", "pid": 7, "state": "working" } }])).borrow_mut().hold_polls();
+        let w = watchers().get("claude-hidden-spinner", "%7");
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        w.poll_screen().await;
+        assert!(w.screen().working);
+
+        *frame.borrow_mut() = crate::test_support::fixture("screens/claude/reply-streaming-macos.txt");
+        w.poll_screen().await;
+        wait(200).await;
+        let first = live_of(&phone).expect("partial text before the transcript is written");
+        assert_eq!(first.len(), 1);
+        assert!(first[0].text.starts_with("欠拟合——只学会了"));
+
+        let longer = frame.borrow().replace("盐 3.2 克、火候中偏大 17", "盐 3.2 克、火候中偏大 17 秒，换一口锅就不灵了。");
+        *frame.borrow_mut() = longer;
+        w.poll_screen().await;
+        wait(200).await;
+        let next = live_of(&phone).unwrap();
+        assert!(next[0].text.starts_with(&first[0].text));
+        assert!(next[0].text.ends_with("换一口锅就不灵了。"));
+        assert_eq!(next[0].id, first[0].id);
+
+        let base = Base::new("u", "t");
+        w.st.borrow_mut().items.push(with_seq(base.with_uuid("done").assistant("m", None, inyon_protocol::AssistantBlock::Text { text: next[0].text.clone() }), 1));
+        w.settle_screen_live();
+        w.live_soon();
+        wait(200).await;
+        assert_eq!(live_of(&phone), Some(vec![]));
+        w.poll_screen().await;
+        wait(200).await;
+        assert_eq!(live_of(&phone), Some(vec![]));
+        watchers().stop("claude-hidden-spinner:%7");
+    });
+}
+
+#[test]
 fn windows_herdr_chat_waits_for_recorded_blocks_instead_of_screen_previews() {
     run(|| async {
         let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");

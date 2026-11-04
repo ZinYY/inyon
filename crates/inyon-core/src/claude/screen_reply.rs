@@ -149,7 +149,12 @@ fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenRep
 /// off the row starts with two spaces and the tool's name, drawn bold, and it would read as the
 /// reply going on, command and all, until the dot came back. So the dot is put back.
 fn dot_back(kind: AgentKind, raw: &str) -> String {
-    let text = unstyle(raw).text.trim_end().to_owned();
+    let mut text = unstyle(raw).text.trim_end().to_owned();
+    // Claude uses U+23FA on macOS/Linux and U+25CF on Windows. Normalize only the
+    // leading message/tool marker; a circle quoted inside the response is ordinary text.
+    if kind == AgentKind::Claude {
+        text = re!(r"^( ?)⏺(\s|$)").replace(&text, "${1}●$2").into_owned();
+    }
     let blinked = matches!(kind, AgentKind::Claude | AgentKind::Copilot) && re!(r"^  [A-Z]").is_match(&text) && starts_bold(raw);
     if blinked {
         format!("●{}", &text[1..])
@@ -163,7 +168,7 @@ fn dot_back(kind: AgentKind, raw: &str) -> String {
 /// A reply's own text isn't bold, so a one-word reply still reads as the reply; the caller only
 /// asks for a block of one row, as a reply can open with a bold word on its own row.
 fn tool_name_alone(kind: AgentKind, text: &str, raw: &str) -> bool {
-    matches!(kind, AgentKind::Claude | AgentKind::Copilot) && re!(r"^ ?● [A-Z][\w-]*\s*$").is_match(text) && starts_bold(&raw.replacen('●', " ", 1))
+    matches!(kind, AgentKind::Claude | AgentKind::Copilot) && re!(r"^ ?● [A-Z][\w-]*\s*$").is_match(text) && starts_bold(&re!(r"[●⏺]").replacen(raw, 1, " "))
 }
 
 /// Whether the first character that isn't a space is drawn bold.

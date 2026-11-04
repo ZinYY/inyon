@@ -384,7 +384,7 @@ pub fn parse_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKi
                 break;
             }
             // Never reuse a spinner from a previous turn in the scrollback.
-            if RULE!().is_match(&lines[i]) || INPUT!().is_match(&lines[i]) || re!(r"^\s*●\s").is_match(&lines[i]) {
+            if RULE!().is_match(&lines[i]) || INPUT!().is_match(&lines[i]) || re!(r"^\s*[●⏺]\s").is_match(&lines[i]) {
                 break;
             }
         }

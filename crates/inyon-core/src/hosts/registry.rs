@@ -1388,11 +1388,13 @@ impl Registry {
                 _ => {}
             }
             if let (Some(path), Some(w)) = (&info.transcript_path, crate::claude::watcher::watchers().peek(&host_id, &p.id)) {
-                if info.status.is_none() {
+                if info.status.as_ref().is_none_or(|s| s.model.is_none() || s.effort.is_none()) {
                     let pr = pr.borrow();
                     if let (Some(session), Some(parent_id)) = (info.session_id.as_deref(), pr.status_panes.get(&p.id).and_then(|s| s.data.get("session_id")).and_then(Value::as_str)) {
                         if let Some(parent) = claude_status(pr.integration, &pr.status_panes, &pr.compact_panes, &p.id, proc.started_at, Some(parent_id)) {
-                            info.status = w.claude_branch_status(path, session, info.started_at.unwrap_or(0), parent_id, &parent);
+                            if let Some(status) = w.claude_branch_status(path, session, info.started_at.unwrap_or(0), parent_id, &parent, info.status.as_ref()) {
+                                info.status = Some(status);
+                            }
                         }
                     }
                 }

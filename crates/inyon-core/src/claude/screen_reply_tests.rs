@@ -8,6 +8,25 @@ fn reply(agent: &str, name: &str, kind: AgentKind) -> Option<ScreenReply> {
 }
 
 #[test]
+fn claude_macos_marker_streams_text_and_still_excludes_tools() {
+    let frame = screen_fixture("claude", "reply-streaming-macos");
+    assert!(!super::super::screen::parse_screen(&frame, Some(200), AgentKind::Claude).working);
+    let r = screen_reply(&frame, AgentKind::Claude, Some(200)).unwrap();
+    assert!(r.whole);
+    assert!(r.text.starts_with("欠拟合——只学会了"), "{}", r.text);
+    assert!(r.text.ends_with("17"), "{}", r.text);
+    assert!(!r.text.contains("Thought for"));
+    assert!(!r.text.contains("Ruminating"));
+    assert!(!r.text.contains('⏺'));
+    for marker in ["●", "⏺"] {
+        for tool in [format!("{marker} Bash(ls)\n  ⎿ secret"), format!("{marker} \x1b[1mBash\x1b[22m")] {
+            let frame = screen(&format!("❯ Show files\n\n{tool}\n\n✽ Working… (2s)\n\n────────────────────\n❯\n────────────────────"));
+            assert_eq!(screen_reply(&frame, AgentKind::Claude, Some(80)), None);
+        }
+    }
+}
+
+#[test]
 fn claude_streams_its_reply_under_your_prompt() {
     let r = reply("claude", "reply-streaming", AgentKind::Claude).unwrap();
     assert!(r.whole);

@@ -63,16 +63,24 @@ impl Controls {
     /// Only Claude's own successful command, in this live process, proves inheritance.
     /// /resume, another parent, a later parent report and a restarted process cannot.
     /// Never transfer conversation identity, cost, context usage or account limits.
-    pub fn branch_status(&self, session: &str, started_at: u64, parent_id: &str, parent: &AgentStatus) -> Option<AgentStatus> {
+    pub fn branch_status(&self, session: &str, started_at: u64, parent_id: &str, parent: &AgentStatus, current: Option<&AgentStatus>) -> Option<AgentStatus> {
         let b = self.branch.as_ref()?;
         if b.session != session || b.parent != parent_id || b.session == b.parent
-            || b.at < started_at || parent.updated_at < started_at || parent.updated_at > b.at {
+            || b.at < started_at || parent.updated_at < started_at || parent.updated_at > b.at
+            || current.is_some_and(|s| s.updated_at > b.at) {
             return None;
         }
-        let mut status = crate::agents::status::empty_status(b.at as f64);
-        status.model = parent.model.clone();
-        status.model_id = parent.model_id.clone();
-        status.effort = parent.effort.clone();
+        // Account limits can make `current` Some even before the new conversation has a
+        // status-line report. Keep those limits, filling only missing conversation controls.
+        let mut status = current.cloned().unwrap_or_else(|| crate::agents::status::empty_status(b.at as f64));
+        if status.model.is_none() {
+            status.model = parent.model.clone();
+            status.model_id = parent.model_id.clone();
+        }
+        if status.effort.is_none() {
+            status.effort = parent.effort.clone();
+        }
+        status.updated_at = b.at;
         self.status(Some(&status))
     }
 
@@ -154,7 +162,7 @@ mod tests {
         record(&mut controls, &format!("Branched conversation \"Study music\". You are now in the new branch (session {child}). Use /resume {parent} (\"Music\") to return to the original."), 3000);
         // Saved chat metadata must retain the proof across a reload.
         let c: Controls = serde_json::from_str(&serde_json::to_string(&controls.unwrap()).unwrap()).unwrap();
-        let inherited = c.branch_status(child, 1000, parent, &live(2000)).unwrap();
+        let inherited = c.branch_status(child, 1000, parent, &live(2000), None).unwrap();
         assert_eq!(inherited.model.as_deref(), Some("Opus 5.5"));
         assert_eq!(inherited.model_id.as_deref(), Some("claude-opus-5-5"));
         assert_eq!(inherited.effort.as_deref(), Some("high"));
@@ -170,10 +178,19 @@ mod tests {
             (child, 1000, parent, live(4000)), // /resume an old branch after later parent work
             (child, 2500, parent, live(2000)), // parent status predates this process
         ] {
-            assert!(c.branch_status(session, started, parent_id, &status).is_none());
+            assert!(c.branch_status(session, started, parent_id, &status, None).is_none());
         }
+        let account: AgentStatus = serde_json::from_value(json!({"plan":"Pro","fiveHour":{"pct":2,"resetsAt":5000},"updatedAt":0})).unwrap();
+        let with_limits = c.branch_status(child, 1000, parent, &live(2000), Some(&account)).unwrap();
+        assert_eq!(with_limits.effort.as_deref(), Some("high"));
+        assert_eq!(with_limits.model.as_deref(), Some("Opus 5.5"));
+        assert_eq!(with_limits.plan, account.plan);
+        assert_eq!(with_limits.five_hour, account.five_hour);
+        assert!(with_limits.context_used.is_none());
+        assert!(with_limits.cost_usd.is_none());
+        assert!(c.branch_status(child, 1000, parent, &live(2000), Some(&live(4000))).is_none());
         let mut c = c;
         c.record("Set effort level to low", 4000);
-        assert_eq!(c.branch_status(child, 1000, parent, &live(2000)).unwrap().effort.as_deref(), Some("low"));
+        assert_eq!(c.branch_status(child, 1000, parent, &live(2000), None).unwrap().effort.as_deref(), Some("low"));
     }
 }
