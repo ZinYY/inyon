@@ -181,7 +181,9 @@ fn codex_custom_footer_delivery(steer: bool, narrow: bool) {
             } else {
                 for part in cmd.split(" && ") {
                     let Some(k) = re.captures(part) else { continue };
-                    if let Some(key) = k.get(2).map(|m| m.as_str()).filter(|k| matches!(*k, "Enter" | "Tab")) {
+                    if let Some(text) = k.get(1) {
+                        b.0.push_str(&unq(text.as_str()));
+                    } else if let Some(key) = k.get(2).map(|m| m.as_str()).filter(|k| matches!(*k, "Enter" | "Tab")) {
                         let text = std::mem::take(&mut b.0);
                         b.1.push((key.to_owned(), text));
                     }
