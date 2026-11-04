@@ -46,7 +46,7 @@ fn drop_hooks(settings: &mut Value) -> bool {
         for g in list.iter_mut() {
             if let Some(hs) = g.get_mut("hooks").and_then(|h| h.as_array_mut()) {
                 let before = hs.len();
-                hs.retain(|h| !h.get("command").is_some_and(|c| ours(c, "hook.sh") || c.as_str().is_some_and(|s| s.contains(".inyon/bin/inyon.exe") && s.ends_with(" claude-display"))));
+                hs.retain(|h| !h.get("command").is_some_and(|c| ours(c, "hook.sh")) && !inyon_protocol::claude_stream::is_display_hook(h));
                 changed |= hs.len() != before;
             }
         }
@@ -98,6 +98,20 @@ pub fn unhook(home: &Path) -> Vec<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn display_exec_and_legacy_hooks_are_removed_without_touching_other_arguments() {
+        let exe=r"C:\Users\A B\.inyon\bin\inyon.exe";
+        let user=json!({"type":"command","command":exe,"args":["pages","watch"]});
+        let mut settings=json!({"hooks":{"MessageDisplay":[{"hooks":[
+            {"type":"command","command":exe,"args":["claude-display"]},
+            {"type":"command","command":r#"cmd.exe /d /c call "%USERPROFILE%/.inyon/bin/inyon.exe" claude-display"#},
+            user.clone()
+        ]}]}});
+        assert!(drop_hooks(&mut settings));
+        assert_eq!(settings["hooks"]["MessageDisplay"],json!([{"hooks":[user]}]));
+        assert!(!drop_hooks(&mut settings));
+    }
 
     fn home() -> tempfile_dir::Dir {
         tempfile_dir::Dir::new()

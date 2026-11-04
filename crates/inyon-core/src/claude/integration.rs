@@ -137,12 +137,20 @@ fn is_ours(h: Option<&Value>) -> bool {
     ours(h.at("command"), "hook.sh")
 }
 
-const DISPLAY_COMMAND: &str = r#"cmd.exe /d /c call "%USERPROFILE%/.inyon/bin/inyon.exe" claude-display"#;
 fn is_our_display(h: Option<&Value>) -> bool {
-    h.at("command").str().is_some_and(|c| c.contains(".inyon/bin/inyon.exe") && c.ends_with(" claude-display"))
+    h.is_some_and(inyon_protocol::claude_stream::is_display_hook)
 }
 
-fn display_hooks(hooks: &mut Map<String, Value>, enabled: bool) {
+fn display_executable(profile: &str) -> Option<String> {
+    let profile = profile.trim().replace('\\', "/");
+    let bytes = profile.as_bytes();
+    if bytes.len() < 3 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' || bytes[2] != b'/' || profile.contains(['\n', '\r', '\0']) {
+        return None;
+    }
+    Some(format!("{}/.inyon/bin/inyon.exe", profile.trim_end_matches('/')))
+}
+
+fn display_hooks(hooks: &mut Map<String, Value>, executable: Option<&str>) {
     for name in ["MessageDisplay", "UserPromptSubmit", "SessionStart", "SessionEnd"] {
         if let Some(groups) = hooks.get_mut(name).and_then(Value::as_array_mut) {
             for group in groups.iter_mut() {
@@ -150,10 +158,12 @@ fn display_hooks(hooks: &mut Map<String, Value>, enabled: bool) {
             }
             groups.retain(|g| g["hooks"].as_array().is_none_or(|hs| !hs.is_empty()));
         }
-        if enabled {
+        if let Some(executable) = executable {
             let groups = hooks.entry(name.to_owned()).or_insert_with(|| json!([]));
             if let Some(groups) = groups.as_array_mut() {
-                groups.push(json!({"hooks":[{"type":"command","command":DISPLAY_COMMAND,"timeout":2}]}));
+                // MessageDisplay blocks rendering until each batch returns. Spawning
+                // PowerShell + cmd here can exceed the deadline and lose batches.
+                groups.push(json!({"hooks":[{"type":"command","command":executable,"args":["claude-display"],"timeout":2}]}));
             }
         } else if hooks.get(name).and_then(Value::as_array).is_some_and(Vec::is_empty) { hooks.shift_remove(name); }
     }
@@ -388,7 +398,10 @@ async fn install_settings_once(host: &Host) -> HubResult<bool> {
     // Old nodes do not understand this command; only install after their binary is upgraded.
     let display = windows && knows_message_display(&version) && host.run(r#""$HOME/.inyon/bin/inyon.exe" claude-display --supported 2>/dev/null"#).await
         .is_ok_and(|r| r.code == 0 && r.stdout.trim() == "1");
-    display_hooks(hooks, display);
+    let executable = if display {
+        host.run(r#"printf '%s' "${USERPROFILE:-}""#).await.ok().and_then(|r| display_executable(&r.stdout))
+    } else { None };
+    display_hooks(hooks, executable.as_deref());
     write_settings(host, &settings, &sum).await
 }
 

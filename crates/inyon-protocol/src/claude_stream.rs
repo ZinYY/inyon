@@ -3,6 +3,17 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_TEXT: usize = 1024 * 1024;
 
+/// Recognize both the old shell wrapper and the direct executable hook during
+/// upgrades and uninstall, without removing other uses of the Inyon executable.
+pub fn is_display_hook(hook: &serde_json::Value) -> bool {
+    let Some(command) = hook["command"].as_str() else { return false };
+    let command = command.replace('\\', "/");
+    if command.ends_with("/.inyon/bin/inyon.exe") {
+        return hook["args"].as_array().is_some_and(|args| args.len() == 1 && args[0] == "claude-display");
+    }
+    command.contains(".inyon/bin/inyon.exe") && command.ends_with(" claude-display") && hook.get("args").is_none()
+}
+
 pub fn valid_id(id: &str) -> bool {
     id.len() == 36 && id.bytes().enumerate().all(|(i, b)| {
         if [8, 13, 18, 23].contains(&i) { b == b'-' } else { b.is_ascii_hexdigit() }

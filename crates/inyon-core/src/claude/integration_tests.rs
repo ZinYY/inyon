@@ -19,13 +19,33 @@ fn display_hooks_are_version_gated_idempotent_and_preserve_user_hooks() {
     assert!(knows_message_display("2.1.318 (Claude Code)"));
     let own=json!({"hooks":[{"type":"command","command":"my-display"}]});
     let mut hooks=Map::from_iter([("MessageDisplay".into(),json!([own.clone()]))]);
-    display_hooks(&mut hooks,true);
-    display_hooks(&mut hooks,true);
+    let executable=display_executable(r"C:\Users\Example User").unwrap();
+    display_hooks(&mut hooks,Some(&executable));
+    display_hooks(&mut hooks,Some(&executable));
     assert_eq!(hooks["MessageDisplay"].as_array().unwrap().len(),2);
     assert_eq!(hooks["MessageDisplay"][0],own);
-    assert_eq!(hooks["UserPromptSubmit"][0]["hooks"][0]["command"],DISPLAY_COMMAND);
-    display_hooks(&mut hooks,false);
+    assert_eq!(hooks["UserPromptSubmit"][0]["hooks"][0]["command"],executable);
+    assert_eq!(hooks["UserPromptSubmit"][0]["hooks"][0]["args"],json!(["claude-display"]));
+    display_hooks(&mut hooks,None);
     assert_eq!(hooks,Map::from_iter([("MessageDisplay".into(),json!([own]))]));
+}
+
+#[test]
+fn display_exec_paths_are_literal_and_migrate_shell_hooks_without_duplicates() {
+    let executable=display_executable(r"C:\Users\Test's $用户\").unwrap();
+    assert_eq!(executable,"C:/Users/Test's $用户/.inyon/bin/inyon.exe");
+    for bad in ["", "~", "/c/Users/test", "C:relative", "C:/Users/test\nother"] {
+        assert!(display_executable(bad).is_none());
+    }
+    let old=json!({"type":"command","command":r#"cmd.exe /d /c call "%USERPROFILE%/.inyon/bin/inyon.exe" claude-display"#});
+    let user=json!({"type":"command","command":executable,"args":["pages","watch"]});
+    let mut hooks=Map::from_iter([("MessageDisplay".into(),json!([{"hooks":[old,user.clone()]}]))]);
+    display_hooks(&mut hooks,Some(&executable));
+    display_hooks(&mut hooks,Some(&executable));
+    assert_eq!(hooks["MessageDisplay"].as_array().unwrap().len(),2);
+    assert_eq!(hooks["MessageDisplay"][0]["hooks"],json!([user.clone()]));
+    drop_ours(&mut hooks,"MessageDisplay");
+    assert_eq!(hooks["MessageDisplay"],json!([{"hooks":[user]}]));
 }
 
 /// A ~/.claude.json shaped like the real one: other accountUuid keys come before oauthAccount.
