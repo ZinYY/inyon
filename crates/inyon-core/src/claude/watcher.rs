@@ -2743,6 +2743,12 @@ impl ChatWatcher {
         let agent = pane.agent.clone().expect("an agent");
         let width = (*pane.width >= 0.0 && pane.width.is_finite()).then_some(*pane.width as u32);
         let mut screen = crate::hosts::registry::parse_host_screen(&self.host_id, lines, width, agent.kind);
+        // The registry tracks Claude turns across spinner-free text output and missing hooks.
+        // Chat must keep Stop/queue available for the same observed active turn.
+        if agent.kind == AgentKind::Claude && agent.state == inyon_protocol::AgentState::Working
+            && screen.prompt.is_none() && !screen.questions.is_some_and(|q| q > 0) {
+            screen.working = true;
+        }
         // New Codex TUIs hide both the spinner and the queue hint during token output.
         // The exact transcript still marks the active turn. Ignore unfinished turns copied
         // from history or left by an older process, and let approval/question menus win.

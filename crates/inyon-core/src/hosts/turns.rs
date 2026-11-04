@@ -89,6 +89,10 @@ impl Turns {
         if said == Some(Said::Busy) && !self.turns.contains_key(key) && at > ended && (now as f64) - at < MAX_MS as f64 {
             self.start(key, at as u64);
         }
+        // Native terminal input also starts turns when integration hooks are absent.
+        if shown == Shown::Working && !self.turns.contains_key(key) {
+            self.start(key, now);
+        }
         let Some(turn) = self.turns.get_mut(key) else { return shown };
         // (hook times are whole seconds)
         if (said == Some(Said::Done) && at >= ((turn.since / 1000) * 1000) as f64) || now.saturating_sub(turn.since) > MAX_MS {

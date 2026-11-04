@@ -52,6 +52,17 @@ fn losing_the_spinner_does_not_end_a_response_that_is_still_streaming() {
 }
 
 #[test]
+fn native_turns_without_hooks_keep_working_through_streaming() {
+    let mut t = Turns::new();
+    assert_eq!(t.state("p", Working, "spinner", None, T0), Working);
+    assert_eq!(t.state("p", Idle, "", None, T0 + 100), Working);
+    assert_eq!(t.state("p", Idle, "first words", None, T0 + 500), Working);
+    assert_eq!(t.state("p", Idle, "a longer answer", None, T0 + 5000), Working);
+    assert_eq!(t.state("p", Idle, "a longer answer", None, T0 + 13_001), Idle);
+    assert_eq!(t.state("p", Idle, "old history", None, T0 + 14_000), Idle);
+}
+
+#[test]
 fn a_question_in_the_middle_keeps_the_turn_going_after_it_is_answered_elsewhere() {
     let mut t = Turns::new();
     t.start("p", T0);
