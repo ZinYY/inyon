@@ -75,7 +75,13 @@ pub fn command(path: &str, selected: Option<&Selection>) -> String {
 /// Ambiguous repeated prompts wait for the authoritative on-disk parent chain.
 pub fn confirmation(lines: &[String], items: &[inyon_protocol::ChatItem]) -> Option<(String, String)> {
     let clean: Vec<String> = lines.iter().map(|l| super::screen::unstyle(l).text).collect();
-    let from = clean.iter().rposition(|l| l.contains("Confirm you want to restore to the point before"))?;
+    let from = clean.iter().rposition(|l| l.contains("Confirm you want to restore"))?;
+    // Claude versions differ: some say "restore to", others "restore the
+    // conversation to". A narrow terminal can wrap this heading as well.
+    let heading = clean[from..].iter().take_while(|l| !l.trim().starts_with('│')).map(|l| l.trim()).collect::<Vec<_>>().join(" ");
+    let heading = crate::js::text::squash(&heading);
+    if !["Confirm you want to restore to the point before", "Confirm you want to restore the conversation to the point before"]
+        .iter().any(|prefix| heading.starts_with(&crate::js::text::squash(prefix))) { return None; }
     if !clean[from..].iter().any(|l| l.contains("Restore conversation")) { return None; }
     let target = clean[from + 1..].iter().take_while(|l| !l.contains("This message and everything after"))
         .filter_map(|l| l.trim().strip_prefix('│').map(str::trim)).filter(|l| !l.starts_with('(')).collect::<Vec<_>>().join(" ");
@@ -120,5 +126,19 @@ mod tests {
         assert_eq!(confirmation(&lines, &[item("a")]).map(|v| v.0), Some("a".into()));
         assert!(confirmation(&lines, &[item("a"), item("b")]).is_none());
         assert!(confirmation(&lines[..5], &[item("a")]).is_none());
+    }
+
+    #[test]
+    fn windows_claude_conversation_restore_heading_can_wrap() {
+        let item = inyon_protocol::ChatItem::User {
+            seq: 0, uuid: "last-question".into(), ts: String::new(), text: "那过拟合和欠拟合怎么区分？用两句话。".into(), images: 0, queued: None, shell: None,
+        };
+        for heading in [
+            "Confirm you want to restore the conversation to the point before you sent this message:",
+            "Confirm you want to restore the conversation to the\npoint before you sent this message:",
+        ] {
+            let lines = format!("Rewind\n{heading}\n\n│ 那过拟合和欠拟合怎么区分？用两句话。\n│ (12h ago)\n\nThis message and everything after it will be removed.\nThe code will be unchanged.\n❯ 1. Restore conversation\n2. Summarize from here");
+            assert_eq!(confirmation(&lines.lines().map(str::to_owned).collect::<Vec<_>>(), std::slice::from_ref(&item)).map(|v| v.0), Some("last-question".into()));
+        }
     }
 }
