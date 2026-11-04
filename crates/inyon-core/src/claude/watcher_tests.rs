@@ -86,7 +86,7 @@ fn manual_reload_discards_only_the_chat_cache_and_keeps_subscribers_and_drafts()
             }
             ok("")
         });
-        machine("reload-test", "local", json!([{ "id": "%9", "agent": { "kind": "claude", "pid": 7, "state": "working", "transcriptPath":"/tmp/existing-conversation.jsonl" } }])).borrow_mut().hold_polls();
+        machine("reload-test", "local", json!([{ "id": "%9", "agent": { "kind": "claude", "pid": 7, "state": "working", "sessionId":"existing-conversation", "transcriptPath":"/tmp/existing-conversation.jsonl" } }])).borrow_mut().hold_polls();
         let old = watchers().get("reload-test", "%9");
         {
             let mut st = old.st.borrow_mut();
@@ -149,13 +149,14 @@ fn cached_codex_segments_keep_their_earlier_pages_after_restart_without_duplicat
             if command.starts_with("head -c ") { return ok(&history); }
             ok("")
         });
-        machine("history-cache-test", "local", json!([{ "id": "%9", "agent": { "kind": "codex", "pid": 7, "state": "idle" } }])).borrow_mut().hold_polls();
+        machine("history-cache-test", "local", json!([{ "id": "%9", "agent": { "kind": "codex", "pid": 7, "state": "idle", "sessionId":"current" } }])).borrow_mut().hold_polls();
         let w = watchers().get("history-cache-test", "%9");
         let mut meta = new_meta();
         let items = (350..=360).flat_map(|n| normalize_codex(&record(n), &mut meta)).enumerate().map(|(n, item)| with_seq(item, 1000 + n as i64)).collect();
         {
             let mut st = w.st.borrow_mut();
             st.transcript = Some(path.into());
+            st.info.session_id = Some("current".into());
             st.reader = Some(TranscriptReader::new(100));
             st.codex = true;
             st.agent = Some(AgentKind::Codex);
@@ -395,9 +396,15 @@ fn said() -> Vec<ChatItem> {
 fn chat_of_first() -> Rc<ChatWatcher> {
     new_agent_box(100, 1_000);
     let w = watchers().get("new-agent-test", "%5");
+    registry().update_pane("new-agent-test", "%5", |p| {
+        let a = p.agent.as_mut().unwrap();
+        a.session_id = Some("old".into());
+        a.transcript_path = Some("/home/abhash/.claude/projects/x/old.jsonl".into());
+    });
     {
         let mut st = w.st.borrow_mut();
         st.transcript = Some("/home/abhash/.claude/projects/x/old.jsonl".into());
+        st.info.session_id = Some("old".into());
         st.proc = Some("100:1000".into());
         st.reader = Some(crate::claude::transcript_tail::TranscriptReader::new(400));
         st.older_from = Some(0);
@@ -431,16 +438,23 @@ fn a_chat_left_open_while_claude_exits_and_starts_again_empties_instead_of_showi
         let w = chat_of_first();
         let phone = Rc::new(Phone::default());
         w.subscribe(phone.clone());
-        // the same Claude, its transcript not known for a moment: nothing changes
+        // The same process without a current ID must no longer keep its previous chat.
+        registry().update_pane("new-agent-test", "%5", |p| {
+            let a = p.agent.as_mut().unwrap();
+            a.session_id = None;
+            a.transcript_path = None;
+        });
         w.sync();
-        assert_eq!(texts(&w), ["Hello", "Hi Abhash, what are you working on today?"]);
+        assert!(texts(&w).is_empty());
+        assert!(w.info().session_id.is_none());
+        assert!(w.info().transcript_path.is_none());
         // a new Claude in the pane, nothing said to it yet
         new_agent_box(200, 2_000);
         phone.got.borrow_mut().clear();
         w.sync();
         assert!(texts(&w).is_empty());
         let resets: Vec<usize> = phone.got.borrow().iter().filter_map(|m| if let ServerMsg::ChatReset { items, .. } = m { Some(items.len()) } else { None }).collect();
-        assert_eq!(resets, [0]);
+        assert!(resets.is_empty(), "already empty while waiting for identity");
         watchers().stop(NEW_KEY);
     });
 }
@@ -504,6 +518,11 @@ fn the_same_claude_reopened_still_shows_its_conversation() {
                 WATCHERS.with(|w| w.parked.borrow_mut().shift_remove(NEW_KEY));
             }
             new_agent_box(100, 1_000);
+            registry().update_pane("new-agent-test", "%5", |p| {
+                let a = p.agent.as_mut().unwrap();
+                a.session_id = Some("old".into());
+                a.transcript_path = Some("/home/abhash/.claude/projects/x/old.jsonl".into());
+            });
             assert_eq!((from, texts(&watchers().get("new-agent-test", "%5"))), (from, vec!["Hello".to_owned(), "Hi Abhash, what are you working on today?".to_owned()]));
             watchers().stop(NEW_KEY);
         }

@@ -472,6 +472,7 @@ impl ChatWatcher {
         if self.online() && registry().codex_is_empty(&self.host_id, &self.pane_id) { return; }
         let Some(cached) = load_chat(&self.key) else { return };
         let agent = registry().pane_agent(&self.host_id, &self.pane_id);
+        if self.online() && agent.as_ref().is_some_and(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex) && a.session_id.is_none()) { return; }
         if agent.as_ref().and_then(|a| a.session_id.as_deref()).is_some_and(|s| !s.is_empty() && Some(s) != cached.session_id.as_deref()) {
             return;
         }
@@ -1337,7 +1338,8 @@ impl ChatWatcher {
         // a different agent in the pane with nothing written yet (a new Claude, say): its chat is empty,
         // not the conversation of the one before it
         let proc = proc_of(agent.as_ref());
-        let path = agent.as_ref().and_then(|a| a.transcript_path.clone()).filter(|p| !p.is_empty());
+        let path = agent.as_ref().filter(|a| !matches!(a.kind, AgentKind::Claude | AgentKind::Codex) || a.session_id.is_some())
+            .and_then(|a| a.transcript_path.clone()).filter(|p| !p.is_empty());
         // /resume can select another branch of the same Claude session without changing its
         // PID or file. SessionStart is authoritative even when the pathname stays the same.
         let resumed = agent.as_ref().filter(|a| a.kind == AgentKind::Claude).and_then(|a| {
@@ -1355,11 +1357,12 @@ impl ChatWatcher {
             (st.proc.clone(), st.transcript.is_some() || !st.items.is_empty(), st.tail_lost, st.transcript.clone())
         };
         let blank_codex = registry().codex_is_empty(&self.host_id, &self.pane_id);
+        let unidentified = agent.as_ref().is_some_and(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex) && a.session_id.is_none());
         // A /clear or /resume is confirmed by the new transcript identity, before that file
         // necessarily exists. Drop the previous chat now: a slow/failed initial read must not
         // leave it displayed under the new session id until someone forces a reload.
         let switched = path.as_ref().is_some_and(|p| Some(p) != transcript.as_ref());
-        if online && agent.is_some() && held && (switched || resumed || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
+        if online && agent.is_some() && held && (switched || resumed || unidentified || (path.is_none() && proc.is_some() && (proc != shown || blank_codex))) {
             self.forget();
         }
         if let (true, Some(p)) = (online, &path) {
@@ -1428,6 +1431,7 @@ impl ChatWatcher {
                 ledger.match_items(items, &queue);
             }
             let agent = found.as_ref().and_then(|f| f.pane.agent.as_ref());
+            let strict = self.online() && agent.is_some_and(|a| matches!(a.kind, AgentKind::Claude | AgentKind::Codex));
             let m = &st.meta;
             let title =
                 m.custom_title.clone().filter(|t| !t.is_empty()).or_else(|| m.title.clone().filter(|t| !t.is_empty())).or_else(|| found.as_ref().map(|f| pane_title(&f.pane)));
@@ -1440,8 +1444,8 @@ impl ChatWatcher {
                 pane_id: self.pane_id.clone(),
                 agent: agent.map(|a| a.kind).or(st.agent),
                 running: agent.is_some(),
-                transcript_path: agent.and_then(|a| a.transcript_path.clone()).or_else(|| st.transcript.clone()),
-                session_id: agent.and_then(|a| a.session_id.clone()).or_else(|| st.info.session_id.clone()),
+                transcript_path: agent.and_then(|a| a.transcript_path.clone()).or_else(|| if strict { None } else { st.transcript.clone() }),
+                session_id: agent.and_then(|a| a.session_id.clone()).or_else(|| if strict { None } else { st.info.session_id.clone() }),
                 mapped_by: agent.and_then(|a| a.mapped_by).or(st.info.mapped_by),
                 cwd: m.cwd.clone().or_else(|| found.as_ref().map(|f| f.pane.cwd.clone())),
                 title,

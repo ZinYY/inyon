@@ -923,11 +923,10 @@ fn codex_new_invalidates_the_startup_resume_hint_before_the_new_thread_has_a_tit
         registry().annotate_agents(&b.rt, &pr).await.unwrap();
         assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().transcript_path.is_none());
         // Reconnecting a hub to this already-cleared TUI has no prior cwd cache.
-        b.rt.borrow_mut().codex_cleared.clear();
         b.rt.borrow_mut().cwd_map.clear();
         let pr = probe();
         registry().annotate_agents(&b.rt, &pr).await.unwrap();
-        assert!(b.rt.borrow().codex_cleared.contains(&7));
+        assert!(b.rt.borrow().empty_codex.contains("%9"));
         // The first new prompt is running, but the title/index entry has not arrived yet.
         b.draw("› Explain overfitting briefly\n  GPT-6-Astra · Context 2% used\n? for shortcuts");
         let pr = probe();
@@ -990,7 +989,7 @@ fn windows_codex_hostname_case_does_not_hide_a_blank_or_resumed_footer() {
         let pr = probe();
         registry().annotate_agents(&b.rt, &pr).await.unwrap();
         assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].title, "Explain training data");
-        assert!(!b.rt.borrow().empty_codex.contains("%9"));
+        assert!(b.rt.borrow().empty_codex.contains("%9"), "a title alone is not a session identity");
     });
 }
 
@@ -1032,6 +1031,55 @@ fn a_codex_process_that_releases_its_thread_lock_never_borrows_another_folders_c
         registry().annotate_agents(&b.rt, &pr).await.unwrap();
         assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(next));
         assert!(!b.rt.borrow().empty_codex.contains("%9"));
+    });
+}
+
+#[test]
+fn codex_and_claude_never_guess_a_session_even_on_the_first_probe() {
+    run(|| async {
+        for kind in [AgentKind::Codex, AgentKind::Claude] {
+            let b = ModeBox::new();
+            let mut p = mode_probe(now_ms() as f64 / 1000.0);
+            p.home = "/home/u".into();
+            let proc = p.agent_procs.get_mut("%9").unwrap();
+            proc.kind = kind;
+            proc.resume = Some("old-startup-session".into());
+            p.sessions[0].windows[0].panes[0].title = "A familiar title | w".into();
+            b.rt.borrow_mut().cwd_map.insert(7, Mapped { path: Some("/other-session.jsonl".into()), by: MappedBy::Cwd, at: now_ms(), title: "A familiar title | w".into() });
+            b.draw("› Earlier conversation\n› Ask anything\n");
+            let pr = Rc::new(RefCell::new(p));
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            let agent = pr.borrow().sessions[0].windows[0].panes[0].agent.clone().unwrap();
+            assert!(agent.session_id.is_none());
+            assert!(agent.transcript_path.is_none());
+            assert!(!b._fake.cmds().iter().any(|c| c.starts_with("find ") || c.contains("ls -t") || c.contains("old-startup-session")));
+        }
+    });
+}
+
+#[test]
+fn claude_hook_requires_an_id_matching_its_transcript() {
+    assert_eq!(claude_hook_identity(&json!({"session_id":"current", "transcript_path":"C:\\sessions\\current.jsonl"})), Some(("current".into(), "C:\\sessions\\current.jsonl".into())));
+    for data in [json!({"transcript_path":"/sessions/current.jsonl"}), json!({"session_id":"", "transcript_path":"/sessions/.jsonl"}), json!({"session_id":"current", "transcript_path":"/sessions/previous.jsonl"})] {
+        assert!(claude_hook_identity(&data).is_none());
+    }
+}
+
+#[test]
+fn claude_status_identity_supersedes_an_older_hook_after_a_clear() {
+    run(|| async {
+        let b = ModeBox::new();
+        let now = now_ms() as f64 / 1000.0;
+        let mut p = mode_probe(now);
+        p.hook_panes.insert("%9".into(), HookPaneState { pane: "%9".into(), ts: now - 10.0,
+            data: json!({"session_id":"old", "transcript_path":"/sessions/old.jsonl"}), agent: None, event: None });
+        p.status_panes.insert("%9".into(), crate::tmux::tmux::StatusPane { ts: now,
+            data: json!({"session_id":"new", "transcript_path":"/sessions/new.jsonl"}), account: None, account_now: None });
+        let pr = Rc::new(RefCell::new(p));
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        let agent = pr.borrow().sessions[0].windows[0].panes[0].agent.clone().unwrap();
+        assert_eq!(agent.session_id.as_deref(), Some("new"));
+        assert_eq!(agent.transcript_path.as_deref(), Some("/sessions/new.jsonl"));
     });
 }
 

@@ -72,7 +72,7 @@ function longConversation(turns: number): ChatItem[] {
 
 describe('ChatView', () => {
   const view = () => <ChatView host="box" pane="%1" agent="claude" onTerminal={() => {}} />
-  const load = (items: ChatItem[], info = chatInfo()) => act(() => emit({ t: 'chat.reset', key: 'box:%1', info, items, hasMore: true }))
+  const load = (items: ChatItem[], info = chatInfo({ sessionId: 'current' })) => act(() => emit({ t: 'chat.reset', key: 'box:%1', info, items, hasMore: true }))
 
   test('a message that failed because the connection dropped goes out again once it is back', async () => {
     useStore.setState({ connected: false, hosts: [host('box')] })
@@ -112,9 +112,9 @@ describe('ChatView', () => {
   })
 
   test("Codex's reply shows as it is written, and the finished message takes its place once", async () => {
-    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'codex')] })] })
+    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'codex', { agent: { kind: 'codex', pid: 1, state: 'idle', sessionId: 'current' } })] })] })
     const { container } = render(<ChatView host="box" pane="%1" agent="codex" onTerminal={() => {}} />)
-    load([item.user('say hi again')], chatInfo({ agent: 'codex', turn: { id: 't1', startedAt: Date.now() - 5000 } }))
+    load([item.user('say hi again')], chatInfo({ sessionId: 'current', agent: 'codex', turn: { id: 't1', startedAt: Date.now() - 5000 } }))
     act(() => emit({ t: 'chat.screen', key: 'box:%1', screen: { working: true, activity: 'Working', width: 120 } }))
     act(() => emit({ t: 'chat.live', key: 'box:%1', items: [{ id: 'rs_1', kind: 'thinking', text: 'Keeping it short' }, { id: 'msg_1', kind: 'text', text: 'Hi ag' }] }))
     await flush()
@@ -138,9 +138,9 @@ describe('ChatView', () => {
   })
 
   test("a question Codex asked mid-turn is told apart from a prompt while it waits", async () => {
-    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'codex')] })] })
+    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'codex', { agent: { kind: 'codex', pid: 1, state: 'idle', sessionId: 'current' } })] })] })
     render(<ChatView host="box" pane="%1" agent="codex" onTerminal={() => {}} />)
-    load([item.user('ask me'), item.tool('call_q', 'AskUserQuestion', { questions: [{ question: 'Colour', options: [{ label: 'Red' }, { label: 'Blue' }] }] })], chatInfo({ agent: 'codex' }))
+    load([item.user('ask me'), item.tool('call_q', 'AskUserQuestion', { questions: [{ question: 'Colour', options: [{ label: 'Red' }, { label: 'Blue' }] }] })], chatInfo({ sessionId: 'current', agent: 'codex' }))
     act(() => emit({ t: 'chat.screen', key: 'box:%1', screen: { working: true, activity: 'Working', questions: 1, width: 120 } }))
     await flush()
     expect(screen.getByText('Codex is asking')).toBeTruthy()
@@ -153,7 +153,7 @@ describe('ChatView', () => {
 
   // the terminal draws only the highlighted option's preview, so the card shows every one
   test("a question's choices show what they mean and their previews", async () => {
-    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'claude')] })] })
+    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: 'current' } })] })] })
     render(view())
     const options = [
       { label: 'Heading', description: 'The session name heads the group.', preview: '┌──────┐\n│ Legato │\n└──────┘' },
@@ -168,7 +168,7 @@ describe('ChatView', () => {
   })
 
   test('a turn that stopped on an error says why under the last message, until the next prompt', async () => {
-    const stopped = (failure?: { error: string }) => host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', failure } })] })
+    const stopped = (failure?: { error: string }) => host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: 'current', failure } })] })
     useStore.setState({ connected: true, hosts: [stopped({ error: 'authentication_failed' })] })
     render(view())
     load([item.user('hi'), item.text('Hello')])
@@ -261,6 +261,25 @@ describe('ChatView', () => {
     expect(screen.getByText('New conversation')).toBeTruthy()
     load([], chatInfo({ running: false }))
     expect(screen.getByText('No agent is running in this pane')).toBeTruthy()
+  })
+
+  for (const kind of ['codex', 'claude'] as const) test(`${kind} hides cached history until the current session is identified`, async () => {
+    const current = agentPane('%1', kind)
+    useStore.setState({ connected: true, hosts: [host('box', { panes: [current] })] })
+    render(<ChatView host="box" pane="%1" agent={kind} onTerminal={() => {}} />)
+    load([item.user('Previous session message')], chatInfo({ sessionId: 'previous' }))
+    expect(screen.getByText('Waiting to identify this conversation')).toBeTruthy()
+    expect(screen.queryByText('Previous session message')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Open terminal' })).toBeTruthy()
+    act(() => {
+      useStore.setState({ hosts: [host('box', { panes: [{ ...current, agent: { ...current.agent!, sessionId: 'current' } }] })] })
+      emit({ t: 'chat.reset', key: 'box:%1', info: chatInfo({ sessionId: 'current' }), items: [], hasMore: false })
+    })
+    expect(screen.queryByText('Waiting to identify this conversation')).toBeNull()
+    expect(screen.getByText('New conversation')).toBeTruthy()
+    expect(screen.queryByText('Previous session message')).toBeNull()
+    load([item.user('Current session message')], chatInfo({ sessionId: 'current' }))
+    expect(screen.getByText('Current session message')).toBeTruthy()
   })
 
   test('a message waiting to go still shows, with its buttons, when no agent is running', async () => {
@@ -466,7 +485,7 @@ describe('opened while the machine reconnects', () => {
 
   test('once the machine is back, a question its screen no longer shows is gone', async () => {
     useStore.setState({ connected: true, hosts: [asking()] })
-    useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'claude')] })] })
+    useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'idle', sessionId: 'current' } })] })] })
     render(view())
     act(() => emit({ t: 'chat.reset', key: 'box:%1', info: chatInfo(), items: [], hasMore: false }))
     await flush()

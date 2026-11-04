@@ -1042,15 +1042,12 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
     assert!(process_transcript(&record.to_string(), "C:/Users/me", &elsewhere).is_none());
 }
 
-/// `guessTranscript(host, home, proc)`
+/// Read Claude's own PID-to-session record. Missing records must not trigger a
+/// project-directory or startup --resume guess: either can refer to an old chat.
 pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<(Option<String>, MappedBy)> {
     let record = format!("{home}/.claude/sessions/{}.json", proc.pid);
     let r = host.run(&format!("cat {} 2>/dev/null", shq(&record))).await?;
-    if let Some(path) = process_transcript(&r.stdout, home, proc) { return Ok((Some(path), MappedBy::Process)); }
-    let by = if proc.resume.is_some_and(|r| !r.is_empty()) { MappedBy::Resume } else { MappedBy::Cwd };
-    let Some((dir, cmd)) = guess_transcript_command(home, proc) else { return Ok((None, by)) };
-    let r = host.run(&cmd).await?;
-    Ok((guess_transcript(&r.stdout, &dir, proc), by))
+    Ok((process_transcript(&r.stdout, home, proc), MappedBy::Process))
 }
 
 fn nonempty_or(s: &str, fallback: &str) -> String {

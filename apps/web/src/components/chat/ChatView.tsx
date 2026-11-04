@@ -71,6 +71,8 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const chatCapable = agent ? agentDef(agent).chat : true
   // a terminal-first agent's chat info says nothing until the hub looks: its pane says whether it runs
   const paneAgent = machine?.sessions.flatMap((s) => s.windows).flatMap((w) => w.panes).find((p) => p.id === pane)?.agent
+  const identifying = connected && !!paneAgent && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !paneAgent.sessionId
+  const switching = connected && !!paneAgent?.sessionId && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !!chat?.loaded && chat.info?.sessionId !== paneAgent.sessionId
   const running = chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent
   const working = !!screen?.working
   const prompt = screen?.prompt
@@ -357,7 +359,11 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                   </Empty>
                   {scheduledList}
                 </>
-              ) : !chat?.loaded || (!rows.length && chat.catchingUp !== undefined) ? (
+              ) : identifying ? (
+                <Empty icon={<AgentLogo kind={agent} size={28} />} title="Waiting to identify this conversation" action={<Button onClick={onTerminal}><SquareTerminal className="size-4" /> Open terminal</Button>}>
+                  Chat will appear when the current session is identified. You can use the terminal meanwhile.
+                </Empty>
+              ) : switching || !chat?.loaded || (!rows.length && chat.catchingUp !== undefined) ? (
                 <Waiting shape="lines" className="pt-4" label={chat?.catchingUp !== undefined ? `Loading the conversation · ${Math.round(chat.catchingUp * 100)}%` : 'Loading the conversation'} />
               ) : !running && !rows.length ? (
                 <>
@@ -473,7 +479,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                 ) : machineDown ? (
                   <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3">{machine!.config.name} is offline. This is the conversation as last seen; you can send again once it reconnects.<HelpLink id={host} /></div>
                 ) : null}
-                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected} controls={controls} ultracode={ultracode} />}
+                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching} controls={controls} ultracode={ultracode} />}
               </div>
             )}
           </div>
