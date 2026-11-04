@@ -37,7 +37,7 @@ use crate::agents::opencode_controls::opencode_live;
 use crate::agents::opencode_db::{is_ocdb, ocdb_rows_of, ocdb_session, ocdb_session_info_of, ocdb_shape_of, ocdb_stamp_of, OcdbCache, OcdbSessionInfo};
 use crate::agents::opencode_questions::{OpenCodeQuestion, OpenCodeQuestionFlow};
 use crate::clock::now_ms;
-use crate::hosts::host::{shq, Host, StreamHandle};
+use crate::hosts::host::{ExecOptions, shq, Host, StreamHandle};
 use crate::hosts::http_error::{HubError, HubResult};
 use crate::hosts::registry::{pane_title, registry, RegistryEvent};
 use crate::js::json::{self, Js};
