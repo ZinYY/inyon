@@ -744,6 +744,21 @@ fn resume_keeps_launch_flags_drops_the_old_session_and_any_prompt() {
     assert_eq!(resume_command(AgentKind::Antigravity, None, "agy -c --effort low"), "agy '--effort' 'low'");
 }
 
+#[test]
+fn launch_uses_the_running_native_binary_but_not_its_node_interpreter() {
+    run(|| async {
+        let _fake = Fake::install(|_, cmd, _| {
+            if cmd.contains("readlink /proc/40/exe") { return ok("/opt/old claude/claude.exe\n"); }
+            if cmd.contains("readlink /proc/41/exe") { return ok("/usr/bin/node\n"); }
+            ok("claude\n")
+        });
+        fork_pane("claude", Some(FORK_ID));
+        let host = registry().host("h").unwrap();
+        assert_eq!(active_bin(&host, AgentKind::Claude, Some(40.0)).await.unwrap(), "'/opt/old claude/claude.exe'");
+        assert_eq!(active_bin(&host, AgentKind::Claude, Some(41.0)).await.unwrap(), "claude");
+    });
+}
+
 /// From "a restart keeps a flag value with spaces in it whole, read from the real argument list":
 /// where there is no /proc to read, there is no argument list
 #[test]

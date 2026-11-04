@@ -1513,16 +1513,17 @@ pub async fn type_start(host_id: &str, pane_id: &str, agent: AgentKind, resume: 
             _ => format!("{} --resume {r}", def.launch),
         },
     };
-    type_start_command(host_id, pane_id, agent, &cmd).await
+    let (host, _) = agent_pane(host_id, pane_id)?;
+    let line = with_bin(&cmd, &launch_bin(&host, &def.launch).await?);
+    type_start_command(host_id, pane_id, &line).await
 }
 
 /// Starts a command prepared before the previous process exited. Its launch flags can include
 /// the session's API configuration, so a conversation switch must not rebuild a plain command.
-pub async fn type_start_command(host_id: &str, pane_id: &str, agent: AgentKind, cmd: &str) -> HubResult<()> {
+pub async fn type_start_command(host_id: &str, pane_id: &str, line: &str) -> HubResult<()> {
     require_tmux_management(host_id)?;
     let (host, _) = agent_pane(host_id, pane_id)?;
-    let line = with_bin(cmd, &launch_bin(&host, &agent.def().launch).await?);
-    type_into(&host, pane_id, &line, true).await?;
+    type_into(&host, pane_id, line, true).await?;
     registry().refresh(host_id, 1500);
     Ok(())
 }
@@ -1734,6 +1735,28 @@ pub(crate) async fn resume_for(host: &Host, kind: AgentKind, session_id: Option<
         Some(a) => resume_command_argv(kind, session_id, &a),
         None => resume_command(kind, session_id, ps_args),
     }
+}
+
+/// Multiple installations can coexist on one machine. A new shell's PATH must not silently
+/// upgrade a native agent when resuming/forking it. Interpreters and unavailable /proc fall back
+/// to the usual launcher rather than attempting to run node as if it were Claude or Codex.
+async fn active_bin(host: &Host, kind: AgentKind, pid: Option<f64>) -> HubResult<String> {
+    if let Some(pid) = pid {
+        if let Ok(r) = host.run(&format!("readlink /proc/{}/exe 2>/dev/null", fmt_number(pid.trunc()))).await {
+            let path = r.stdout.jtrim();
+            let base = path.rsplit('/').next().unwrap_or_default();
+            let name = if kind == AgentKind::Antigravity { "agy" } else { kind.as_str() };
+            if r.code == 0 && path.starts_with('/') && (base == name || base == format!("{name}.exe")) {
+                return Ok(shq(path));
+            }
+        }
+    }
+    launch_bin(host, &kind.def().launch).await
+}
+
+pub(crate) async fn resume_launch(host: &Host, kind: AgentKind, id: &str, pid: f64, args: &str) -> HubResult<String> {
+    let command = resume_for(host, kind, Some(id), pid, args).await;
+    Ok(with_bin(&command, &active_bin(host, kind, Some(pid)).await?))
 }
 
 async fn saved_transcript(host: &Host, path: Option<&str>) -> HubResult<bool> {
@@ -2299,7 +2322,7 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         return Err(http(500, if err.is_empty() { "Could not open a window" } else { err }));
     }
     shell_ready(&host, &new_pane, 8000).await?;
-    let line = fork_launch_line(&cmd, &launch_bin(&host, &a.kind.def().launch).await?, &proxy);
+    let line = fork_launch_line(&cmd, &active_bin(&host, a.kind, proc.as_ref().map(|p| p.pid)).await?, &proxy);
     type_into(&host, &new_pane, &line, true).await?;
     if a.kind == AgentKind::Claude {
         let title = watchers().peek(host_id, pane_id).and_then(|w| w.info().title).unwrap_or_else(|| found.pane.title.clone());

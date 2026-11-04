@@ -628,7 +628,7 @@ mod steps {
             return f(host_id, pane_id, kind, id).await;
         }
         match command {
-            Some(command) => crate::claude::actions::type_start_command(host_id, pane_id, kind, command).await,
+            Some(command) => crate::claude::actions::type_start_command(host_id, pane_id, command).await,
             None => crate::claude::actions::type_start(host_id, pane_id, kind, Some(id)).await,
         }
     }
@@ -668,7 +668,7 @@ pub async fn switch_conversation(host_id: &str, pane_id: &str, asked: Option<&Va
         // select a third-party API; losing it silently starts an unsigned-in default Claude.
         let command = if running.is_some() && matches!(kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Antigravity) {
             match registry().agent_proc(host_id, pane_id) {
-                Some(p) => Some(crate::claude::actions::resume_for(&registry().host(host_id)?, kind, Some(&id), p.pid, &p.args).await),
+                Some(p) => Some(crate::claude::actions::resume_launch(&registry().host(host_id)?, kind, &id, p.pid, &p.args).await?),
                 None => None,
             }
         } else { None };

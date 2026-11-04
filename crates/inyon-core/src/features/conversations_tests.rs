@@ -380,6 +380,9 @@ fn switching_keeps_api_settings_from_the_process_before_it_exits() {
         });
         rt.borrow_mut().probe = Some(Rc::new(RefCell::new(probe)));
         let fake = Fake::install(|_, command, _| {
+            if command.contains("readlink /proc/42/exe") {
+                return ok("/home/u/old claude/claude.exe\n");
+            }
             if command.contains("/42/cmdline") {
                 return ok("/usr/bin/claude\n--settings\n/home/u/api config.json\n--dangerously-skip-permissions\n--resume\n00000000-0000-4000-8000-000000000001\n");
             }
@@ -395,7 +398,7 @@ fn switching_keeps_api_settings_from_the_process_before_it_exits() {
         steps::START.with(|s| *s.borrow_mut() = None);
         switch_conversation("convos", "%7", Some(&json!("claude")), Some(&json!(id(2)))).await.unwrap();
         let typed = fake.cmds().into_iter().filter(|c| c.contains("send-keys")).collect::<Vec<_>>().join("\n").replace(r"'\''", "'");
-        assert!(typed.contains(&format!("claude --resume {}", id(2))), "{typed}");
+        assert!(typed.contains(&format!("'/home/u/old claude/claude.exe' --resume {}", id(2))), "{typed}");
         assert!(typed.contains("'--settings' '/home/u/api config.json' '--dangerously-skip-permissions'"), "{typed}");
         assert!(!typed.contains(&id(1)), "{typed}");
     });
