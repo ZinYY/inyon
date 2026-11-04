@@ -393,7 +393,13 @@ pub fn parse_probe(stdout: &str, stderr: &str, code: i32, latency_ms: f64) -> Re
                     // the thread locks; the shim's PID cannot identify a chat.
                     if kind == AgentKind::Codex && matches!(p.comm.as_str(), "node" | "node.exe" | "bun" | "bun.exe") {
                         if let Some(native) = children.get(&pid).into_iter().flatten().filter_map(|c| procs.get(c))
-                            .find(|cp| matches!(cp.comm.as_str(), "codex" | "codex.exe") && detect_agent(&cp.comm, &cp.args) == Some(kind)) {
+                            .find(|cp| {
+                                // macOS ps truncates comm to 15 characters even when args
+                                // contains the complete executable path.
+                                let executable = cp.args.split_whitespace().next().unwrap_or("").rsplit('/').next().unwrap_or("");
+                                (matches!(cp.comm.as_str(), "codex" | "codex.exe") || executable == "codex")
+                                    && detect_agent(&cp.comm, &cp.args) == Some(kind)
+                            }) {
                             return Some((native, kind, None));
                         }
                     }
@@ -1019,11 +1025,19 @@ pub async fn send_keys(host: &Host, pane: &str, keys: &[&str]) -> HubResult<()> 
 /// Claude Code publishes its exact session under the owning PID. Prefer that over the
 /// newest file in a shared project directory, which can belong to another window.
 fn process_transcript(record: &str, home: &str, proc: &TranscriptProc<'_>) -> Option<String> {
+    let (record, stat) = record.split_once("\n@@PROCSTAT ").map_or((record, None), |(r, s)| (r, Some(s)));
     let v: serde_json::Value = serde_json::from_str(record).ok()?;
     if v.get("pid")?.as_u64()? != proc.pid as u64 { return None; }
     let started = v.get("startedAt")?.as_f64()? / 1000.0;
-    // Reject stale PID records; the presence file can be created shortly after process start.
-    if started < proc.started_at - 5.0 || started > proc.started_at + 60.0 { return None; }
+    // Linux's kernel start ticks prove the PID has not been reused. Claude can
+    // publish its record minutes after starting while waiting at a trust prompt.
+    let kernel_start = stat.and_then(|s| s.rsplit_once(") ")).and_then(|(_, s)| s.split_whitespace().nth(19));
+    let exact_start = match (kernel_start, v.get("procStart").and_then(|v| v.as_str())) {
+        (Some(actual), Some(recorded)) if actual == recorded => true,
+        (Some(_), Some(_)) => return None,
+        _ => false,
+    };
+    if !exact_start && (started < proc.started_at - 5.0 || started > proc.started_at + 60.0) { return None; }
     let id = v.get("sessionId")?.as_str()?;
     if !re!(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$").is_match(id) { return None; }
     let cwd = v.get("cwd")?.as_str()?;
@@ -1046,6 +1060,13 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
     assert!(process_transcript(&record.to_string(), "C:/Users/me", &other).is_none());
     let stale = TranscriptProc { started_at: 1500.0, ..p.clone() };
     assert!(process_transcript(&record.to_string(), "C:/Users/me", &stale).is_none());
+    let mut late = record.clone();
+    late["procStart"] = serde_json::json!("12345");
+    late["startedAt"] = serde_json::json!(1300000);
+    let stat = format!("3380 (claude code) {} 12345 0", vec!["0"; 19].join(" "));
+    assert!(process_transcript(&format!("{late}\n@@PROCSTAT {stat}"), "C:/Users/me", &p).is_some());
+    assert!(process_transcript(&format!("{late}\n@@PROCSTAT {}", stat.replace("12345", "99999")), "C:/Users/me", &p).is_none());
+    assert!(process_transcript(&late.to_string(), "C:/Users/me", &p).is_none());
     let elsewhere = TranscriptProc { cwd: Some("C:/another"), ..p };
     assert!(process_transcript(&record.to_string(), "C:/Users/me", &elsewhere).is_none());
 }
@@ -1054,7 +1075,7 @@ fn claude_pid_records_disambiguate_simultaneous_sessions_in_one_project() {
 /// project-directory or startup --resume guess: either can refer to an old chat.
 pub async fn find_transcript(host: &Host, home: &str, proc: &TranscriptProc<'_>) -> HubResult<(Option<String>, MappedBy)> {
     let record = format!("{home}/.claude/sessions/{}.json", proc.pid);
-    let r = host.run(&format!("cat {} 2>/dev/null", shq(&record))).await?;
+    let r = host.run(&format!("cat {} 2>/dev/null; if [ -r /proc/{}/stat ]; then printf '\\n@@PROCSTAT '; cat /proc/{}/stat; fi", shq(&record), proc.pid, proc.pid)).await?;
     Ok((process_transcript(&r.stdout, home, proc), MappedBy::Process))
 }
 
@@ -1336,6 +1357,11 @@ mod tests {
             "", 0, 12.0,
         ).unwrap();
         assert_eq!((npm_codex.agent_procs["%1"].pid, npm_codex.agent_procs["%1"].kind), (101.0, AgentKind::Codex));
+        let mac_npm = parse_probe(
+            &out.replace("  101   100   40 /usr/bin/claude claude", "  102   100   41 node node /opt/homebrew/bin/codex\n  101   102   40 /opt/homebrew/li /opt/homebrew/lib/node_modules/@openai/codex/vendor/bin/codex"),
+            "", 0, 12.0,
+        ).unwrap();
+        assert_eq!(mac_npm.agent_procs["%1"].pid, 101.0);
         assert_eq!(parse_probe("oops\nfirst\nsecond", "", 1, 0.0), Err("first second".into()));
     }
 
