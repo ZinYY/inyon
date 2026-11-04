@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 import os
-from codex_identity import active_thread, shared_daemon_pid
+from codex_identity import active_thread, shared_daemon_pid, mac_shared_daemon_pid
 
 
 class ForegroundThreadTest(unittest.TestCase):
@@ -69,6 +69,16 @@ u_str ESTAB 0 0 {path} 201 * 101 users:(("codex",pid=90,fd=4))'''
 u_str ESTAB 0 0 {path} 202 * 102 users:(("codex",pid=90,fd=5))'''
         self.assertIsNone(shared_daemon_pid(rows + another, 42))
         self.assertIsNone(shared_daemon_pid(rows.replace(path, '/tmp/some-other-server'), 42))
+
+    def test_macos_kernel_endpoints_require_exactly_one_daemon_client(self):
+        rows = '''codex 90 user 29u unix 0x111 0t0 /private/tmp/codex-daemon-501/server
+codex 90 user 32u unix 0x222 0t0 /private/tmp/codex-daemon-501/server
+codex 42 user 39u unix 0x333 0t0 ->0x222'''
+        self.assertEqual(mac_shared_daemon_pid(rows, 42, 501), 90)
+        self.assertIsNone(mac_shared_daemon_pid(rows, 43, 501))
+        self.assertIsNone(mac_shared_daemon_pid(rows, 42, 502))
+        self.assertIsNone(mac_shared_daemon_pid(rows + '\ncodex 43 user 4u unix 0x444 0t0 ->0x222', 42, 501))
+        self.assertIsNone(mac_shared_daemon_pid(rows.replace('/private/tmp/codex-daemon-501/', '/tmp/another/'), 42, 501))
 
 
 if __name__ == '__main__':

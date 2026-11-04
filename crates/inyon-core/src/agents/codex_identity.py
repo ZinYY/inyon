@@ -84,6 +84,8 @@ def shared_daemon_pid(output, pid):
 
 
 def daemon_owner(pid):
+    if sys.platform == 'darwin':
+        return mac_daemon_owner(pid)
     if not sys.platform.startswith('linux'):
         return None
     try:
@@ -107,6 +109,41 @@ def daemon_owner(pid):
         started = boot + int(stat[19]) / os.sysconf('SC_CLK_TCK')
         return server, started, sorted(set(owned))
     except (OSError, ValueError, StopIteration, subprocess.TimeoutExpired):
+        return None
+
+
+def mac_shared_daemon_pid(output, pid, uid):
+    """lsof's Unix socket pointer links a TUI to one named daemon endpoint."""
+    rows = []
+    for line in output.splitlines():
+        cols = line.split(None, 7)
+        if len(cols) == 8 and cols[1].isdigit() and cols[4] == 'unix':
+            rows.append((int(cols[1]), cols[0], cols[5], cols[7]))
+    prefixes = (f'/private/tmp/codex-daemon-{uid}/', f'/tmp/codex-daemon-{uid}/')
+    servers = {owner for owner, name, device, path in rows if name == 'codex' and path.startswith(prefixes)
+               and any(client == pid and peer == '->' + device for client, _, _, peer in rows)}
+    if len(servers) != 1:
+        return None
+    server = next(iter(servers))
+    endpoints = {device for owner, _, device, path in rows if owner == server and path.startswith(prefixes)}
+    clients = {owner for owner, _, _, peer in rows if peer.startswith('->') and peer[2:] in endpoints}
+    return server if clients == {pid} else None
+
+
+def mac_daemon_owner(pid):
+    try:
+        sockets = subprocess.run(['lsof', '-nP', '-U', '-a', '-u', str(os.getuid())], capture_output=True, text=True, timeout=1)
+        server = mac_shared_daemon_pid(sockets.stdout, pid, os.getuid())
+        if server is None:
+            return None
+        files = subprocess.run(['lsof', '-nP', '-a', '-p', str(server), '-Fn'], capture_output=True, text=True, timeout=1)
+        owned = sorted(set(re.findall(r'^n.*/thread-writer-locks/([0-9a-f-]{36})\.lock$', files.stdout, re.M)))
+        elapsed = subprocess.check_output(['ps', '-p', str(server), '-o', 'etime='], text=True, timeout=1).strip()
+        days, elapsed = elapsed.split('-', 1) if '-' in elapsed else ('0', elapsed)
+        parts = [int(n) for n in elapsed.split(':')]
+        seconds = sum(n * 60 ** i for i, n in enumerate(reversed(parts))) + int(days) * 86400
+        return server, time.time() - seconds, owned
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
 
 
