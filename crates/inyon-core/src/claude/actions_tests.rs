@@ -913,3 +913,13 @@ fn fork_environment_copies_only_proxies_and_quotes_shell_metacharacters() {
     assert_eq!(prefix, format!("env {} {} ", shq(value), shq("NO_PROXY=localhost,127.0.0.1")));
     assert_eq!(proxy_environment_prefix("API_KEY=private\n"), "");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_fork_launch_runs_the_resolved_binary_with_its_proxy_and_arguments() {
+    let proxy = proxy_environment_prefix("http_proxy=http://127.0.0.1:7890\n");
+    let cmd = fork_launch_line("codex -c 'printf \"%s\\n\" \"$http_proxy\" \"$1\"' shell fork", "/bin/sh", &proxy);
+    let result = std::process::Command::new("/bin/sh").args(["-c", &cmd]).output().unwrap();
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    assert_eq!(String::from_utf8_lossy(&result.stdout), "http://127.0.0.1:7890\nfork\n");
+}

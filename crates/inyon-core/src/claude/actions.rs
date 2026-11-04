@@ -2215,6 +2215,12 @@ async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
     }
 }
 
+fn fork_launch_line(cmd: &str, bin: &str, proxy: &str) -> String {
+    // Resolve the agent executable before adding env; replacing the first word
+    // afterwards would turn env into codex and pass proxy assignments as prompts.
+    format!("{proxy}{}", with_bin(cmd, bin))
+}
+
 /// Claude initially keeps a --fork-session history only in memory. Reaffirming its inherited
 /// name through the native command flushes that history without sending a model prompt or
 /// writing Claude's JSONL ourselves. Never type through a question or over a user's draft.
@@ -2287,7 +2293,7 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
         return Err(http(500, if err.is_empty() { "Could not open a window" } else { err }));
     }
     shell_ready(&host, &new_pane, 8000).await?;
-    let line = with_bin(&format!("{proxy}{cmd}"), &launch_bin(&host, &a.kind.def().launch).await?);
+    let line = fork_launch_line(&cmd, &launch_bin(&host, &a.kind.def().launch).await?, &proxy);
     type_into(&host, &new_pane, &line, true).await?;
     if a.kind == AgentKind::Claude {
         let title = watchers().peek(host_id, pane_id).and_then(|w| w.info().title).unwrap_or_else(|| found.pane.title.clone());
