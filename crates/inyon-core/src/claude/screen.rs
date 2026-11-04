@@ -555,7 +555,7 @@ fn parse_claude_rewind(lines: &[String]) -> Option<ScreenPrompt> {
     let title = find_last(lines, |l| l.jtrim() == "Rewind")?;
     let desc = (title + 1..lines.len()).find(|&i| lines[i].jtrim().starts_with("Restore the code and/or conversation to the point before"))?;
     let footer = (desc + 1..lines.len()).find(|&i| re!(r"Enter to continue.*Esc to cancel", "i").is_match(&lines[i]))?;
-    if lines[footer + 1..].iter().any(|l| !l.is_blank()) { return None; }
+    if lines[footer + 1..].iter().any(|l| !l.is_blank() && !RULE!().is_match(l)) { return None; }
     let mut options = Vec::new();
     for group in lines[desc + 1..footer].split(|l| l.is_blank()).filter(|g| !g.is_empty()) {
         let selected = group[0].jtrim().starts_with('❯');

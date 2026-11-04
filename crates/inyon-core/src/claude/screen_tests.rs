@@ -41,6 +41,11 @@ fn claude_rewind_picker_uses_arrow_navigation_and_ignores_previous_output() {
     assert!(p.options[2].selected);
     assert_eq!(p.navigate, Some(true));
     assert!(parse_claude_rewind(&lines[..lines.len() - 1]).is_none());
+    let mut framed = lines.clone();
+    framed.push(format!("{} Conversation title ─", r100()));
+    assert_eq!(parse_claude_rewind(&framed).map(|p| p.options), Some(p.options));
+    framed.push("❯ A new prompt after the picker closed".into());
+    assert!(parse_claude_rewind(&framed).is_none());
 }
 
 /// permission prompt
