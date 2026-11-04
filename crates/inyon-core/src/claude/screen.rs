@@ -305,7 +305,7 @@ pub fn parse_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKi
         AgentKind::Copilot => return finish(parse_copilot_screen(&raw, pane_width)),
         AgentKind::Opencode => return finish(parse_opencode_screen(&raw, pane_width, Some(captured))),
         AgentKind::Antigravity => return finish(parse_antigravity(&raw, pane_width)),
-        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width, false)),
+        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width)),
         AgentKind::Claude => {}
         _ => return finish(parse_generic(&raw, pane_width)),
     }
@@ -1308,16 +1308,13 @@ fn terminals(n: &str) -> String {
 /// sits above the composer, then "• Queued follow-up inputs" with "↳ text" rows. Menus (approvals,
 /// /model, /permissions) replace the composer: a title, "› 1. Option  detail" rows and a key hint.
 pub fn parse_psmux_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKind) -> ScreenState {
-    if agent != AgentKind::Codex { return parse_screen(captured, pane_width, agent); }
-    let styled: Vec<_> = captured.iter().map(|l| unstyle(l)).collect();
-    let raw: Vec<_> = styled.iter().map(|l| l.text.clone()).collect();
-    finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width, true))
+    parse_screen(captured, pane_width, agent)
 }
 
-fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>, native_id: bool) -> ScreenState {
+fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> ScreenState {
     let mut lines = trimmed_rows(raw);
-    let id_footer = native_id.then(|| (0..lines.len()).rev().find(|&i| i + 4 >= lines.len()
-        && re!(r"^ {2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?: · | …$|$)").is_match(&lines[i]))).flatten();
+    let id_footer = (0..lines.len()).rev().find(|&i| i + 4 >= lines.len()
+        && re!(r"^ {2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?: · | …$|$)").is_match(&lines[i]));
     if let Some(i) = id_footer {
         lines[i] = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(&lines[i], "  ").into_owned();
     }

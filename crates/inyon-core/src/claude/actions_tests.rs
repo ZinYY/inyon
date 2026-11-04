@@ -164,7 +164,7 @@ fn fake_claude(start: Vec<Piece>) -> Rc<RefCell<ClaudeBox>> {
     b
 }
 
-fn codex_custom_footer_delivery(steer: bool) {
+fn codex_custom_footer_delivery(steer: bool, narrow: bool) {
     run(move || async move {
         let state = Rc::new(RefCell::new((String::new(), Vec::<(String, String)>::new())));
         let current = state.clone();
@@ -172,7 +172,9 @@ fn codex_custom_footer_delivery(steer: bool) {
         Fake::install(move |_, cmd, input| {
             let mut b = current.borrow_mut();
             if cmd.contains("@@CAP") {
-                return ok(&format!("@@CAP %9\n• Working (5s • esc to interrupt)\n\n› {}\n\n  GPT-6-Astra high · Full Access · Context 36% used\n  tab to queue message\n", b.0));
+                let footer = if narrow { "00000000-0000-0000-0000-000000000001 …" }
+                    else { "GPT-6-Astra high · Full Access · Context 36% used" };
+                return ok(&format!("@@CAP %9\n• Working (5s • esc to interrupt)\n\n› {}\n\n  {footer}\n  tab to queue message\n", b.0));
             }
             if cmd.contains("paste-buffer") {
                 b.0.push_str(input.unwrap_or(""));
@@ -195,12 +197,17 @@ fn codex_custom_footer_delivery(steer: bool) {
 
 #[test]
 fn codex_steer_sends_enter_with_a_custom_footer_that_omits_the_directory() {
-    codex_custom_footer_delivery(true);
+    codex_custom_footer_delivery(true, false);
 }
 
 #[test]
 fn codex_queue_still_sends_tab_with_a_custom_footer_that_omits_the_directory() {
-    codex_custom_footer_delivery(false);
+    codex_custom_footer_delivery(false, false);
+}
+
+#[test]
+fn codex_narrow_id_footer_can_send_even_when_the_model_is_clipped() {
+    codex_custom_footer_delivery(true, true);
 }
 
 /// A background shell's details panel, opened by accident from Claude's "↓ to manage", took every

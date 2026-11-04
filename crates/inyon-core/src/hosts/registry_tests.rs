@@ -1067,6 +1067,44 @@ fn codex_and_claude_never_guess_a_session_even_on_the_first_probe() {
 }
 
 #[test]
+fn shared_codex_daemon_uses_the_foreground_native_id_on_linux_mac_and_windows() {
+    run(|| async {
+        for os in ["Linux", "Darwin", "Windows"] {
+            let b = ModeBox::new();
+            let screen = b.screen.clone();
+            let first = "00000000-0000-0000-0000-000000000001";
+            let next = "00000000-0000-0000-0000-000000000002";
+            let _fake = Fake::install(move |_, cmd, _| {
+                if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", screen.borrow())) }
+                else if cmd.starts_with("find ") {
+                    let id = if cmd.contains(next) { next } else { first };
+                    ok(&format!("/home/u/.codex/sessions/rollout-2026-01-01T00-00-00-{id}.jsonl\n"))
+                } else { ok("") }
+            });
+            let probe = |owned: Vec<String>| {
+                let mut p = mode_probe(now_ms() as f64 / 1000.0);
+                p.os = os.into();
+                p.home = "/home/u".into();
+                p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+                // Both writer locks belong to the shared daemon, not TUI PID 7.
+                p.codex_threads.insert(900, owned);
+                Rc::new(RefCell::new(p))
+            };
+            for id in [first, next, first] {
+                b.draw(&format!("› Ask Codex to do anything\n  {id} · GPT-6-Astra high · Full Access\n? for shortcuts\n"));
+                let pr = probe(vec![first.into(), next.into()]);
+                registry().annotate_agents(&b.rt, &pr).await.unwrap();
+                assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(id), "{os}");
+            }
+            // A stale or quoted UUID cannot retain ownership after its lock closes.
+            let pr = probe(vec![next.into()]);
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.is_none(), "{os}");
+        }
+    });
+}
+
+#[test]
 fn claude_hook_requires_an_id_matching_its_transcript() {
     assert_eq!(claude_hook_identity(&json!({"session_id":"current", "transcript_path":"C:\\sessions\\current.jsonl"})), Some(("current".into(), "C:\\sessions\\current.jsonl".into())));
     for data in [json!({"transcript_path":"/sessions/current.jsonl"}), json!({"session_id":"", "transcript_path":"/sessions/.jsonl"}), json!({"session_id":"current", "transcript_path":"/sessions/previous.jsonl"})] {

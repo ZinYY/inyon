@@ -33,7 +33,7 @@ fn codex_custom_status_lines_without_a_directory_keep_the_composer_visible() {
 }
 
 #[test]
-fn psmux_codex_id_footer_preserves_input_working_and_model_on_narrow_screens() {
+fn codex_id_footer_preserves_input_working_and_model_on_all_platforms_and_narrow_screens() {
     let id = "00000000-0000-0000-0000-000000000001";
     let capture = |footer: String| vec!["• Working (5s • esc to interrupt)".into(), "".into(), "› A draft".into(), "".into(), footer, "  tab to queue message".into()];
     let wide = capture(format!("  {id} · GPT-6-Astra high · ~/work · Full Access"));
@@ -49,7 +49,7 @@ fn psmux_codex_id_footer_preserves_input_working_and_model_on_narrow_screens() {
     assert_eq!(parsed.draft.as_deref(), Some("A draft"));
     assert!(parsed.working);
     assert_eq!(parsed.model, None, "do not invent settings clipped by the terminal");
-    assert_ne!(parse_screen(&narrow, Some(40), AgentKind::Codex).input_visible, Some(true), "other platforms retain their existing parser");
+    assert_eq!(parse_screen(&narrow, Some(40), AgentKind::Codex).input_visible, Some(true));
     let ordinary = capture("  GPT-6-Astra high · ~/work".into());
     assert_eq!(serde_json::to_value(parse_screen(&ordinary, Some(80), AgentKind::Codex)).unwrap(),
         serde_json::to_value(parse_psmux_screen(&ordinary, Some(80), AgentKind::Codex)).unwrap());

@@ -449,7 +449,7 @@ impl Typing<'_> {
         let (host_id, pane_id, host, text) = (self.host_id, self.pane_id, self.host, self.text);
         let is_codex = self.kind == AgentKind::Codex;
         let is_open_code = self.kind == AgentKind::Opencode;
-        if is_codex && !nonempty(&screen.model) {
+        if is_codex && screen.input_visible != Some(true) {
             return Err(http(409, "Codex input is not visible. Open the terminal to check before sending."));
         }
         // Claude, Codex and agy show their input box, so the text can be checked into place before Enter.

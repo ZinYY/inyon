@@ -1261,9 +1261,10 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
-        // Only Windows PSmux uses this extra native-ID source. Shared-daemon
-        // locks alone cannot tell two TUI windows apart after a reboot.
-        let footer_thread = if proc.kind == AgentKind::Codex && pr.borrow().os == "Windows" && !crate::tmux::herdr::enabled(host) {
+        // The native session-ID footer identifies one TUI even when several
+        // windows share a daemon. Require the ID to have a live writer lock;
+        // neither a folder nor a title can establish this identity.
+        let footer_thread = if proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host) {
             let owned: Vec<String> = pr.borrow().codex_threads.values().flatten().cloned().collect();
             screens.get(&p.id).and_then(|lines| {
                 crate::agents::codex::codex_footer_thread(lines, &owned).or_else(|| {
@@ -1274,7 +1275,7 @@ impl Registry {
                     let same = was.pid == proc.pid as u32 && was.started_at.is_some_and(|at|
                         at.abs_diff((proc.started_at * 1000.0) as u64) <= 5000);
                     let id = was.session_id.filter(|id| owned.contains(id))?;
-                    (same && crate::claude::screen::parse_psmux_screen(lines, width_of(&p), proc.kind).prompt.is_some()).then_some(id)
+                    (same && crate::claude::screen::parse_screen(lines, width_of(&p), proc.kind).prompt.is_some()).then_some(id)
                 })
             })
         } else { None };
