@@ -829,7 +829,7 @@ ps -e -o pid=,ppid=,etimes=,comm=,args= 2>/dev/null || ps -A -o pid=,ppid=,etime
 echo "@@CWD"
 # no /proc on macOS: lsof knows the working directory there
 for p in $(pgrep -f 'claude|codex|opencode|gemini|command-?code|agy' 2>/dev/null); do
-  c=$(readlink /proc/$p/cwd 2>/dev/null) || c=$(lsof -a -p "$p" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)
+  c=$(readlink /proc/$p/cwd 2>/dev/null) || c=$(lsof -nP -a -p "$p" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)
   echo "$p $c"
 done
 echo "@@CODEX"
@@ -847,7 +847,8 @@ else
       done
     done
   elif [ -n "$codex_pids" ]; then
-    lsof -a -p "$(printf '%s' "$codex_pids" | tr '\n' ',')" -Fn 2>/dev/null | awk '
+    # Only local file names matter. DNS/service lookups can stall the whole probe.
+    lsof -nP -a -p "$(printf '%s' "$codex_pids" | tr '\n' ',')" -Fn 2>/dev/null | awk '
       /^p[0-9]+$/ { p=substr($0,2) }
       /^n.*\/thread-writer-locks\/.*\.lock$/ { n=$0; sub(/^.*\//,"",n); sub(/\.lock$/,"",n); print p, n }'
   fi
@@ -859,7 +860,7 @@ for p in $(pgrep -x agy 2>/dev/null); do
   if [ -d /proc/$p/fd ]; then
     l=$(for fd in /proc/$p/fd/*; do l=$(readlink "$fd" 2>/dev/null); case "$l" in (*/antigravity-cli/presence/*.lock) echo "${fd##*/} $p $l";; esac; done | sort -n | tail -n 1)
   else
-    l=$(lsof -p $p 2>/dev/null | awk -v p=$p '/antigravity-cli\/presence\/.*\.lock/ {print 0, p, $NF}' | tail -n 1)
+    l=$(lsof -nP -p $p 2>/dev/null | awk -v p=$p '/antigravity-cli\/presence\/.*\.lock/ {print 0, p, $NF}' | tail -n 1)
   fi
   [ -n "$l" ] && echo "$l" && agy_ids="$agy_ids $(basename "${l##* }" .lock)"
 done

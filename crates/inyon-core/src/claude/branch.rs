@@ -47,12 +47,20 @@ pub struct Selection {
     at: u64,
 }
 fn selection_key(key: &str) -> String { format!("claude-rewinds/{}", crate::platform::store::key_part(key)) }
+fn same_process(saved: &str, current: Option<&str>) -> bool {
+    let Some(current) = current else { return false };
+    if saved == current { return true; }
+    let (Some((pid, start)), Some((other_pid, other_start))) = (saved.split_once(':'), current.split_once(':')) else { return false };
+    // ps reports elapsed whole seconds. Subtracting that from the probe's clock can
+    // move a living process's inferred start time by a second between polls.
+    pid == other_pid && start.parse::<u64>().ok().zip(other_start.parse::<u64>().ok()).is_some_and(|(a, b)| a.abs_diff(b) <= 5000)
+}
 pub fn save_selection(key: &str, path: String, process: String, before: String, since: u64) {
     let _ = crate::platform::store::kv::set(&selection_key(key), &Selection { path, process, before, since, at: crate::clock::now_ms() });
 }
 pub fn selection(key: &str, path: &str, process: Option<&str>, session_start: f64) -> Option<Selection> {
     let saved: Selection = crate::platform::store::kv::get(&selection_key(key))?;
-    if saved.path != path || Some(saved.process.as_str()) != process || session_start * 1000.0 > saved.at as f64 {
+    if saved.path != path || !same_process(&saved.process, process) || session_start * 1000.0 > saved.at as f64 {
         crate::platform::store::kv::del(&selection_key(key));
         None
     } else { Some(saved) }
@@ -82,6 +90,14 @@ pub fn confirmation(lines: &[String], items: &[inyon_protocol::ChatItem]) -> Opt
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn process_clock_rounding_does_not_undo_a_rewind_on_reconnect() {
+        assert!(same_process("42:10000", Some("42:11000")));
+        assert!(same_process("42:10000", Some("42:9000")));
+        assert!(!same_process("42:10000", Some("43:10000")));
+        assert!(!same_process("42:10000", Some("42:20000")));
+        assert!(!same_process("42:10000", None));
+    }
     #[test]
     fn a_rewind_is_detected_without_confusing_regular_turns_or_tool_results() {
         let mut b: Branch = serde_json::from_value(json!({"known":["a","b"],"discarded":["old"],"leaf":"b","size":100})).unwrap();
