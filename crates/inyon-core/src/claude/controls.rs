@@ -14,18 +14,32 @@ pub struct Confirmed {
 pub struct Controls {
     model: Option<Confirmed>,
     effort: Option<Confirmed>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    branch: Option<NativeBranch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NativeBranch {
+    session: String,
+    parent: String,
+    at: u64,
 }
 
 pub fn record(controls: &mut Option<Controls>, output: &str, at: u64) {
     let mut next = controls.take().unwrap_or_default();
     next.record(output, at);
-    *controls = (next.model.is_some() || next.effort.is_some()).then_some(next);
+    *controls = (next.model.is_some() || next.effort.is_some() || next.branch.is_some()).then_some(next);
 }
 
 impl Controls {
     /// Only call for Claude's local-command stdout, never a command request or an assistant reply.
     pub fn record(&mut self, output: &str, at: u64) {
         let output = output.trim();
+        if let Some(c) = crate::re!(r#"^Branched conversation [\s\S]*?You are now in the new branch \(session ([0-9a-f-]{36})\)\. Use /resume ([0-9a-f-]{36})\b"#).captures(output) {
+            if self.branch.as_ref().is_none_or(|old| at >= old.at) {
+                self.branch = Some(NativeBranch { session: c[1].to_owned(), parent: c[2].to_owned(), at });
+            }
+        }
         if let Some(rest) = output.strip_prefix("Set model to ") {
             let value = if let Some(quoted) = rest.strip_prefix('`') {
                 quoted.split_once('`').map(|(name, _)| name)
@@ -43,6 +57,23 @@ impl Controls {
                 self.effort = Some(Confirmed { value: c[1].to_owned(), at });
             }
         }
+    }
+
+    /// /branch keeps the current model/effort but may leave statusLine on its parent.
+    /// Only Claude's own successful command, in this live process, proves inheritance.
+    /// /resume, another parent, a later parent report and a restarted process cannot.
+    /// Never transfer conversation identity, cost, context usage or account limits.
+    pub fn branch_status(&self, session: &str, started_at: u64, parent_id: &str, parent: &AgentStatus) -> Option<AgentStatus> {
+        let b = self.branch.as_ref()?;
+        if b.session != session || b.parent != parent_id || b.session == b.parent
+            || b.at < started_at || parent.updated_at < started_at || parent.updated_at > b.at {
+            return None;
+        }
+        let mut status = crate::agents::status::empty_status(b.at as f64);
+        status.model = parent.model.clone();
+        status.model_id = parent.model_id.clone();
+        status.effort = parent.effort.clone();
+        self.status(Some(&status))
     }
 
     pub fn status(&self, live: Option<&AgentStatus>) -> Option<AgentStatus> {
@@ -113,5 +144,36 @@ mod tests {
         }
         assert_eq!(c.status(Some(&live(1000))).unwrap(), live(1000));
         assert!(c.status(None).is_none());
+    }
+
+    #[test]
+    fn native_branch_inherits_only_controls_from_its_proven_parent() {
+        let child = "11111111-1111-4111-8111-111111111111";
+        let parent = "22222222-2222-4222-8222-222222222222";
+        let mut controls = None;
+        record(&mut controls, &format!("Branched conversation \"Study music\". You are now in the new branch (session {child}). Use /resume {parent} (\"Music\") to return to the original."), 3000);
+        // Saved chat metadata must retain the proof across a reload.
+        let c: Controls = serde_json::from_str(&serde_json::to_string(&controls.unwrap()).unwrap()).unwrap();
+        let inherited = c.branch_status(child, 1000, parent, &live(2000)).unwrap();
+        assert_eq!(inherited.model.as_deref(), Some("Opus 5.5"));
+        assert_eq!(inherited.model_id.as_deref(), Some("claude-opus-5-5"));
+        assert_eq!(inherited.effort.as_deref(), Some("high"));
+        assert!(inherited.cost_usd.is_none());
+        assert!(inherited.context_used.is_none());
+        assert!(inherited.context_size.is_none());
+        assert!(inherited.five_hour.is_none());
+        assert_eq!(inherited.updated_at, 3000);
+        for (session, started, parent_id, status) in [
+            (parent, 1000, parent, live(2000)), // old branch record copied into another session
+            (child, 4000, parent, live(2000)), // /resume in a restarted process
+            (child, 1000, child, live(2000)), // unrelated status identity
+            (child, 1000, parent, live(4000)), // /resume an old branch after later parent work
+            (child, 2500, parent, live(2000)), // parent status predates this process
+        ] {
+            assert!(c.branch_status(session, started, parent_id, &status).is_none());
+        }
+        let mut c = c;
+        c.record("Set effort level to low", 4000);
+        assert_eq!(c.branch_status(child, 1000, parent, &live(2000)).unwrap().effort.as_deref(), Some("low"));
     }
 }

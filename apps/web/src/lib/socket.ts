@@ -54,6 +54,10 @@ export class Socket {
     document.addEventListener('visibilitychange', this.followVisibility)
     document.addEventListener('visibilitychange', this.revive)
     window.addEventListener('online', this.revive)
+    window.addEventListener('focus', this.wake)
+    window.addEventListener('pageshow', this.wake)
+    document.addEventListener('pointerdown', this.wake, true)
+    document.addEventListener('keydown', this.wake, true)
   }
 
   // phones suspend sockets in the background and drop them when the network changes (say from
@@ -61,6 +65,10 @@ export class Socket {
   private listening = false
   private revive = () => {
     if (!this.started || document.visibilityState !== 'visible') return
+    this.checkConnection()
+  }
+
+  private checkConnection() {
     for (const h of this.hubs.values()) h.revive()
     if (this.ws?.readyState === WebSocket.CONNECTING) return
     // the phone's core runs in this page and can't have dropped: rebuilding it would close open
@@ -69,6 +77,22 @@ export class Socket {
     clearTimeout(this.timer)
     this.retry = 0
     this.connect()
+  }
+
+  // A restored/occluded browser window can deliver input before visibilitychange.
+  // Restore subscriptions before that input sends a command, even if the browser
+  // still reports hidden. A genuinely backgrounded page becomes quiet again.
+  private wake = () => {
+    if (!this.started) return
+    const asleep = this.quiet
+    clearTimeout(this.quietTimer)
+    this.setQuiet(false)
+    if (asleep || !this.up || Date.now() - this.heard >= 30000) this.checkConnection()
+    if (document.visibilityState === 'hidden') {
+      this.quietTimer = setTimeout(() => {
+        if (document.visibilityState === 'hidden') this.setQuiet(true)
+      }, QUIET_AFTER_MS)
+    }
   }
 
   // Every chat streams its screen every few seconds and the overview changes with each line an

@@ -441,6 +441,12 @@ impl ChatWatcher {
         st.meta.claude_controls.as_ref().and_then(|c| c.status(live))
     }
 
+    pub fn claude_branch_status(&self, path: &str, session: &str, started_at: u64, parent_id: &str, parent: &inyon_protocol::AgentStatus) -> Option<inyon_protocol::AgentStatus> {
+        let st = self.st.borrow();
+        if st.transcript.as_deref() != Some(path) { return None; }
+        st.meta.claude_controls.as_ref()?.branch_status(session, started_at, parent_id, parent)
+    }
+
     /// The agent's persisted title, without a pending Inyon rename or terminal-title fallback.
     /// ConPTY/PSmux may leave pane_title at the computer name even after /rename succeeded.
     pub fn recorded_title(&self, session: &str) -> Option<String> {

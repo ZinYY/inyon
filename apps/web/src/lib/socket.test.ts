@@ -268,4 +268,47 @@ describe('in the background', () => {
     expect(sent(ws)).toEqual([])
     s.stop()
   })
+
+  test.each(['pointerdown', 'keydown', 'focus', 'pageshow'])('%s restores chats even if the browser missed visibilitychange', async (event) => {
+    jest.useFakeTimers()
+    const s = new Socket()
+    s.start()
+    const ws = await hubSocket()
+    ws.open()
+    FakeWS.all.find((w) => !w.url.includes('box:4777'))!.open()
+    s.subscribeChat('hub:h1/local', '%3')
+    flip(true)
+    jest.advanceTimersByTime(QUIET_AFTER_MS)
+    ws.sent = []
+    const target = ['focus', 'pageshow'].includes(event) ? window : document
+    target.dispatchEvent(new Event(event))
+    expect(sent(ws)).toEqual([{ t: 'quiet', on: false }, { t: 'sub.chat', host: 'local', pane: '%3' }])
+    ws.sent = []
+    // Repeated input does not duplicate subscriptions or flood pings.
+    target.dispatchEvent(new Event(event))
+    expect(ws.sent).toEqual([])
+    // If it really stays hidden, background power saving still works.
+    jest.advanceTimersByTime(QUIET_AFTER_MS)
+    expect(sent(ws)).toEqual([{ t: 'quiet', on: true }, { t: 'unsub.chat', host: 'local', pane: '%3' }])
+    s.stop()
+    ws.sent = []
+    target.dispatchEvent(new Event(event))
+    expect(ws.sent).toEqual([])
+  })
+
+  test('pageshow reconnects a stale socket and replays subscriptions without a visibility event', async () => {
+    jest.useFakeTimers()
+    const s = new Socket()
+    s.start()
+    const self = FakeWS.all.find((w) => !w.url.includes('box:4777'))!
+    self.open()
+    s.subscribeChat('local', '%4')
+    jest.setSystemTime(Date.now() + 31000)
+    window.dispatchEvent(new Event('pageshow'))
+    expect(self.readyState).toBe(3)
+    const next = FakeWS.all.filter((w) => !w.url.includes('box:4777')).at(-1)!
+    next.open()
+    expect(sent(next)).toEqual([{ t: 'sub.chat', host: 'local', pane: '%4' }])
+    s.stop()
+  })
 })
