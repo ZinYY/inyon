@@ -45,8 +45,6 @@ fn hook_says(hook: &HookPaneState) -> Option<Said> {
 
 struct Turn {
     since: u64,
-    /// the screen showed Claude working during this turn, so its idle can be believed
-    seen_working: bool,
     screen: Option<String>,
     same_since: u64,
 }
@@ -54,7 +52,7 @@ struct Turn {
 /// Claude's turns as the hub knows them besides the screen. Right after a prompt is answered, and
 /// while Claude runs a long command on some terminals (psmux), its screen can read as idle although
 /// the turn goes on. An answer from Inyon, or a hook event that starts a turn, holds the session
-/// at working until a signal says the turn ended: the Stop hook, a working screen that went idle,
+/// at working until a signal says the turn ended: the Stop hook,
 /// a screen that stopped changing, or a long time.
 #[derive(Default)]
 pub struct Turns {
@@ -70,7 +68,7 @@ impl Turns {
 
     /// A prompt was answered (or a message sent) from Inyon: the turn goes on.
     pub fn start(&mut self, key: &str, now: u64) {
-        self.turns.insert(key.to_owned(), Turn { since: now, seen_working: false, screen: None, same_since: now });
+        self.turns.insert(key.to_owned(), Turn { since: now, screen: None, same_since: now });
     }
 
     pub fn end(&mut self, key: &str, now: u64) {
@@ -104,16 +102,13 @@ impl Turns {
                 return shown;
             }
             Shown::Working => {
-                turn.seen_working = true;
                 turn.screen = None;
                 return shown;
             }
             Shown::Idle => {}
         }
-        if turn.seen_working {
-            self.end(key, now);
-            return shown;
-        }
+        // Claude can hide its spinner while response text is still arriving.
+        // A changing screen keeps this observed turn alive until Stop or quiet.
         if turn.screen.as_deref() != Some(screen) {
             turn.screen = Some(screen.to_owned());
             turn.same_since = now;

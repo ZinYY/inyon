@@ -40,11 +40,15 @@ fn a_screen_that_stops_changing_ends_the_turn_when_no_stop_comes() {
 }
 
 #[test]
-fn a_screen_that_shows_claude_working_is_believed_when_it_goes_idle() {
+fn losing_the_spinner_does_not_end_a_response_that_is_still_streaming() {
     let mut t = Turns::new();
     t.start("p", T0);
     assert_eq!(t.state("p", Working, "spinner", None, T0 + 1000), Working);
-    assert_eq!(t.state("p", Idle, "input box", None, T0 + 2000), Idle);
+    assert_eq!(t.state("p", Idle, "input box", None, T0 + 2000), Working);
+    assert_eq!(t.state("p", Idle, "first words", None, T0 + 2400), Working);
+    assert_eq!(t.state("p", Idle, "first words and more", None, T0 + 8000), Working);
+    assert_eq!(t.state("p", Idle, "complete", Some(&hook("Stop", S0 + 9.0, json!({}))), T0 + 9500), Idle);
+    assert_eq!(t.state("p", Idle, "complete", None, T0 + 10_000), Idle);
 }
 
 #[test]
