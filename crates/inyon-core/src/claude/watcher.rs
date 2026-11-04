@@ -2311,7 +2311,8 @@ impl ChatWatcher {
 
     fn display_stream_supported(&self) -> bool {
         crate::hosts::node_link::info(&self.host_id).and_then(|i| i.version)
-            .is_some_and(|v| !crate::hosts::node_update::newer_target("0.24.47", &v))
+            .and_then(|v| inyon_protocol::parse_release(v.split(['-', '+']).next().unwrap_or("")))
+            .is_some_and(|v| v >= [0, 24, 47])
     }
 
     /// Claude's native hook already supplies exact text. Keep one reader open,
@@ -2755,26 +2756,26 @@ impl ChatWatcher {
                     self.stop_live();
                 }
             } else {
-            // Reading is separate from the input/control connection, so streaming cannot queue keys.
-            let gen = self.st.borrow().generation;
-            let sid = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s));
-            let wants_preview = { let st = self.st.borrow(); screen.working || st.screen.working || st.screen_live.is_some() };
-            let raw = if let Some(id) = sid.filter(|_| wants_preview) {
-                host.exec(&format!(r#""$HOME/.inyon/bin/inyon.exe" claude-display read {id} 2>/dev/null"#), ExecOptions::timeout(1500)).await.ok().map(|r| r.stdout)
-            } else { None };
-            let changed = {
-                let mut st = self.st.borrow_mut();
-                if st.generation != gen { return Ok(()); }
-                let next = if sid == st.info.session_id.as_deref() && (screen.working || st.screen.working || st.screen_live.is_some()) {
-                    sid.zip(agent.started_at).zip(raw.as_deref()).and_then(|((id, started), raw)|
-                        super::display_reply::preview(raw, id, started, &st.items, now_ms()))
+                // Reading is separate from the input/control connection, so streaming cannot queue keys.
+                let gen = self.st.borrow().generation;
+                let sid = agent.session_id.as_deref().filter(|s| inyon_protocol::claude_stream::valid_id(s));
+                let wants_preview = { let st = self.st.borrow(); screen.working || st.screen.working || st.screen_live.is_some() };
+                let raw = if let Some(id) = sid.filter(|_| wants_preview) {
+                    host.exec(&format!(r#""$HOME/.inyon/bin/inyon.exe" claude-display read {id} 2>/dev/null"#), ExecOptions::timeout(1500)).await.ok().map(|r| r.stdout)
                 } else { None };
-                let changed = next != st.screen_live;
-                st.screen_live = next;
-                st.display_live = true;
-                changed
-            };
-            if changed { self.live_soon(); }
+                let changed = {
+                    let mut st = self.st.borrow_mut();
+                    if st.generation != gen { return Ok(()); }
+                    let next = if sid == st.info.session_id.as_deref() && (screen.working || st.screen.working || st.screen_live.is_some()) {
+                        sid.zip(agent.started_at).zip(raw.as_deref()).and_then(|((id, started), raw)|
+                            super::display_reply::preview(raw, id, started, &st.items, now_ms()))
+                    } else { None };
+                    let changed = next != st.screen_live;
+                    st.screen_live = next;
+                    st.display_live = true;
+                    changed
+                };
+                if changed { self.live_soon(); }
             }
         } else if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
             self.live_soon();

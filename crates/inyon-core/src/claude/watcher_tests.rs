@@ -45,7 +45,7 @@ fn bursts_of_terminal_output_do_not_overlap_screen_reads() {
         let (fake, w) = draft_box();
         wait(30).await;
         fake.calls.borrow_mut().clear();
-        futures_util::join!(w.poll_screen(), w.poll_screen(), w.poll_screen());
+        futures_util::future::join_all([w.poll_screen(), w.poll_screen(), w.poll_screen()]).await;
         assert_eq!(fake.cmds().iter().filter(|s| s.contains("capture-pane")).count(), 1);
         assert!(!w.st.borrow().screen_polling);
         w.stop();
