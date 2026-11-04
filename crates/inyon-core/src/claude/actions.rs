@@ -1548,8 +1548,8 @@ pub async fn reconnect_agent(host_id: &str, pane_id: &str) -> HubResult<()> {
     Ok(())
 }
 
-/// Stops the current turn. Esc only while the spinner is up (a stray double Esc on an idle Claude
-/// opens the rewind menu), then waits for the spinner to go and tries once more if it hasn't.
+/// Stops an observed active turn, including token output without a spinner. Only retry while
+/// a fresh screen still shows working, since a stray double Esc can open the rewind menu.
 pub async fn interrupt(host_id: &str, pane_id: &str) -> HubResult<()> {
     // one stop at a time per pane, and none within a second of the last: a second Esc that lands
     // after the agent stopped opens Claude Code's rewind menu or clears the box
@@ -1594,14 +1594,21 @@ async fn interrupt_now(host_id: &str, pane_id: &str) -> HubResult<()> {
     } else {
         vec!["Escape".into()]
     };
-    for _attempt in 0..2 {
-        if !current_screen(host_id, pane_id).await?.working {
+    for attempt in 0..2 {
+        let screen = current_screen(host_id, pane_id).await?;
+        let observed_working = attempt == 0
+            && screen.prompt.is_none() && !screen.questions.is_some_and(|q| q > 0)
+            && agent.is_some_and(|a| matches!(a.kind, AgentKind::Codex | AgentKind::Claude)
+                && (a.state == inyon_protocol::AgentState::Working
+                    || watchers().peek(host_id, pane_id).is_some_and(|w| w.screen().working)));
+        if !screen.working && !observed_working {
             break;
         }
         send_keys(&host, pane_id, &keys_of(&stop)).await?;
         for _ in 0..8 {
             sleep(250).await;
             if !current_screen(host_id, pane_id).await?.working {
+                registry().turn_ended(host_id, pane_id);
                 nudge(host_id, pane_id);
                 registry().refresh(host_id, 100);
                 return Ok(());

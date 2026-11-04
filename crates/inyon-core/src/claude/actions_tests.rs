@@ -412,6 +412,33 @@ fn two_stops_at_once_send_one_escape() {
 }
 
 #[test]
+fn a_spinner_free_active_turn_stops_once_but_an_idle_pane_is_left_alone() {
+    run(|| async {
+        let escapes = Rc::new(RefCell::new(0));
+        let seen = escapes.clone();
+        let fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") {
+                return ok("@@CAP %9\n❯\n────────────────────\n");
+            }
+            if cmd.contains("send-keys") && cmd.contains("Escape") {
+                *seen.borrow_mut() += 1;
+            }
+            ok("")
+        });
+        pane("local", json!([{ "id": "%9", "width": 100, "agent": { "kind": "claude", "pid": 7, "state": "working" } }]));
+        interrupt("local", "%9").await.unwrap();
+        assert_eq!(*escapes.borrow(), 1, "an observed turn can stop while its spinner is hidden");
+        registry().update_pane("local", "%9", |p| {
+            p.agent.as_mut().unwrap().state = inyon_protocol::AgentState::Idle;
+        });
+        sleep(INTERRUPT_GAP_MS + 1).await;
+        fake.calls.borrow_mut().clear();
+        interrupt("local", "%9").await.unwrap();
+        assert_eq!(*escapes.borrow(), 1, "idle must not receive an Escape or open rewind");
+    });
+}
+
+#[test]
 fn a_new_session_with_an_unknown_agent_is_refused_before_anything_is_created() {
     run(|| async {
         let fake = Fake::install(|_, _, _| ok("%5\n"));
