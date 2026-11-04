@@ -8,6 +8,25 @@ def line(uid, parent, **extra):
 
 
 class BranchTests(unittest.TestCase):
+    def test_windows_tool_continuation_with_unpersisted_attachment_keeps_prompt(self):
+        raw = [line('prompt', None, message={'content': 'Explain machine learning'}),
+               line('call', 'prompt', type='assistant'),
+               line('result', 'call', message={'content': [{'type': 'tool_result'}]}),
+               line('attachment', 'result', type='attachment'),
+               line('answer', 'missing-runtime-attachment', type='assistant')]
+        self.assertEqual(set(index(raw)['known']), {'answer'}, 'macOS/Linux behavior unchanged')
+        self.assertEqual(set(index(raw, windows_psmux=True)['known']), {'prompt', 'call', 'result', 'attachment', 'answer'})
+        raw.append(line('replacement', 'prompt', message={'content': 'Another example'}))
+        self.assertEqual(set(index(raw, windows_psmux=True)['known']), {'prompt', 'replacement'})
+        self.assertEqual(set(index(raw, 'prompt', sum(map(len, raw)), True)['known']), set())
+
+    def test_windows_does_not_bridge_human_turns_roots_or_known_rewind_parents(self):
+        prefix = [line('a', None), line('b', 'a', type='assistant'),
+                  line('tool', 'b', message={'content': [{'type': 'tool_result'}]})]
+        for last in [line('c', 'missing'), line('c', None, type='assistant')]:
+            self.assertEqual(set(index(prefix + [last], windows_psmux=True)['known']), {'c'})
+        self.assertEqual(set(index(prefix + [line('c', 'a', type='assistant')], windows_psmux=True)['known']), {'a', 'c'})
+
     def test_rewind_retains_ancestors_and_removes_abandoned_turns(self):
         raw = [line('a', None), line('b', 'a', type='assistant'), line('c', 'b'), line('d', 'c', type='assistant'), line('e', 'b')]
         result = index(raw)

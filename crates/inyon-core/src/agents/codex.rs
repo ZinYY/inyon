@@ -546,6 +546,19 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
 /// PSmux may retain the computer name instead of Codex's OSC title. Recent Codex also writes
 /// its thread name in the short footer: `GPT-… effort · ~\\folder [· thread name]`.
 /// Only accept the short form and the actual pane's directory, never an arbitrary output line.
+/// Windows PSmux can run several TUIs on one daemon. A configured native
+/// session-id footer identifies the foreground thread even though the daemon
+/// owns all writer locks. Only accept a live ID in the footer below the composer.
+pub fn codex_footer_thread(lines: &[String], owned: &[String]) -> Option<String> {
+    let clean: Vec<_> = lines.iter().map(|l| crate::claude::screen::unstyle(l).text).collect();
+    let prompt = clean.iter().rposition(|l| l.trim_start().starts_with('›'))?;
+    let footer = clean[prompt + 1..].iter().filter(|l| !l.trim().is_empty()).collect::<Vec<_>>();
+    if footer.len() > 3 { return None; }
+    let line = footer.first()?.trim();
+    let m = re!(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · |$)").captures(line)?;
+    owned.iter().find(|id| id.as_str() == &m[1]).cloned()
+}
+
 pub fn codex_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String> {
     let folder = cwd?.split(['/', '\\']).rfind(|s| !s.is_empty())?;
     for clean in lines.iter().rev().map(|l| crate::claude::screen::unstyle(l).text).filter(|l| !l.trim().is_empty()).take(4) {

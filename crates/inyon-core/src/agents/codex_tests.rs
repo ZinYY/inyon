@@ -885,6 +885,20 @@ fn only_a_nameless_zero_context_footer_confirms_a_blank_codex_thread() {
 }
 
 #[test]
+fn windows_native_footer_requires_a_current_composer_and_live_id() {
+    let a = "00000000-0000-0000-0000-000000000001".to_owned();
+    let b = "00000000-0000-0000-0000-000000000002".to_owned();
+    let screen = |id: &str| vec![format!("Quoted old ID {a}"), "› Ask Codex to do anything".into(), "".into(), format!("  {id} · GPT-6-Astra high · ~\\work"), "? for shortcuts".into()];
+    assert_eq!(codex_footer_thread(&screen(&b), &[a.clone(), b.clone()]), Some(b.clone()));
+    assert_eq!(codex_footer_thread(&screen(&a), &[a.clone(), b.clone()]), Some(a.clone()));
+    assert_eq!(codex_footer_thread(&screen(&b), std::slice::from_ref(&a)), None);
+    let mut quoted = screen(&a);
+    quoted.push("› New unsent prompt".into());
+    assert_eq!(codex_footer_thread(&quoted, std::slice::from_ref(&a)), None);
+    assert_eq!(codex_footer_thread(&[format!("{a} · GPT-6-Astra high")], std::slice::from_ref(&a)), None);
+}
+
+#[test]
 fn windows_codex_short_footer_identifies_new_and_resumed_threads() {
     let cwd = Some(r"C:\Users\74122\LYR_GPT");
     let blank: Vec<String> = [">_ OpenAI Codex (v0.166.0)", r"~\LYR_GPT", "", "› An unsent draft", "", r"GPT-6-Astra xhigh · ~\LYR_GPT", "? for shortcuts"].iter().map(|s| s.to_string()).collect();

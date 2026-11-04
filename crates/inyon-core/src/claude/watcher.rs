@@ -2006,7 +2006,10 @@ impl ChatWatcher {
                 .and_then(|p| p.borrow().hook_panes.get(&self.pane_id).cloned())
                 .filter(|h| h.event_name() == "SessionStart").map_or(0.0, |h| h.ts);
             let selected = super::branch::selection(&self.key, &path, self.st.borrow().proc.as_deref(), session_start);
-            let branch = host.run(&super::branch::command(&path, selected.as_ref())).await.ok()
+            let windows_psmux = registry().get(&self.host_id)
+                .is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
+                && !crate::tmux::herdr::enabled(&host);
+            let branch = host.run(&super::branch::command(&path, selected.as_ref(), windows_psmux)).await.ok()
                 .and_then(|r| serde_json::from_str::<super::branch::Branch>(&r.stdout).ok());
             if self.stale(gen) { return; }
             if again && branch.as_ref().is_some_and(|b| b.has_rewind()) {

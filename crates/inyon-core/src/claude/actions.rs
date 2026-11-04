@@ -2290,7 +2290,8 @@ async fn materialize_claude_fork(host: &Host, pane: &str, width: Option<u32>, ti
 /// can select an abandoned branch; the SDK accepts an exact message UUID. It creates
 /// a new session itself, so the resulting ID is resumed without --fork-session.
 async fn fork_claude_rewind(host: &Host, session: &str, selected: &super::branch::Selection, cwd: &str, title: Option<&str>) -> HubResult<String> {
-    let r = host.run(&super::branch::command(&selected.path, Some(selected))).await?;
+    let windows_psmux = on_psmux(&host.id()) && !crate::tmux::herdr::enabled(host);
+    let r = host.run(&super::branch::command(&selected.path, Some(selected), windows_psmux)).await?;
     let branch: super::branch::Branch = serde_json::from_str(&r.stdout).map_err(|_| http(409, "Could not identify the current Claude conversation branch"))?;
     let leaf = branch.leaf().filter(|id| is_session_id_str(Some(id), Some(AgentKind::Claude)))
         .ok_or_else(|| http(409, "Say something first; this rewind leaves no conversation to fork"))?;

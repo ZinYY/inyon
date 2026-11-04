@@ -1248,7 +1248,14 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
+        // Only Windows PSmux uses this extra native-ID source. Shared-daemon
+        // locks alone cannot tell two TUI windows apart after a reboot.
+        let footer_thread = if proc.kind == AgentKind::Codex && pr.borrow().os == "Windows" && !crate::tmux::herdr::enabled(host) {
+            let owned: Vec<String> = pr.borrow().codex_threads.values().flatten().cloned().collect();
+            screens.get(&p.id).and_then(|lines| crate::agents::codex::codex_footer_thread(lines, &owned))
+        } else { None };
         let codex_thread = match &home {
+            _ if footer_thread.is_some() => footer_thread,
             Some(home) if proc.kind == AgentKind::Codex => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, codex_threads.as_deref().unwrap_or(&[])).await,
             _ => None,
         };

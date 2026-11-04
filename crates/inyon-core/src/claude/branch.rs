@@ -66,8 +66,9 @@ pub fn selection(key: &str, path: &str, process: Option<&str>, session_start: f6
         None
     } else { Some(saved) }
 }
-pub fn command(path: &str, selected: Option<&Selection>) -> String {
-    let extra = selected.map(|s| format!(" {} {}", shq(&s.before), s.since)).unwrap_or_default();
+pub fn command(path: &str, selected: Option<&Selection>, windows_psmux: bool) -> String {
+    let mut extra = selected.map(|s| format!(" {} {}", shq(&s.before), s.since)).unwrap_or_default();
+    if windows_psmux { extra.push_str(" --windows-psmux"); }
     format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {}{extra}; fi; done", shq(include_str!("branch.py")), shq(path))
 }
 
