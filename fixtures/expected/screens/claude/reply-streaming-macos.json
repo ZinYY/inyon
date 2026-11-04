@@ -1,0 +1,29 @@
+{
+  "80": {
+    "screen": {
+      "working": false,
+      "width": 80,
+      "inputVisible": true,
+      "ultracode": false,
+      "background": null
+    }
+  },
+  "120": {
+    "screen": {
+      "working": false,
+      "width": 120,
+      "inputVisible": true,
+      "ultracode": false,
+      "background": null
+    }
+  },
+  "auto": {
+    "screen": {
+      "working": false,
+      "width": 200,
+      "inputVisible": true,
+      "ultracode": false,
+      "background": null
+    }
+  }
+}

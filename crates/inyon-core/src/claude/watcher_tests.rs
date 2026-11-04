@@ -640,6 +640,44 @@ fn codex_screen_text_grows_before_the_record_and_exact_deltas_take_priority() {
 }
 
 #[test]
+fn codex_current_transcript_turn_streams_without_spinner_or_queue_hint() {
+    run(|| async {
+        let frame = |text: &str| format!("› Explain photography\n\n• {text}\n\n› Ask Codex to do anything\n\n  GPT-6-Astra high · ~/project · Read Only · weekly 27% left\n  ? for shortcuts");
+        let captured = Rc::new(RefCell::new(frame("先理解光线")));
+        let s = captured.clone();
+        let _fake = Fake::install(move |_, cmd, _| if cmd.contains("capture-pane") { ok(&format!("@@CAP %7\n{}", s.borrow())) } else { ok("") });
+        machine("codex-turn-live", "local", json!([{ "id":"%7", "width":120, "agent":{"kind":"codex","pid":7,"startedAt":1000,"state":"idle"} }])).borrow_mut().hold_polls();
+        let w = watchers().get("codex-turn-live", "%7");
+        let phone = Rc::new(Phone::default());
+        w.subscribe(phone.clone());
+        // An unfinished old turn from a resumed/forked history is not current activity.
+        w.st.borrow_mut().meta.turn = Some(serde_json::from_value(json!({"id":"old","startedAt":500})).unwrap());
+        w.poll_screen().await;
+        wait(100).await;
+        assert!(live_of(&phone).is_none_or(|items| items.is_empty()));
+        assert!(!w.screen().working);
+        w.st.borrow_mut().meta.turn = Some(serde_json::from_value(json!({"id":"now","startedAt":2000})).unwrap());
+        w.poll_screen().await;
+        wait(100).await;
+        let first = live_of(&phone).unwrap();
+        assert_eq!(first[0].text, "先理解光线");
+        assert!(w.screen().working);
+        *captured.borrow_mut() = frame("先理解光线，再考虑构图。");
+        w.poll_screen().await;
+        wait(100).await;
+        assert_eq!(live_of(&phone).unwrap()[0].text, "先理解光线，再考虑构图。");
+        let base = Base::new("u", "t");
+        w.st.borrow_mut().items.push(with_seq(base.with_uuid("done").assistant("m", None, inyon_protocol::AssistantBlock::Text { text: "先理解光线，再考虑构图。".into() }), 1));
+        w.st.borrow_mut().meta.turn = None;
+        w.settle_screen_live();
+        w.live_soon();
+        wait(100).await;
+        assert_eq!(live_of(&phone), Some(vec![]));
+        watchers().stop("codex-turn-live:%7");
+    });
+}
+
+#[test]
 fn a_reply_claude_writes_shows_live_until_its_record_lands_and_doesnt_come_back() {
     run(|| async {
         let screen = crate::test_support::fixture("screens/claude/reply-streaming.txt");
@@ -806,8 +844,8 @@ fn after_its_turn_the_screens_copy_waits_for_the_record_then_goes_on_its_own() {
         assert!(live_of(&phone).is_some_and(|l| l.len() == 1), "kept until its record");
         // the record comes in a snapshot, as Antigravity's and Gemini's do
         let base = Base::new("u", "t");
-        let text = "Tea likely began in southwestern China, where people chewed or boiled wild leaves. A legend credits Shennong.";
-        w.publish_snapshot(vec![with_seq(base.with_uuid("a1").assistant("m1", None, inyon_protocol::AssistantBlock::Text { text: text.into() }), 1)]);
+        let text = live_of(&phone).unwrap()[0].text.clone();
+        w.publish_snapshot(vec![with_seq(base.with_uuid("a1").assistant("m1", None, inyon_protocol::AssistantBlock::Text { text }), 1)]);
         wait(200).await;
         assert_eq!(live_of(&phone), Some(vec![]));
 

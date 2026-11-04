@@ -34,7 +34,7 @@ enum Block {
 /// The reply being written on a captured screen, or None when the screen shows none.
 pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32>) -> Option<ScreenReply> {
     if kind == AgentKind::Codex {
-        return codex_reply(captured, pane_width);
+        return codex_reply(captured, pane_width, false);
     }
     if !reads_reply(kind) {
         return None;
@@ -103,7 +103,7 @@ pub fn screen_reply(captured: &[String], kind: AgentKind, pane_width: Option<u32
 
 /// Older/standalone Codex TUIs have no app-server socket. Their unrecorded reply is
 /// nevertheless visible on screen, with a dim bullet; tool headings are bold.
-fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenReply> {
+pub(super) fn codex_reply(captured: &[String], pane_width: Option<u32>, active_turn: bool) -> Option<ScreenReply> {
     let lines: Vec<String> = captured.iter().map(|l| unstyle(l).text.trim_end().to_owned()).collect();
     let prompt = re!(r"^[›»](?:\s|$)");
     let input = lines.iter().rposition(|l| prompt.is_match(l))?;
@@ -114,7 +114,7 @@ fn codex_reply(captured: &[String], pane_width: Option<u32>) -> Option<ScreenRep
     // "tab to queue message", which distinguishes those frames from idle text and menus.
     let end = match spinner {
         Some(i) => i,
-        None if lines[input + 1..].iter().any(|l| l.trim() == "tab to queue message") =>
+        None if active_turn || lines[input + 1..].iter().any(|l| l.trim() == "tab to queue message") =>
             (0..input).rev().find(|&i| re!(r"^\s*\d+ background terminals? running\b").is_match(&lines[i])).unwrap_or(input),
         None => return None,
     };

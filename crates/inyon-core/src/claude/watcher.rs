@@ -23,7 +23,7 @@ use super::delivery::{has_paste_preview, input_contains, SendLedger};
 use super::drafts::{get_draft, mirror_to_terminal, set_draft, squash, Draft, DraftSource};
 use super::driving::{is_driving, start_driving};
 use super::screen::parse_screen;
-use super::screen_reply::{carry_on, reads_reply, screen_reply, unrecorded};
+use super::screen_reply::{carry_on, codex_reply, reads_reply, screen_reply, unrecorded};
 use super::transcript::{load_meta, new_meta, normalize, save_meta, with_seq, TranscriptMeta};
 use super::transcript_tail::{codex_meta_command, meta_command, parse_size, range_command, size_command, tail_command, TranscriptReader};
 use crate::agents::antigravity::AntigravityDoc;
@@ -2367,7 +2367,7 @@ impl ChatWatcher {
 
     /// The reply being written on screen, carried on from the last read when its start has
     /// scrolled away, without what a record holds already. True when it changed.
-    fn read_screen_live(&self, lines: &[String], width: Option<u32>, kind: AgentKind, working: bool) -> bool {
+    fn read_screen_live(&self, lines: &[String], width: Option<u32>, kind: AgentKind, working: bool, active_codex_turn: bool) -> bool {
         // the turn is over: what was read waits for its record, so the reply doesn't blink out
         // between the two, and goes after a while if no record has it
         if !working {
@@ -2382,7 +2382,7 @@ impl ChatWatcher {
         }
         let mut st = self.st.borrow_mut();
         if working { rt::clear(&mut st.screen_live_expiry); }
-        let read = screen_reply(lines, kind, width);
+        let read = if kind == AgentKind::Codex { codex_reply(lines, width, active_codex_turn) } else { screen_reply(lines, kind, width) };
         let no_reply = read.is_none();
         let before = st.screen_live.take();
         let next = read.and_then(|r| {
@@ -2612,8 +2612,19 @@ impl ChatWatcher {
         let agent = pane.agent.clone().expect("an agent");
         let width = (*pane.width >= 0.0 && pane.width.is_finite()).then_some(*pane.width as u32);
         let mut screen = parse_screen(lines, width, agent.kind);
+        // New Codex TUIs hide both the spinner and the queue hint during token output.
+        // The exact transcript still marks the active turn. Ignore unfinished turns copied
+        // from history or left by an older process, and let approval/question menus win.
+        let active_codex_turn = agent.kind == AgentKind::Codex && agent.started_at.is_some_and(|started| {
+            let st = self.st.borrow();
+            st.live.turn.as_ref().or(st.meta.turn.as_ref()).is_some_and(|t| t.started_at.0 >= started as f64)
+        });
         if agent.kind == AgentKind::Codex {
             use crate::hosts::turns::Shown;
+            if active_codex_turn && screen.prompt.is_none() && !screen.questions.is_some_and(|q| q > 0) {
+                screen.working = true;
+                if screen.activity.is_none() { screen.activity = Some("Working".into()); }
+            }
             let shown = if screen.prompt.is_some() || screen.questions.is_some_and(|q| q > 0) { Shown::Waiting }
                 else if screen.working { Shown::Working } else { Shown::Idle };
             let mut st = self.st.borrow_mut();
@@ -2624,7 +2635,7 @@ impl ChatWatcher {
                 screen.activity = st.screen.activity.clone();
             }
         }
-        if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working) {
+        if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
             self.live_soon();
         }
         // a menu Inyon is working through itself stays out of the app
