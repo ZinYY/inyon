@@ -11,7 +11,7 @@ use crate::paths::env_var;
 use crate::update::{INSTALL_URL, RELEASES_REPO};
 
 /// Inyon's release key (minisign key 0F27F489FF0BBD53).
-pub const RELEASE_KEY: &str = "RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6";
+pub const RELEASE_KEY: &str = "RWRhxcHzgcaBqY5WHVQiQSqsPhACGy53LDF/Bgjh+BBKUfpVHqBoXwnW";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -103,8 +103,8 @@ mod tests {
     #[test]
     fn the_website_and_the_github_releases_are_official_and_nothing_else_is() {
         for base in [
-            "https://inyon.tech/download",
-            "https://inyon.tech/download/",
+            "https://github.com/ZinYY/inyon/releases/latest/download",
+            "https://github.com/ZinYY/inyon/releases/latest/download/",
             "HTTPS://Inyon.Tech/download",
             "http://inyon.tech:443/somewhere",
             // the website's earlier address, which redirects to inyon.tech
@@ -112,8 +112,8 @@ mod tests {
             "https://inyon.abhashchakraborty.tech/download/",
             "HTTPS://Inyon.AbhashChakraborty.tech/download",
             "http://inyon.abhashchakraborty.tech:443/somewhere",
-            "https://github.com/Abhash-Chakraborty/inyon/releases/latest/download",
-            "https://github.com/abhash-chakraborty/inyon/releases/download/v0.13.3",
+            "https://github.com/ZinYY/inyon/releases/latest/download",
+            "https://github.com/zinyy/inyon/releases/download/v0.13.3",
         ] {
             assert!(official(base), "{base}");
         }
@@ -126,7 +126,7 @@ mod tests {
             "https://inyon.abhashchakraborty.tech.example.com/download",
             "https://xinyon.abhashchakraborty.tech/download",
             "https://github.com/someone-else/inyon/releases/latest/download",
-            "https://example.com/github.com/Abhash-Chakraborty/inyon/releases/latest/download",
+            "https://example.com/github.com/ZinYY/inyon/releases/latest/download",
         ] {
             assert!(!official(base), "{base}");
         }

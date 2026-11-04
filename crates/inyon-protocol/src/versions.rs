@@ -16,7 +16,7 @@ pub const PRODUCT: &str = "Inyon";
 pub const SLUG: &str = "inyon";
 /// The name it had before, which migration code still reads (folders, env vars, storage keys).
 pub const OLD_SLUG: &str = "tether";
-pub const SOURCE_REPO: &str = "Abhash-Chakraborty/inyon";
+pub const SOURCE_REPO: &str = "ZinYY/inyon";
 /// The download page (static, on GitHub Pages at its own domain).
 pub const WEB_URL: &str = "https://inyon.tech/";
 /// The short address the one-line installers are typed with: …/get.sh and …/get.ps1
@@ -26,11 +26,11 @@ pub const APP_ID: &str = "tech.abhashchakraborty.inyon";
 /// The repository every release is published on.
 pub const RELEASES_REPO: &str = SOURCE_REPO;
 /// The minisign key every release's SHA256SUMS is signed with (key id 0F27F489FF0BBD53).
-pub const RELEASE_KEY: &str = "RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6";
+pub const RELEASE_KEY: &str = "RWRhxcHzgcaBqY5WHVQiQSqsPhACGy53LDF/Bgjh+BBKUfpVHqBoXwnW";
 /// The website's copy of the newest release.
-pub const DOWNLOAD_URL: &str = "https://inyon.tech/download";
+pub const DOWNLOAD_URL: &str = "https://github.com/ZinYY/inyon/releases/latest/download";
 /// What that copy is: {"version":"0.14.0","tag":"v0.14.0","date":…,"files":[{name,size,sha256}…]}
-pub const LATEST_URL: &str = "https://inyon.tech/download/latest.json";
+pub const LATEST_URL: &str = "https://api.github.com/repos/ZinYY/inyon/releases/latest";
 /// The engine's name once installed, next to `inyon` in ~/.inyon/bin (plus .exe on Windows).
 pub const ENGINE: &str = "inyon-engine";
 

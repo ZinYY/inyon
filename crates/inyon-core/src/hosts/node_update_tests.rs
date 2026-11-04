@@ -277,11 +277,15 @@ fn a_latest_json_that_fails_or_names_no_release_leaves_the_last_known_version_al
 
 #[test]
 fn fetch_latest_release_reads_a_plain_release_number_and_nothing_else() {
+    assert_eq!(latest_release_from(200, r#"{"tag_name":"v0.24.49","assets":[]}"#).as_deref(), Ok("0.24.49"));
+    for state in ["prerelease", "draft"] {
+        assert!(latest_release_from(200, &format!("{{\"tag_name\":\"v0.25.0\",\"{state}\":true}}")).is_err());
+    }
     assert_eq!(latest_release_from(200, r#"{"version":" v0.14.1 "}"#).as_deref(), Ok("0.14.1"));
     for v in ["\"0.15.0-rc.1\"", "\"0.15\"", "\"latest\"", "\"\"", "15", "null"] {
-        assert_eq!(latest_release_from(200, &format!("{{\"version\":{v},\"files\":[]}}")), Err("inyon.tech didn't name a release".into()));
+        assert_eq!(latest_release_from(200, &format!("{{\"version\":{v},\"files\":[]}}")), Err("api.github.com didn't name a release".into()));
     }
-    assert_eq!(latest_release_from(404, "not found"), Err("inyon.tech answered 404".into()));
+    assert_eq!(latest_release_from(404, "not found"), Err("api.github.com answered 404".into()));
 }
 
 #[test]

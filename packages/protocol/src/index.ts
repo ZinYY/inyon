@@ -1,4 +1,5 @@
 // Types shared by the hub (crates/inyon-protocol is their Rust copy) and the client (apps/web).
+import { version as packageVersion } from '../../../package.json'
 import type { AgentKind } from './agents.ts'
 
 export * from './agents.ts'
@@ -171,7 +172,7 @@ export interface SessionInfo {
 export type IntegrationState = 'unknown' | 'installed' | 'missing' | 'removed' | 'outdated'
 
 /** Inyon's version, the same for the app, the hub and the inyon program (the root package.json's). */
-export const VERSION = '0.24.0'
+export const VERSION = packageVersion
 
 /**
  * A machine's inyon that can be updated from the app, or an update the app started. `latest` is the

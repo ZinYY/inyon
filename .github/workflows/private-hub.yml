@@ -27,6 +27,8 @@ jobs:
         with:
           name: protocol-types
           path: packages/protocol/src/gen/index.ts
+      - run: cargo test -p inyon-protocol --test versions
+      - run: bun test packages/protocol/src/versions.test.ts
       - run: python3 -m unittest discover -s crates/inyon-backends/tests -p windows_herdr_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p branch_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_identity_test.py
@@ -130,4 +132,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Restore Windows PSmux Codex chat identity from its native session-ID footer while retaining shared-daemon streaming. Preserve Claude prompts across missing runtime attachments after tool results. Compatibility changes are scoped to Windows PSmux.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Restore Windows PSmux Codex chat identity from its native session-ID footer while retaining shared-daemon streaming. Preserve Claude prompts across missing runtime attachments after tool results. Compatibility changes are scoped to Windows PSmux. Update checks and signed downloads use ZinYY/inyon; About reads the actual package version.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

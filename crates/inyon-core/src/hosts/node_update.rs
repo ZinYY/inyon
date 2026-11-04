@@ -393,14 +393,16 @@ impl NodeUpdates {
 /// `fetchLatestRelease`'s check of latest.json: its plain release number, or why not.
 pub fn latest_release_from(status: u16, body: &str) -> Result<String, String> {
     use crate::js::json::Js;
-    const SITE: &str = "inyon.tech";
+    const SITE: &str = "api.github.com";
     if !(200..300).contains(&status) {
         return Err(format!("{SITE} answered {status}"));
     }
     let v = crate::js::json::parse(body);
     // .trim().replace(/^v/, '')
     let version = v.as_ref().and_then(|v| {
-        Some(v).at("version").str().map(|s| {
+        if v.get("prerelease").and_then(serde_json::Value::as_bool) == Some(true)
+            || v.get("draft").and_then(serde_json::Value::as_bool) == Some(true) { return None; }
+        Some(v).at("tag_name").str().or_else(|| Some(v).at("version").str()).map(|s| {
             let t = crate::js::JsStr::jtrim(s);
             t.strip_prefix('v').unwrap_or(t).to_owned()
         })

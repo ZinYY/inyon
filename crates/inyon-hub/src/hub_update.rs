@@ -125,7 +125,7 @@ impl Options {
             get: Rc::new(|url: &str| {
                 let url = url.to_owned();
                 Box::pin(async move {
-                    let r = inyon_engine::http::fetch("GET", url, vec![], None, std::time::Duration::from_secs(20)).await?;
+                    let r = inyon_engine::http::fetch("GET", url, vec![("User-Agent".into(), format!("Inyon/{VERSION}")), ("Accept".into(), "application/vnd.github+json".into())], None, std::time::Duration::from_secs(20)).await?;
                     Ok((r.status, String::from_utf8_lossy(&r.body).into_owned()))
                 })
             }),
@@ -190,7 +190,7 @@ impl HubUpdater {
         read_json(&self.job_file)
     }
 
-    /// the newest release, from latest.json on the website
+    /// The newest release of this fork, from its GitHub repository.
     async fn check_release(o: (Get, String, u64)) -> Check {
         let (get, version, now) = o;
         let latest = match get(LATEST_URL).await {

@@ -36,16 +36,16 @@ afterEach(() => {
 
 describe('the Android app looks for a newer APK', () => {
   test('finds the newer release and its APK on the website', async () => {
-    expect(await checkAppUpdate(true)).toEqual({ current: '0.6.3', latest: '0.6.4', url: 'https://inyon.tech/download/inyon-0.6.4.apk' })
+    expect(await checkAppUpdate(true)).toEqual({ current: '0.6.3', latest: '0.6.4', url: 'https://github.com/ZinYY/inyon/releases/latest/download/inyon-0.6.4.apk' })
     expect(fetched.mock.calls[0][0]).toBe(LATEST_URL)
-    expect(LATEST_URL).toBe('https://inyon.tech/download/latest.json')
+    expect(LATEST_URL).toBe('https://api.github.com/repos/ZinYY/inyon/releases/latest')
   })
 
   test('takes the versioned APK, else another, and the stable name only when it is the only one', async () => {
     release = apk('0.6.4', 'inyon-release.apk')
-    expect((await checkAppUpdate(true))?.url).toBe('https://inyon.tech/download/inyon-release.apk')
+    expect((await checkAppUpdate(true))?.url).toBe('https://github.com/ZinYY/inyon/releases/latest/download/inyon-release.apk')
     release = { version: '0.6.4', files: [{ name: 'inyon.apk' }] }
-    expect((await checkAppUpdate(true))?.url).toBe('https://inyon.tech/download/inyon.apk')
+    expect((await checkAppUpdate(true))?.url).toBe('https://github.com/ZinYY/inyon/releases/latest/download/inyon.apk')
   })
 
   test('asks the website at most once a day unless Settings asks', async () => {
@@ -86,9 +86,9 @@ describe('the Android app looks for a newer APK', () => {
 
   test('a failed check says so when asked for, and is quiet otherwise', async () => {
     globalThis.fetch = (async () => new Response('not found', { status: 404 })) as unknown as typeof fetch
-    await expect(checkAppUpdate(true)).rejects.toThrow('inyon.tech answered 404')
+    await expect(checkAppUpdate(true)).rejects.toThrow('api.github.com answered 404')
     globalThis.fetch = (async () => new Response('<html>', { status: 200 })) as unknown as typeof fetch
-    await expect(checkAppUpdate(true)).rejects.toThrow("inyon.tech didn't name a release")
+    await expect(checkAppUpdate(true)).rejects.toThrow("api.github.com didn't name a release")
     // a failed check on its own isn't repeated on every return to the app, only an hour later
     const t = 2_000_000_000
     localStorage.removeItem('inyon.app-update')

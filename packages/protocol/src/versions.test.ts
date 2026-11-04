@@ -1,5 +1,20 @@
 import { expect, test } from 'bun:test'
 import { DOWNLOAD_URL, fetchLatestRelease, INSTALL_URL, LATEST_URL } from './versions.ts'
+import { VERSION } from './index.ts'
+import { version as packageVersion } from '../../../package.json'
+
+test('web version follows the root package without a separate hardcoded number', () => {
+  expect(VERSION).toBe(packageVersion)
+})
+
+test('the fork GitHub release response supplies its version and assets', async () => {
+  const response = answering({ tag_name: 'v0.24.49', assets: [{ name: 'inyon-linux-x64', size: 123 }] })
+  expect(await fetchLatestRelease(response.get)).toEqual({ version: '0.24.49', files: [{ name: 'inyon-linux-x64', size: 123 }] })
+  expect(response.urls).toEqual(['https://api.github.com/repos/ZinYY/inyon/releases/latest'])
+  for (const state of [{ prerelease: true }, { draft: true }]) {
+    await expect(fetchLatestRelease(answering({ tag_name: 'v0.25.0', ...state }).get)).rejects.toThrow("didn't name a release")
+  }
+})
 
 /** A fetch that answers every request with `body` (JSON unless it's text) and notes the address. */
 function answering(body: unknown, status = 200) {
@@ -12,8 +27,8 @@ function answering(body: unknown, status = 200) {
 }
 
 test('the newest release is read from latest.json on the website', async () => {
-  expect(DOWNLOAD_URL).toBe(`${INSTALL_URL}/download`)
-  expect(LATEST_URL).toBe('https://inyon.tech/download/latest.json')
+  expect(DOWNLOAD_URL).toBe('https://github.com/ZinYY/inyon/releases/latest/download')
+  expect(LATEST_URL).toBe('https://api.github.com/repos/ZinYY/inyon/releases/latest')
   const listing = {
     version: '0.14.0',
     tag: 'v0.14.0',
@@ -42,14 +57,14 @@ test('the newest release is read from latest.json on the website', async () => {
 
 test('anything but a plain release number throws, so it never counts as an update', async () => {
   for (const version of ['0.15.0-rc.1', '0.15', 'latest', '', 15, undefined]) {
-    await expect(fetchLatestRelease(answering({ version, files: [] }).get)).rejects.toThrow("inyon.tech didn't name a release")
+    await expect(fetchLatestRelease(answering({ version, files: [] }).get)).rejects.toThrow("api.github.com didn't name a release")
   }
   await expect(fetchLatestRelease(answering('<html>not json</html>').get)).rejects.toThrow("didn't name a release")
   await expect(fetchLatestRelease(answering('null').get)).rejects.toThrow("didn't name a release")
 })
 
 test('a site that answers with an error, or not at all, throws', async () => {
-  await expect(fetchLatestRelease(answering('not found', 404).get)).rejects.toThrow('inyon.tech answered 404')
+  await expect(fetchLatestRelease(answering('not found', 404).get)).rejects.toThrow('api.github.com answered 404')
   const offline = (async () => {
     throw new TypeError('fetch failed')
   }) as unknown as typeof fetch

@@ -10,7 +10,8 @@ fn repo(path: &str) -> String {
 fn the_version_is_the_root_package_json_one() {
     let pkg: serde_json::Value = serde_json::from_str(&repo("package.json")).unwrap();
     assert_eq!(pkg["version"], VERSION);
-    assert!(repo("packages/protocol/src/index.ts").contains(&format!("export const VERSION = '{VERSION}'")));
+    assert!(repo("packages/protocol/src/index.ts").contains("export const VERSION = packageVersion"));
+    assert!(repo("packages/protocol/src/index.ts").contains("from '../../../package.json'"));
 }
 
 #[test]
@@ -31,10 +32,10 @@ fn constants_match_versions_ts() {
     }
     assert!(ts.contains("export const RELEASES_REPO = SOURCE_REPO"));
     assert_eq!(RELEASES_REPO, SOURCE_REPO);
-    assert!(ts.contains("export const DOWNLOAD_URL = `${INSTALL_URL}/download`"));
-    assert_eq!(DOWNLOAD_URL, format!("{INSTALL_URL}/download"));
-    assert!(ts.contains("export const LATEST_URL = `${DOWNLOAD_URL}/latest.json`"));
-    assert_eq!(LATEST_URL, format!("{DOWNLOAD_URL}/latest.json"));
+    assert!(ts.contains("export const DOWNLOAD_URL = `https://github.com/${RELEASES_REPO}/releases/latest/download`"));
+    assert_eq!(DOWNLOAD_URL, format!("https://github.com/{RELEASES_REPO}/releases/latest/download"));
+    assert!(ts.contains("export const LATEST_URL = `https://api.github.com/repos/${RELEASES_REPO}/releases/latest`"));
+    assert_eq!(LATEST_URL, format!("https://api.github.com/repos/{RELEASES_REPO}/releases/latest"));
     // the inyon command checks its own updates with the same key
     assert!(include_str!("../../../apps/cli/src/signing.rs").contains(&format!("pub const RELEASE_KEY: &str = \"{RELEASE_KEY}\";")));
 }

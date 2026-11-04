@@ -6,7 +6,7 @@ export const PRODUCT = 'Inyon'
 export const SLUG = 'inyon'
 /** The name it had before, which migration code still reads (folders, env vars, storage keys) */
 export const OLD_SLUG = 'tether'
-export const SOURCE_REPO = 'Abhash-Chakraborty/inyon'
+export const SOURCE_REPO = 'ZinYY/inyon'
 /**
  * The download page (static, on GitHub Pages at its own domain). A computer's QR code opens it
  * when scanned with a phone's camera, and it offers to copy the pairing link for the app.
@@ -20,14 +20,14 @@ export const APP_ID = 'tech.abhashchakraborty.inyon'
 /** The repository every release is published on. */
 export const RELEASES_REPO = SOURCE_REPO
 /** The minisign key every release's SHA256SUMS is signed with (key id 0F27F489FF0BBD53). */
-export const RELEASE_KEY = 'RWRTvQv/ifQnD3jarY1oarS0AKdhogH+mdgn/o0NzT/Ro8L43nFqqfp6'
+export const RELEASE_KEY = 'RWRhxcHzgcaBqY5WHVQiQSqsPhACGy53LDF/Bgjh+BBKUfpVHqBoXwnW'
 /**
  * The website's copy of the newest release, where the app and the inyon program are downloaded
  * from. Older releases stay on GitHub only.
  */
-export const DOWNLOAD_URL = `${INSTALL_URL}/download`
+export const DOWNLOAD_URL = `https://github.com/${RELEASES_REPO}/releases/latest/download`
 /** What that copy is: {"version":"0.14.0","tag":"v0.14.0","date":…,"files":[{name,size,sha256}…]} */
-export const LATEST_URL = `${DOWNLOAD_URL}/latest.json`
+export const LATEST_URL = `https://api.github.com/repos/${RELEASES_REPO}/releases/latest`
 
 /**
  * The files a release attaches for one system ("linux-x64", "windows-x64"). Release 0.13 depends
@@ -90,11 +90,12 @@ export async function fetchLatestRelease(get: typeof fetch = fetch): Promise<{ v
   const res = await get(LATEST_URL, { headers: { accept: 'application/json' } })
   const host = new URL(LATEST_URL).host
   if (!res.ok) throw new Error(`${host} answered ${res.status}`)
-  const body = (await res.json().catch(() => undefined)) as { version?: unknown; files?: unknown } | undefined
-  const version = typeof body?.version === 'string' ? body.version.trim().replace(/^v/, '') : ''
+  const body = (await res.json().catch(() => undefined)) as { version?: unknown; tag_name?: unknown; files?: unknown; assets?: unknown; prerelease?: boolean; draft?: boolean } | undefined
+  const tag = body?.tag_name ?? body?.version
+  const version = typeof tag === 'string' && !body?.prerelease && !body?.draft ? tag.trim().replace(/^v/, '') : ''
   if (!parseRelease(version)) throw new Error(`${host} didn't name a release`)
   const files: ReleaseFile[] = []
-  for (const f of Array.isArray(body?.files) ? body.files : []) {
+  for (const f of Array.isArray(body?.assets) ? body.assets : Array.isArray(body?.files) ? body.files : []) {
     if (typeof f?.name !== 'string' || !f.name) continue
     files.push({ name: f.name, ...(typeof f.size === 'number' ? { size: f.size } : {}), ...(typeof f.sha256 === 'string' ? { sha256: f.sha256 } : {}) })
   }
