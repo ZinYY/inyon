@@ -520,6 +520,8 @@ fn script_output(raw: Option<&Value>) -> ScriptOutput {
 /// name. Before the thread has a name it's "codex" or the folder alone, which is no name.
 pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
     let folder = cwd.and_then(|c| c.split(['/', '\\']).rfind(|s| !s.is_empty()));
+    let is_folder = |name: &str| folder.is_some_and(|folder| name == folder || name.strip_suffix("...").or_else(|| name.strip_suffix('…'))
+        .is_some_and(|prefix| !prefix.is_empty() && folder.starts_with(prefix)));
     // JS-compatible \w is ASCII even with the u flag: treating its complement as
     // a spinner eats leading Chinese (and other Unicode letters), breaking /resume matching.
     let stripped = title.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '_' && !c.is_whitespace()).trim_start();
@@ -527,11 +529,11 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
     while parts.len() > 1 && re!(r"^(Action Required|Working|Thinking|Ready|Waiting|Done|Error|Interrupted)$", "i").is_match(parts[0]) {
         parts.remove(0);
     }
-    if parts.len() > 1 && (Some(parts[parts.len() - 1]) == folder || parts[parts.len() - 1] == "codex") {
+    if parts.len() > 1 && (is_folder(parts[parts.len() - 1]) || parts[parts.len() - 1] == "codex") {
         parts.pop();
     }
     let name = parts.join(" | ");
-    if name.is_empty() || Some(name.as_str()) == folder || re!(r"^codex$", "i").is_match(&name) {
+    if name.is_empty() || is_folder(&name) || re!(r"^codex$", "i").is_match(&name) {
         String::new()
     } else {
         name

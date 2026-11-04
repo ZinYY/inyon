@@ -995,6 +995,47 @@ fn windows_codex_hostname_case_does_not_hide_a_blank_or_resumed_footer() {
 }
 
 #[test]
+fn a_codex_process_that_releases_its_thread_lock_never_borrows_another_folders_chat() {
+    run(|| async {
+        let b = ModeBox::new();
+        let screen = b.screen.clone();
+        let first = "00000000-0000-0000-0000-000000000001";
+        let next = "00000000-0000-0000-0000-000000000002";
+        let fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", screen.borrow())) }
+            else if cmd.starts_with("find ") {
+                let id = if cmd.contains(next) { next } else { first };
+                ok(&format!("/home/u/.codex/sessions/rollout-2026-01-01T00-00-00-{id}.jsonl\n"))
+            } else { ok("") }
+        });
+        b.draw("› Ask Codex to do anything\n  GPT-6-Astra high · /w · Previous title\n? for shortcuts\n");
+        let probe = |id: Option<&str>| {
+            let mut p = mode_probe(now_ms() as f64 / 1000.0);
+            p.home = "/home/u".into();
+            p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+            p.sessions[0].windows[0].panes[0].title = "Previous title | w".into();
+            if let Some(id) = id { p.codex_threads.insert(7, id.into()); }
+            Rc::new(RefCell::new(p))
+        };
+        let pr = probe(Some(first));
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(first));
+        let finds = fake.cmds().iter().filter(|c| c.starts_with("find ")).count();
+        for _ in 0..2 {
+            let pr = probe(None);
+            registry().annotate_agents(&b.rt, &pr).await.unwrap();
+            assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().transcript_path.is_none());
+            assert!(b.rt.borrow().empty_codex.contains("%9"));
+        }
+        assert_eq!(fake.cmds().iter().filter(|c| c.starts_with("find ")).count(), finds);
+        let pr = probe(Some(next));
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(next));
+        assert!(!b.rt.borrow().empty_codex.contains("%9"));
+    });
+}
+
+#[test]
 fn claude_titles_in_overview_do_not_require_a_chat_subscription_or_cross_a_clear() {
     run(|| async {
         let b = ModeBox::new();

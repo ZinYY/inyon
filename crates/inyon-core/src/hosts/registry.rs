@@ -222,6 +222,9 @@ pub struct HostRuntime {
     pub(crate) empty_codex: HashSet<String>,
     /// A confirmed /new in this process invalidates the resume id in its startup arguments.
     codex_cleared: HashSet<i64>,
+    /// Once a process exposes its active thread lock, never fall back to a folder guess
+    /// when /new releases it. Older Codex processes still use the compatibility mapper.
+    codex_identified: HashSet<i64>,
     /// when the integration was last put back automatically
     healed_at: Option<u64>,
     /// sessions already resumed automatically (once each, so a failure can't loop)
@@ -272,6 +275,7 @@ impl HostRuntime {
             screens: HashMap::new(),
             empty_codex: HashSet::new(),
             codex_cleared: HashSet::new(),
+            codex_identified: HashSet::new(),
             healed_at: None,
             resumed: HashSet::new(),
             rested: HashMap::new(),
@@ -1203,6 +1207,7 @@ impl Registry {
         r.screens.retain(|id, _| agent_ids.contains(id));
         r.empty_codex.retain(|id| agent_ids.contains(id));
         r.codex_cleared.retain(|pid| live.contains(pid));
+        r.codex_identified.retain(|pid| live.contains(pid));
         Ok(())
     }
 
@@ -1230,8 +1235,10 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
-        let empty_codex = proc.kind == AgentKind::Codex && screens.get(&p.id)
-            .is_some_and(|lines| codex_empty_conversation(lines, &p.title, proc.cwd.as_deref()));
+        if codex_thread.is_some() { rt.borrow_mut().codex_identified.insert(pid); }
+        let empty_codex = proc.kind == AgentKind::Codex && (
+            (codex_thread.is_none() && rt.borrow().codex_identified.contains(&pid))
+            || screens.get(&p.id).is_some_and(|lines| codex_empty_conversation(lines, &p.title, proc.cwd.as_deref())));
         {
             let mut r = rt.borrow_mut();
             if empty_codex {

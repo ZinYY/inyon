@@ -105,6 +105,9 @@ mod codex_terminal_title {
     fn no_thread_name_yet_is_no_title() {
         assert_eq!(codex_title("codex", Some("/src/app")), "");
         assert_eq!(codex_title("app", Some("/src/app")), "");
+        assert_eq!(codex_title("conversation-verifica...", Some("/work/conversation-verification")), "");
+        assert_eq!(codex_title("Compare learning | conversation-verifica...", Some("/work/conversation-verification")), "Compare learning");
+        assert_eq!(codex_title("Another conversa...", Some("/work/conversation-verification")), "Another conversa...");
     }
 }
 
@@ -872,6 +875,7 @@ fn only_a_nameless_zero_context_footer_confirms_a_blank_codex_thread() {
     let lines = vec!["› An unsent draft".into(), "  GPT-6-Astra xhigh · ~ · Full Access · Context \u{1b}[32m0%\u{1b}[0m used · weekly 63% left".into(), "  ? for shortcuts".into()];
     assert!(codex_empty_conversation(&lines, "work", Some("/work")));
     assert!(codex_empty_conversation(&lines, "codex", Some("/work")));
+    assert!(codex_empty_conversation(&lines, "conversation-verifica...", Some("/work/conversation-verification")));
     assert!(!codex_empty_conversation(&lines, "Small conversation | work", Some("/work")));
     assert!(!codex_empty_conversation(&["Context 56% used".into()], "work", Some("/work")));
     assert!(!codex_empty_conversation(&[], "work", Some("/work")));
