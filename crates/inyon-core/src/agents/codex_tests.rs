@@ -900,6 +900,14 @@ fn windows_native_footer_requires_a_current_composer_and_live_id() {
 }
 
 #[test]
+fn windows_native_id_footer_keeps_the_title_separate_from_permissions() {
+    let lines = ["› Draft", "  00000000-0000-0000-0000-000000000001 · GPT-6-Astra high · ~\\work · Coffee ideas · Full Access · weekly 15% left"].map(str::to_owned);
+    assert_eq!(codex_psmux_footer_title(&lines, Some(r"C:\work")).as_deref(), Some("Coffee ideas"));
+    assert_eq!(codex_footer_title(&lines, Some(r"C:\work")), None, "other platforms keep their original parser");
+    assert_eq!(codex_psmux_footer_title(&[lines[0].clone(), lines[1].replace("Coffee ideas · ", "")], Some(r"C:\work")).as_deref(), Some(""));
+}
+
+#[test]
 fn windows_codex_short_footer_identifies_new_and_resumed_threads() {
     let cwd = Some(r"C:\Users\74122\LYR_GPT");
     let blank: Vec<String> = [">_ OpenAI Codex (v0.166.0)", r"~\LYR_GPT", "", "› An unsent draft", "", r"GPT-6-Astra xhigh · ~\LYR_GPT", "? for shortcuts"].iter().map(|s| s.to_string()).collect();

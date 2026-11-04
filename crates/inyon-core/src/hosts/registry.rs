@@ -1188,7 +1188,11 @@ impl Registry {
             let probe = pr.borrow();
             if let Some(proc) = probe.agent_procs.get(&pane.id).filter(|p| p.kind == AgentKind::Codex) {
                 if pane.title.eq_ignore_ascii_case(&probe.hostname) || codex_title(&pane.title, proc.cwd.as_deref()).is_empty() {
-                    if let Some(title) = screens.get(&pane.id).and_then(|lines| codex_footer_title(lines, proc.cwd.as_deref())) {
+                    if let Some(title) = screens.get(&pane.id).and_then(|lines| {
+                        if probe.os == "Windows" && !crate::tmux::herdr::enabled(&host) {
+                            crate::agents::codex::codex_psmux_footer_title(lines, proc.cwd.as_deref())
+                        } else { codex_footer_title(lines, proc.cwd.as_deref()) }
+                    }) {
                         pane.title = title;
                     }
                 }

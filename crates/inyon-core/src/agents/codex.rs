@@ -573,6 +573,19 @@ pub fn codex_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String>
     None
 }
 
+/// Display-only normalization for the Windows native-ID footer; never used to
+/// infer which transcript belongs to a pane.
+pub fn codex_psmux_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String> {
+    let normalized: Vec<String> = lines.iter().map(|line| {
+        let clean = crate::claude::screen::unstyle(line).text;
+        let Some(m) = re!(r"^\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} · (.*)$").captures(&clean) else { return line.clone() };
+        let parts: Vec<_> = m[1].split(" · ").collect();
+        let count = if parts.get(2).is_some_and(|p| re!(r"(?i)^(?:Full Access|Workspace|Read.only|weekly\b|Context\b)").is_match(p)) { 2 } else { 3 };
+        parts.into_iter().take(count).collect::<Vec<_>>().join(" · ")
+    }).collect();
+    codex_footer_title(&normalized, cwd)
+}
+
 pub fn codex_empty_conversation(lines: &[String], title: &str, cwd: Option<&str>) -> bool {
     if !codex_title(title, cwd).is_empty() { return false; }
     let footer = lines.iter().rev().take(8).map(|s| crate::claude::screen::unstyle(s).text).collect::<Vec<_>>().join(" ");
