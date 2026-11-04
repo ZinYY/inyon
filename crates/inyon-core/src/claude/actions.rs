@@ -1364,8 +1364,28 @@ pub async fn codex_rewind(host_id: &str, pane_id: &str, text: Option<&str>) -> H
         let sel = selected(&b).unwrap_or_default();
         if matches(&sel) {
             send_keys(&host, pane_id, &["Enter"]).await?;
+            // A selected steer is part of its original turn. Codex can return to the
+            // composer with an error and a draft without actually changing history.
+            for _ in 0..20 {
+                sleep(150).await;
+                let caps = capture_panes(&host, &[pane_id.to_owned()]).await?;
+                let lines = caps.get(pane_id).map(Vec::as_slice).unwrap_or(&[]);
+                let text = squash(&lines.join("\n"));
+                if text.contains("Failed to edit the selected prompt:") {
+                    nudge(host_id, pane_id);
+                    return Err(http(409, if text.contains("selected prompt is a steer") {
+                        "Codex cannot rewind a steer message independently. Rewind the original prompt for this turn."
+                    } else {
+                        "Codex refused to rewind this message. Open the terminal for its explanation."
+                    }));
+                }
+                if codex_browsing(lines).is_none() {
+                    nudge(host_id, pane_id);
+                    return Ok(());
+                }
+            }
             nudge(host_id, pane_id);
-            return Ok(());
+            return Err(http(409, "Codex has not confirmed the rewind. Open the terminal to check."));
         }
         // ←/→ step between your messages (↑/↓ only scroll)
         send_keys(&host, pane_id, &["Left"]).await?;

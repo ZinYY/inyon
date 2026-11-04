@@ -4,7 +4,7 @@
 //! registry; here the pane is put in this thread's registry, with polls held as the stubbed
 //! `registry.refresh` did, and the machine is a fake that answers like the agent would.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -435,6 +435,35 @@ fn a_spinner_free_active_turn_stops_once_but_an_idle_pane_is_left_alone() {
         fake.calls.borrow_mut().clear();
         interrupt("local", "%9").await.unwrap();
         assert_eq!(*escapes.borrow(), 1, "idle must not receive an Escape or open rewind");
+    });
+}
+
+#[test]
+fn codex_rewind_reports_a_native_refusal_instead_of_claiming_success() {
+    run(|| async {
+        for refused in [false, true] {
+            let stage = Rc::new(Cell::new(0));
+            let current = stage.clone();
+            let _fake = Fake::install(move |_, cmd, _| {
+                if cmd.contains("send-keys") && cmd.contains("Escape") { current.set(current.get() + 1); }
+                if cmd.contains("send-keys") && cmd.contains("Enter") { current.set(3); }
+                if cmd.contains("capture-pane") {
+                    if current.get() == 2 {
+                        return ok("@@CAP %9\n› \x1b[7mUse a fruit example\x1b[0m\nBrowsing transcript · ↑↓ scroll · ←→ prompts · ↵ rewind · esc back\n");
+                    }
+                    let error = if refused && current.get() == 3 { "■ Failed to edit the selected prompt: the selected prompt is a steer\n  and cannot be edited independently\n" } else { "" };
+                    return ok(&format!("@@CAP %9\n{error}› Ask Codex to do anything\n\n  GPT-6-Astra high · ~/app · Full Access\n  ? for shortcuts\n"));
+                }
+                ok("")
+            });
+            pane("local", json!([{ "id": "%9", "width": 100, "agent": { "kind": "codex", "pid": 7, "state": "idle" } }]));
+            let result = codex_rewind("local", "%9", None).await;
+            if refused {
+                assert!(result.unwrap_err().message.contains("Rewind the original prompt"));
+            } else {
+                result.unwrap();
+            }
+        }
     });
 }
 
