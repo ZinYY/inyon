@@ -2352,7 +2352,20 @@ pub async fn fork_conversation(host_id: &str, pane_id: &str) -> HubResult<String
             }
             cmd
         },
-        AgentKind::Codex => re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex).await, 1, "$1 fork ").into_owned(),
+        AgentKind::Codex => {
+            let mut cmd = re!(r"^(\S+) resume ").replacen(&resume(AgentKind::Codex).await, 1, "$1 fork ").into_owned();
+            // Codex's fork otherwise starts with the new process's defaults, which can
+            // differ from the model/effort currently selected in the source terminal.
+            let info = watchers().peek(host_id, pane_id).map(|w| w.info());
+            let status = a.status.as_ref().or_else(|| info.as_ref().and_then(|i| i.status.as_ref()));
+            if let Some(model) = status.and_then(|s| s.model_id.as_deref()).or_else(|| info.as_ref().and_then(|i| i.model.as_deref())).filter(|m| !m.is_empty()) {
+                cmd.push_str(&format!(" -m {}", shq(model)));
+            }
+            if let Some(effort) = status.and_then(|s| s.effort.as_deref()).filter(|e| ["none", "minimal", "low", "medium", "high", "xhigh", "max"].contains(e)) {
+                cmd.push_str(&format!(" -c {}", shq(&format!("model_reasoning_effort={}", json!(effort)))));
+            }
+            cmd
+        },
         _ => format!("{} --session {session} --fork", AgentKind::Opencode.def().launch),
     };
     let proxy = match &proc {

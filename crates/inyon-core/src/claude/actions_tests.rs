@@ -719,6 +719,18 @@ fn codex_uses_its_fork_command() {
 }
 
 #[test]
+fn codex_fork_keeps_the_source_terminals_model_and_effort() {
+    run(|| async {
+        let fake = fork_host();
+        let rt = pane("h", json!([{ "id":"%1", "cwd":"/home/u/app", "agent":{"kind":"codex","pid":41,"state":"idle","sessionId":FORK_ID,"transcriptPath":"/t.jsonl","status":{"modelId":"gpt-6-astra","effort":"high","updatedAt":1}} }]));
+        with_proc(&rt, "%1", 41.0, "/home/u/app", "codex --model older-model");
+        fork_conversation("h", "%1").await.unwrap();
+        let t = typed(&fake);
+        assert!(t.contains(" -m 'gpt-6-astra' -c 'model_reasoning_effort=\"high\"'"), "{t}");
+    });
+}
+
+#[test]
 fn nothing_to_fork_before_the_first_message_and_not_every_agent_forks() {
     run(|| async {
         let _fake = fork_host();
