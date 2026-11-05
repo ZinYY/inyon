@@ -587,6 +587,63 @@ fn a_question_from_ask_user_question_takes_a_pick_and_a_typed_answer() {
     });
 }
 
+#[test]
+fn codex_custom_answers_type_before_submitting_and_open_plan_notes_first() {
+    run(|| async {
+        for notes in [false, true] {
+            let before = if notes { crate::test_support::screen_fixture("codex", "question-notes").join("\n") }
+                else { "  Colour\n\n  › 1. Red\n    2. Blue\n    3. Other\n\n  enter submit   ^] skip   shift+→ main prompt".into() };
+            let after = if notes { crate::test_support::screen_fixture("codex", "question-notes-editing").join("\n") }
+                else { before.replace("› 1. Red", "  1. Red").replace("  3. Other", "› 3. Other") };
+            let shown = Rc::new(RefCell::new(before.clone()));
+            let display = shown.clone();
+            let sent = Rc::new(RefCell::new(Vec::<(String, Option<String>)>::new()));
+            let s = sent.clone();
+            let _fake = Fake::install(move |_, cmd, input| {
+                if cmd.contains("capture-pane") { return ok(&format!("@@CAP %7\n{}", display.borrow())); }
+                if cmd.contains("send-keys") || cmd.contains("paste-buffer") {
+                    s.borrow_mut().push((cmd.to_owned(), input.map(str::to_owned)));
+                    if cmd.contains("Down") { *display.borrow_mut() = after.clone(); }
+                }
+                ok("")
+            });
+            pane("box", json!([{ "id": "%7", "width": 120, "agent": { "kind": "codex", "pid": 7, "state": "waiting" } }]));
+            let p = parse_screen(&before.lines().map(str::to_owned).collect::<Vec<_>>(), Some(120), AgentKind::Codex).prompt.unwrap();
+            let text = "Teal's shade\n第二行";
+            answer("box", "%7", 3, Some(text), Some(&prompt_key(&p.body, &p.options))).await.unwrap();
+            let sent = sent.borrow();
+            assert_eq!(sent[0].0.matches("Down").count(), 2, "{sent:?}");
+            assert!(!sent[0].0.contains("Enter"), "do not submit the choice before text: {sent:?}");
+            assert_eq!(sent[0].0.contains("Tab"), notes);
+            let pasted = sent.iter().position(|(_, input)| input.as_deref() == Some(text)).expect("send the exact multiline answer");
+            assert!(sent.iter().skip(pasted + 1).any(|(cmd, _)| cmd.ends_with(" Enter")), "submit after typing: {sent:?}");
+        }
+    });
+}
+
+#[test]
+fn codex_custom_answer_is_not_typed_if_selection_opens_another_question() {
+    run(|| async {
+        let initial = "  Colour\n\n  › 1. Red\n    2. Blue\n    3. Other\n\n  enter submit   ^] skip   shift+→ main prompt";
+        let moved = Rc::new(Cell::new(false));
+        let state = moved.clone();
+        let sent = Rc::new(RefCell::new(Vec::<(String, Option<String>)>::new()));
+        let s = sent.clone();
+        let _fake = Fake::install(move |_, cmd, input| {
+            if cmd.contains("capture-pane") {
+                let shown = if state.get() { initial.replace("Colour", "Different question").replace("› 1. Red", "  1. Red").replace("  3. Other", "› 3. Other") } else { initial.into() };
+                return ok(&format!("@@CAP %7\n{shown}"));
+            }
+            s.borrow_mut().push((cmd.to_owned(), input.map(str::to_owned)));
+            if cmd.contains("Down") { state.set(true); }
+            ok("")
+        });
+        pane("box", json!([{ "id": "%7", "width": 120, "agent": { "kind": "codex", "pid": 7, "state": "waiting" } }]));
+        assert!(answer("box", "%7", 3, Some("Teal"), None).await.is_err());
+        assert!(sent.borrow().iter().all(|(cmd, input)| !cmd.contains("Enter") && input.is_none()));
+    });
+}
+
 /// With previews, a number only moved the highlight: the chat's pick was taken (200) and nothing
 /// was answered. It moves the highlight and presses Enter.
 #[test]

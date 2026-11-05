@@ -96,6 +96,31 @@ fn labels(p: &ScreenPrompt) -> Vec<&str> {
     p.options.iter().map(|o| o.label.as_str()).collect()
 }
 
+#[test]
+fn codex_custom_answer_is_available_for_both_native_question_layouts() {
+    let question = screen_fixture("codex", "question-notes");
+    let editing = screen_fixture("codex", "question-notes-editing");
+    let typed = editing.iter().map(|l| l.replace("› Add notes", "› Teal's shade\n    第二行")).collect::<Vec<_>>().join("\n").lines().map(str::to_owned).collect::<Vec<_>>();
+    let mut key = None;
+    for lines in [question, editing, typed] {
+        for s in [parse_screen(&lines, Some(120), AgentKind::Codex), parse_psmux_screen(&lines, Some(120), AgentKind::Codex)] {
+            let p = s.prompt.expect("the question remains visible while notes are edited");
+            assert_eq!(p.body, ["Which colour do you prefer?", "Question 1/1 (1 unanswered)"]);
+            assert_eq!(labels(&p), ["Red", "Blue", "None of the above"]);
+            assert_eq!(p.free_text_option, Some(3));
+            let now = inyon_protocol::prompt_key(&p.body, &p.options);
+            if let Some(was) = &key { assert_eq!(&now, was); }
+            key = Some(now);
+        }
+    }
+    let repeated = screen_fixture("codex", "question-notes").iter().map(|l| l.replace("Question 1/1", "Question 2/2")).collect::<Vec<_>>();
+    let p = parse_screen(&repeated, Some(120), AgentKind::Codex).prompt.unwrap();
+    assert_ne!(Some(inyon_protocol::prompt_key(&p.body, &p.options)), key, "identical question text on a later step is still another question");
+    let menu = ["Choose a model", "", "› 1. Default", "  2. Other", "", "  enter select · esc back"].map(str::to_owned);
+    let p = parse_screen(&menu, Some(100), AgentKind::Codex).prompt.unwrap();
+    assert_eq!(p.free_text_option, None, "a settings option is not a question answer field");
+}
+
 /// toMatchObject on the fields given
 fn matches(state: &ScreenState, want: serde_json::Value) {
     let got = serde_json::to_value(state).unwrap();
@@ -436,6 +461,7 @@ mod other_agents {
         assert_eq!(p.options, vec![opt(1, "Red", true), opt(2, "Blue", false), opt(3, "Other", false)]);
         assert_eq!(p.footer.as_deref(), Some("enter submit   ^] skip   shift+→ main prompt"));
         assert_eq!(p.navigate, Some(true));
+        assert_eq!(p.free_text_option, Some(3));
     }
 
     /// the plan-mode question once a plan is written

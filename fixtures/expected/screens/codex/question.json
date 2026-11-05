@@ -26,7 +26,8 @@
         ],
         "footer": "enter submit   ^] skip   shift+→ main prompt",
         "multi": false,
-        "navigate": true
+        "navigate": true,
+        "freeTextOption": 3
       }
     },
     "summary": "Colour"
@@ -58,7 +59,8 @@
         ],
         "footer": "enter submit   ^] skip   shift+→ main prompt",
         "multi": false,
-        "navigate": true
+        "navigate": true,
+        "freeTextOption": 3
       }
     },
     "summary": "Colour"
@@ -90,7 +92,8 @@
         ],
         "footer": "enter submit   ^] skip   shift+→ main prompt",
         "multi": false,
-        "navigate": true
+        "navigate": true,
+        "freeTextOption": 3
       }
     },
     "summary": "Colour"

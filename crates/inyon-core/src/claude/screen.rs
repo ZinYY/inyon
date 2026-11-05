@@ -1272,7 +1272,7 @@ macro_rules! CX_WORKING {
 }
 macro_rules! CX_NAV {
     () => {
-        re!(r"^\s*(Press enter to confirm|enter (select|default|continue|confirm|submit)|.*\besc (back|to cancel)\b)")
+        re!(r"^\s*(Press enter to confirm|enter (select|default|continue|confirm|submit)|tab (?:to add notes|or esc to clear notes) \| enter to submit answer|.*\besc (back|to cancel)\b)")
     };
 }
 /// a menu row, "› 1. Yes" highlighted; a question's rows sit indented under "Queued follow-up inputs"
@@ -1427,8 +1427,15 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
 fn parse_codex_menu(lines: &[String]) -> Option<ScreenPrompt> {
     let tail = last_n(lines, 40);
     let nav_at = find_last(tail, |l| CX_NAV!().is_match(l))?;
+    let footer = tail[nav_at].jtrim();
+    let notes = footer.starts_with("tab to add notes |") || footer.starts_with("tab or esc to clear notes |");
+    // Plan-mode questions keep their choices above a notes editor. Its prompt and
+    // wrapped text are input, not another option or part of the question's body.
+    let options_end = if footer.starts_with("tab or esc to clear notes |") {
+        find_last(&tail[..nav_at], |l| l.starts_with("  › ") && !CX_OPTION!().is_match(l))?
+    } else { nav_at };
     let mut options: Vec<PromptOption> = Vec::new();
-    let mut i = nav_at as isize - 1;
+    let mut i = options_end as isize - 1;
     while i >= 0 && tail[i as usize].is_blank() {
         i -= 1;
     }
@@ -1489,6 +1496,12 @@ fn parse_codex_menu(lines: &[String]) -> Option<ScreenPrompt> {
         if re!(r"^[›•] ").is_match(l) || re!(r"^\s*Worked for \d").is_match(l) {
             break;
         }
+        if notes && re!(r"^\s*Question \d+/\d+ \(\d+ unanswered\)$").is_match(l) {
+            // Keep progress in the question key even when two questions have
+            // identical text and choices, while leaving the question as title.
+            body.push(l.jtrim().to_owned());
+            break;
+        }
         // a dialog on a fresh screen sits under Codex's banner (">_ OpenAI Codex (v…)" and the folder)
         if re!(r"^\s*>_ OpenAI Codex\b").is_match(l) {
             if !body.is_empty() && re!(r"^[~/]").is_match(&body[0]) {
@@ -1499,7 +1512,13 @@ fn parse_codex_menu(lines: &[String]) -> Option<ScreenPrompt> {
         body.insert(0, l.jtrim().to_owned());
     }
     let mut p = prompt(body, options);
-    p.footer = Some(tail[nav_at].jtrim().to_owned());
+    // Only native question footers opt into free text; an ordinary menu choice
+    // named "Other" must retain its normal selection behavior.
+    let custom = if notes { Some("None of the above") }
+        else if footer.contains("skip") && footer.contains("main prompt") { Some("Other") }
+        else { None };
+    p.free_text_option = p.options.last().filter(|o| Some(o.label.as_str()) == custom).map(|o| o.n);
+    p.footer = Some(footer.to_owned());
     p.navigate = Some(true);
     Some(p)
 }

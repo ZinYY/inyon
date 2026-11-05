@@ -1,0 +1,10 @@
+  Question 1/1 (1 unanswered)
+  Which colour do you prefer?
+
+    1. Red                Choose red.
+    2. Blue               Choose blue.
+  › 3. None of the above  Optionally, add details in notes (tab)
+
+  › Add notes
+
+  tab or esc to clear notes | enter to submit answer

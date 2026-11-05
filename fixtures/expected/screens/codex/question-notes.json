@@ -1,0 +1,114 @@
+{
+  "auto": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "Which colour do you prefer?",
+          "Question 1/1 (1 unanswered)"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "detail": "Choose red.",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Blue",
+            "detail": "Choose blue.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "None of the above",
+            "detail": "Optionally, add details in notes (tab)",
+            "selected": false
+          }
+        ],
+        "footer": "tab to add notes | enter to submit answer | esc to interrupt",
+        "multi": false,
+        "freeTextOption": 3,
+        "navigate": true
+      },
+      "working": false,
+      "width": 64
+    },
+    "summary": "Which colour do you prefer?"
+  },
+  "80": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "Which colour do you prefer?",
+          "Question 1/1 (1 unanswered)"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "detail": "Choose red.",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Blue",
+            "detail": "Choose blue.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "None of the above",
+            "detail": "Optionally, add details in notes (tab)",
+            "selected": false
+          }
+        ],
+        "footer": "tab to add notes | enter to submit answer | esc to interrupt",
+        "multi": false,
+        "freeTextOption": 3,
+        "navigate": true
+      },
+      "working": false,
+      "width": 80
+    },
+    "summary": "Which colour do you prefer?"
+  },
+  "120": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "Which colour do you prefer?",
+          "Question 1/1 (1 unanswered)"
+        ],
+        "options": [
+          {
+            "n": 1,
+            "label": "Red",
+            "detail": "Choose red.",
+            "selected": true
+          },
+          {
+            "n": 2,
+            "label": "Blue",
+            "detail": "Choose blue.",
+            "selected": false
+          },
+          {
+            "n": 3,
+            "label": "None of the above",
+            "detail": "Optionally, add details in notes (tab)",
+            "selected": false
+          }
+        ],
+        "footer": "tab to add notes | enter to submit answer | esc to interrupt",
+        "multi": false,
+        "freeTextOption": 3,
+        "navigate": true
+      },
+      "working": false,
+      "width": 120
+    },
+    "summary": "Which colour do you prefer?"
+  },
+  "browsing": null
+}

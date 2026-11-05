@@ -103,8 +103,10 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
   const wholeLines = (prompt as { wholeLines?: boolean }).wholeLines === true
   const isQuestion = !!prompt.tabs?.length || /\?$/.test(title)
   const locked = busy !== null || !!disabled
+  const questionKey = promptKey(prompt)
 
   useEffect(() => setBusy(null), [prompt])
+  useEffect(() => setFreeText(null), [host, pane, questionKey, prompt.freeTextOption])
   useEffect(() => {
     if (freeText !== null) inputRef.current?.focus()
   }, [freeText !== null])

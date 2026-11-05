@@ -686,6 +686,26 @@ pub async fn answer(host_id: &str, pane_id: &str, option: u32, text: Option<&str
         let from = p.options.iter().find(|o| o.selected).map(|o| o.n as i64).unwrap_or(1);
         let delta = n as i64 - from;
         let mut keys = repeat(if delta > 0 { "Down" } else { "Up" }, delta.unsigned_abs() as usize);
+        let custom = text.filter(|t| p.free_text_option == Some(n) && !t.is_blank());
+        if let Some(t) = custom.filter(|_| kind == Some(AgentKind::Codex)) {
+            // Queued questions edit Other inline. Plan-mode questions instead
+            // open notes with Tab. Enter before typing would submit that choice.
+            let opens_notes = p.footer.as_deref().is_some_and(|f| f.starts_with("tab to add notes |"));
+            if opens_notes {
+                keys.push("Tab");
+            }
+            if !keys.is_empty() { send_keys(&host, pane_id, &keys).await?; }
+            let ready = |s: &ScreenState| s.prompt.as_ref().is_some_and(|sp|
+                prompt_key(&sp.body, &sp.options) == key && sp.options.iter().any(|o| o.n == n && o.selected)
+                && (!opens_notes || sp.footer.as_deref().is_some_and(|f| f.starts_with("tab or esc to clear notes |"))));
+            let selected = wait_screen(host_id, pane_id, &ready, 1500).await?;
+            if !ready(&selected) {
+                return Err(http(409, "The answer field did not open. Check the question before trying again."));
+            }
+            type_into(&host, pane_id, t, true).await?;
+            nudge(host_id, pane_id);
+            return Ok(());
+        }
         keys.push("Enter");
         send_keys(&host, pane_id, &keys).await?;
         if carries_on {

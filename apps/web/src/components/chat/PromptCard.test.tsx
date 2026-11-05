@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { promptKey, type ScreenPrompt } from '@inyon/protocol'
 import { PromptCard } from './PromptCard.tsx'
 import { api } from '../../test/fakes.ts'
@@ -74,4 +74,36 @@ test('whole lines from the hub keep their breaks; screen-wrapped ones are joined
 test('held while the machine reconnects: nothing can be pressed', async () => {
   await render(<PromptCard prompt={editPrompt} host="box" pane="%3" disabled />)
   for (const name of [/^1\s*Yes$/, /^2\s*No$/, 'Cancel']) expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+for (const label of ['Other', 'None of the above', 'Type something.']) {
+  test(`${label} opens a text field and sends the complete answer with its question`, async () => {
+    const prompt: ScreenPrompt = { body: ['Which colour?'], options: [
+      { n: 1, label: 'Red', selected: true }, { n: 2, label, selected: false },
+    ], multi: false, freeTextOption: 2 }
+    await render(<PromptCard prompt={prompt} host="box" pane="%3" />)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(label.replace('.', '\\.')) }))
+    const input = screen.getByRole('textbox', { name: 'Your answer' }) as HTMLTextAreaElement
+    expect(input).toBe(document.activeElement as HTMLTextAreaElement)
+    expect(api.answer).not.toHaveBeenCalled()
+    expect((screen.getByRole('button', { name: 'Send answer' }) as HTMLButtonElement).disabled).toBe(true)
+    const text = "Teal's shade\n第二行"
+    fireEvent.change(input, { target: { value: text } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send answer' }))
+    expect(api.answer.mock.calls.at(-1)).toEqual(['box', '%3', 2, text, promptKey(prompt)])
+  })
+}
+
+test('a refreshed question keeps a typed answer, but a different question discards it', async () => {
+  const prompt: ScreenPrompt = { body: ['Which colour?'], options: [
+    { n: 1, label: 'Red', selected: true }, { n: 2, label: 'Other', selected: false },
+  ], multi: false, freeTextOption: 2 }
+  const view = await render(<PromptCard prompt={prompt} host="box" pane="%3" />)
+  fireEvent.click(screen.getByRole('button', { name: /Other/ }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'Teal' } })
+  await act(async () => view.rerender(<PromptCard prompt={{ ...prompt }} host="box" pane="%3" />))
+  expect((screen.getByRole('textbox', { name: 'Your answer' }) as HTMLTextAreaElement).value).toBe('Teal')
+  await act(async () => view.rerender(<PromptCard prompt={{ ...prompt, body: ['Which fruit?'] }} host="box" pane="%3" />))
+  expect(screen.queryByRole('textbox', { name: 'Your answer' })).toBeNull()
+  expect(api.answer).not.toHaveBeenCalled()
 })
