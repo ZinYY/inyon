@@ -1239,3 +1239,39 @@ fn windows_codex_clipped_footer_keeps_only_the_same_threads_title() {
         }
     });
 }
+
+#[test]
+fn multiline_drafts_keep_shared_daemon_codex_panes_bound_to_their_own_thread() {
+    run(|| async {
+        let b = ModeBox::new();
+        let screen = b.screen.clone();
+        let current = "00000000-0000-0000-0000-000000000001";
+        let other = "00000000-0000-0000-0000-000000000002";
+        let _fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") {
+                ok(&format!("@@CAP %9\n{}\n", screen.borrow()))
+            } else if cmd.starts_with("find ") {
+                ok(&format!("/home/u/.codex/sessions/rollout-2026-01-01T00-00-00-{current}.jsonl\n"))
+            } else { ok("") }
+        });
+        for os in ["Darwin", "Linux", "Windows"] {
+            for draft in ["Ask Codex to do anything".to_owned(), "请比较两种方案。\n\n  第二段包含 customer's choice。".to_owned(), format!("Explain this ID:\n  {other} · GPT-6-Astra high")] {
+                let mut p = mode_probe(now_ms() as f64 / 1000.0);
+                p.os = os.into();
+                p.home = "/home/u".into();
+                p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+                // Both writer locks belong to a shared daemon, not to this pane's TUI.
+                p.codex_threads.insert(900, vec![current.into(), other.into()]);
+                b.draw(&format!("› {draft}\n\n  {current} · GPT-6-Astra high · Full Access\n  tab to queue message\n"));
+                let pr = Rc::new(RefCell::new(p));
+                registry().annotate_agents(&b.rt, &pr).await.unwrap();
+                let pane = pr.borrow().sessions[0].windows[0].panes[0].clone();
+                let agent = pane.agent.unwrap();
+                assert_eq!(agent.session_id.as_deref(), Some(current), "{os}: {draft}");
+                assert!(agent.transcript_path.as_ref().is_some_and(|path| path.contains(current)));
+                assert!(!b.rt.borrow().empty_codex.contains("%9"));
+                b.rt.borrow_mut().state.sessions = pr.borrow().sessions.clone();
+            }
+        }
+    });
+}

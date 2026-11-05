@@ -900,6 +900,37 @@ fn windows_native_footer_requires_a_current_composer_and_live_id() {
 }
 
 #[test]
+fn native_footer_identity_survives_wrapped_and_multiline_drafts() {
+    let id = "00000000-0000-0000-0000-000000000001".to_owned();
+    for marker in ["›", "»", "!"] {
+        for hint in ["  ? for shortcuts", "  tab to queue message"] {
+            let mut lines = vec![format!("{marker} 请比较这两种方案，先不要执行。")];
+            lines.extend((0..24).map(|_| "  A long wrapped draft with an apostrophe: customer's choice.".into()));
+            lines.extend(["".into(), "  第二段：请保留换行。".into(), "".into(), format!("  {id} · GPT-6-Astra high · Full Access"), hint.into(), "".into()]);
+            assert_eq!(codex_footer_thread(&lines, std::slice::from_ref(&id)), Some(id.clone()));
+        }
+    }
+}
+
+#[test]
+fn draft_ids_never_override_the_actual_codex_footer() {
+    let old = "00000000-0000-0000-0000-000000000001".to_owned();
+    let current = "00000000-0000-0000-0000-000000000002".to_owned();
+    let draft = vec!["› Explain this quoted footer:".into(), format!("  {old} · GPT-6-Astra high"), "".into()];
+    for footer in [format!("  {current} · GPT-6-Astra high"), format!("  {current} …")] {
+        let mut lines = draft.clone();
+        lines.extend([footer, "  ? for shortcuts".into()]);
+        assert_eq!(codex_footer_thread(&lines, &[old.clone(), current.clone()]), Some(current.clone()));
+        assert_eq!(codex_footer_thread(&lines, std::slice::from_ref(&old)), None, "the current footer must still have a live writer lock");
+    }
+    let mut hidden = draft.clone();
+    hidden.extend(["  GPT-6-Astra high · Full Access".into(), "  ? for shortcuts".into()]);
+    assert_eq!(codex_footer_thread(&hidden, std::slice::from_ref(&old)), None, "a UUID in the draft is not a configured footer");
+    let picker = vec!["Select an option".into(), "› 1. First".into(), format!("  {old} · GPT-6-Astra high"), "  enter select · esc back".into()];
+    assert_eq!(codex_footer_thread(&picker, std::slice::from_ref(&old)), None, "a highlighted menu item is not a composer");
+}
+
+#[test]
 fn windows_native_id_footer_keeps_the_title_separate_from_permissions() {
     let lines = ["› Draft", "  00000000-0000-0000-0000-000000000001 · GPT-6-Astra high · ~\\work · Coffee ideas · Full Access · weekly 15% left"].map(str::to_owned);
     assert_eq!(codex_psmux_footer_title(&lines, Some(r"C:\work")).as_deref(), Some("Coffee ideas"));

@@ -1259,6 +1259,11 @@ macro_rules! CX_FOOTER {
         re!(r"^ {2}(\S.*?) (default|none|minimal|low|medium|high|xhigh|max|ultra)(?: · |$)")
     };
 }
+macro_rules! CX_ID_FOOTER {
+    () => {
+        re!(r"^ {2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?: · | …$|$)")
+    };
+}
 /// "• Working (1m 16s • esc to interrupt) · 1 background terminal running": the verb, the time so far, the rest
 macro_rules! CX_WORKING {
     () => {
@@ -1311,37 +1316,41 @@ pub fn parse_psmux_screen(captured: &[String], pane_width: Option<u32>, agent: A
     parse_screen(captured, pane_width, agent)
 }
 
-fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> ScreenState {
-    let mut lines = trimmed_rows(raw);
-    let id_footer = (0..lines.len()).rev().find(|&i| i + 4 >= lines.len()
-        && re!(r"^ {2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?: · | …$|$)").is_match(&lines[i]));
-    if let Some(i) = id_footer {
-        lines[i] = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(&lines[i], "  ").into_owned();
+/// The current input box and its footer in unstyled rows. Drafts can wrap over many rows or
+/// contain blank lines and quoted UUIDs. Locate the last native footer first, then walk back
+/// through the draft to its unindented prompt; never treat a draft continuation as the footer.
+pub(crate) fn codex_composer_footer(lines: &[String]) -> Option<(usize, usize)> {
+    let end = lines.iter().rposition(|l| !l.is_blank())? + 1;
+    let footer = (end.saturating_sub(4)..end).rev().find(|&i| {
+        let line = lines[i].jtrim_end();
+        CX_ID_FOOTER!().is_match(line) || CX_FOOTER!().is_match(line)
+    })?;
+    if lines[footer + 1..end].iter().any(|line| re!(r"^[›»!](?: |$)").is_match(line)) {
+        return None; // an older footer above a newer input box is transcript content
     }
-    let width = width_of(pane_width, &lines);
-    let mut state = new_state(width);
-    let foot_at = id_footer.or_else(|| (0..lines.len()).rev().find(|&i| i + 4 >= lines.len() && CX_FOOTER!().is_match(&lines[i])));
-    let mut bx: Option<usize> = None;
-    if let Some(foot_at) = foot_at.filter(|&f| f > 0) {
-        for i in (0..foot_at).rev() {
-            // "»" instead of "›" when Ultra effort lets Codex delegate
-            if re!(r"^[›»!] ").is_match(&lines[i]) || re!(r"^[›»!]$").is_match(&lines[i]) {
-                // a highlighted menu row is not the composer
-                if !CX_OPTION!().is_match(&lines[i]) {
-                    bx = Some(i);
-                }
-                break;
-            }
-            if !lines[i].is_empty() && !lines[i].starts_with("  ") {
-                break;
-            }
+    for i in (0..footer).rev() {
+        let line = lines[i].jtrim_end();
+        if re!(r"^[›»!](?: |$)").is_match(line) {
+            return (!CX_OPTION!().is_match(line)).then_some((i, footer));
+        }
+        if !line.is_empty() && !line.starts_with("  ") {
+            return None;
         }
     }
-    let Some(bx) = bx else {
+    None
+}
+
+fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> ScreenState {
+    let mut lines = trimmed_rows(raw);
+    let width = width_of(pane_width, &lines);
+    let mut state = new_state(width);
+    let Some((bx, foot_at)) = codex_composer_footer(&lines) else {
         state.prompt = parse_codex_menu(&lines);
         return state;
     };
-    let foot_at = foot_at.unwrap();
+    if CX_ID_FOOTER!().is_match(&lines[foot_at]) {
+        lines[foot_at] = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(&lines[foot_at], "  ").into_owned();
+    }
     state.input_visible = Some(true);
     if let Some(foot) = CX_FOOTER!().captures(&lines[foot_at]) {
         state.model = Some(foot[1].to_owned());

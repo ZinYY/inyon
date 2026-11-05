@@ -551,10 +551,8 @@ pub fn codex_title(title: &str, cwd: Option<&str>) -> String {
 /// owns all writer locks. Only accept a live ID in the footer below the composer.
 pub fn codex_footer_thread(lines: &[String], owned: &[String]) -> Option<String> {
     let clean: Vec<_> = lines.iter().map(|l| crate::claude::screen::unstyle(l).text).collect();
-    let prompt = clean.iter().rposition(|l| l.trim_start().chars().next().is_some_and(|c| matches!(c, '›' | '»' | '!')))?;
-    let footer = clean[prompt + 1..].iter().filter(|l| !l.trim().is_empty()).collect::<Vec<_>>();
-    if footer.len() > 3 { return None; }
-    let line = footer.first()?.trim();
+    let (_, footer) = crate::claude::screen::codex_composer_footer(&clean)?;
+    let line = clean[footer].trim();
     let m = re!(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · | …$|$)").captures(line)?;
     owned.iter().find(|id| id.as_str() == &m[1]).cloned()
 }

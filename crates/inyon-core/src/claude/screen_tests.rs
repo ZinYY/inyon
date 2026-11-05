@@ -71,6 +71,27 @@ fn codex_id_footer_preserves_input_working_and_model_on_all_platforms_and_narrow
         serde_json::to_value(parse_psmux_screen(&ordinary, Some(80), AgentKind::Codex)).unwrap());
 }
 
+#[test]
+fn codex_multiline_drafts_preserve_quoted_ids_without_becoming_the_status_line() {
+    let quoted = "00000000-0000-0000-0000-000000000001";
+    let current = "00000000-0000-0000-0000-000000000002";
+    for footer in [format!("  {current} · GPT-6-Astra high · Full Access"), "  GPT-6-Astra high · Full Access".into()] {
+        let rows = vec!["› Please explain this quoted status line:".into(),
+            format!("  {quoted} · GPT-6-Sol low"), "".into(),
+            "  第二段包含 customer's choice。".into(), "".into(), footer,
+            "  ? for shortcuts".into()];
+        for parsed in [parse_screen(&rows, Some(120), AgentKind::Codex), parse_psmux_screen(&rows, Some(120), AgentKind::Codex)] {
+            assert_eq!(parsed.input_visible, Some(true));
+            assert_eq!(parsed.model.as_deref(), Some("GPT-6-Astra"));
+            assert_eq!(parsed.effort.as_deref(), Some("high"));
+            let draft = parsed.draft.unwrap();
+            assert!(draft.contains(quoted));
+            assert!(draft.contains("customer's choice"));
+            assert!(!draft.contains(current));
+        }
+    }
+}
+
 fn labels(p: &ScreenPrompt) -> Vec<&str> {
     p.options.iter().map(|o| o.label.as_str()).collect()
 }
