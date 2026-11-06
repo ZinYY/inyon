@@ -70,6 +70,8 @@ export function settle(pending: PendingMessage[], items: ChatItem[], sends: read
     if (!s) return untracked.includes(p) ? [p] : []
     if (s.state === 'delivered') return []
     if (s.state === 'queued') return [{ ...p, queued: true, status: 'sent' }]
+    // A reload loses the HTTP response, but a live hub receipt still owns this send.
+    if (p.status === 'failed' && (s.state === 'sending' || s.state === 'sent')) return [{ ...p, queued: false, status: s.state, error: undefined, retryable: undefined }]
     // the reply to the request can be lost (a phone asleep); the ledger still knows
     if (s.state === 'failed' && p.status === 'sent') return [{ ...p, status: 'failed', error: s.error }]
     return [p.queued ? { ...p, queued: false } : p]

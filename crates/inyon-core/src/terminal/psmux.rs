@@ -211,12 +211,22 @@ pub(crate) async fn send_input(host: &Host, pane: &str, text: &str) -> HubResult
 /// losing separators even inside an explicit paste envelope. Send each newline as
 /// Ctrl+J, after the preceding text is acknowledged, with time for the TUI to consume it.
 pub(crate) async fn send_paste(host: &Host, pane: &str, text: &str) -> HubResult<()> {
-    let mut parts = vec![Some("\x1b[200~".to_owned())];
-    for (i, line) in text.split('\n').enumerate() {
-        if i > 0 { parts.push(None); }
-        parts.push(Some(line.to_owned()));
+    // A Windows console paste can become several Codex burst placeholders. Flush
+    // the body before a short final paste so its literal ending proves consumption.
+    // Right at the end changes no text; outside the paste envelope it also works
+    // when the terminal supports bracketed paste directly.
+    let split = (text.chars().count() > 4096).then(|| text.char_indices().rev().nth(255).unwrap().0);
+    let chunks = split.map_or_else(|| vec![text], |at| vec![&text[..at], &text[at..]]);
+    let mut parts = vec![];
+    for chunk in chunks {
+        parts.push(Some("\x1b[200~".to_owned()));
+        for (i, line) in chunk.split('\n').enumerate() {
+            if i > 0 { parts.push(None); }
+            parts.push(Some(line.to_owned()));
+        }
+        parts.push(Some("\x1b[201~".to_owned()));
+        if split.is_some() { parts.push(Some("\x1b[C".to_owned())); }
     }
-    parts.push(Some("\x1b[201~".to_owned()));
     send_parts(host, pane, parts, true).await
 }
 
@@ -335,6 +345,23 @@ mod tests {
                     }
                     assert_eq!(reconstructed, "\x1b[200~first\n\n中文 last\x1b[201~".as_bytes());
                     assert!(!written.iter().any(|s| s.contains("Enter")));
+                    drop(written);
+                    writes.borrow_mut().clear();
+                    let long = "正文😀 customer's text\n".repeat(300) + &"tail中文😀".repeat(60);
+                    send_paste(&host, "%14.1", &long).await.unwrap();
+                    let written = writes.borrow();
+                    let mut reconstructed = Vec::new();
+                    for s in written.iter() {
+                        if s.ends_with(" C-j\n") { reconstructed.push(b'\n'); }
+                        else { reconstructed.extend(s.trim().strip_prefix("send-keys -t %1 -H ").unwrap().split(' ').map(|b| u8::from_str_radix(b, 16).unwrap())); }
+                    }
+                    let stream = String::from_utf8(reconstructed).unwrap();
+                    let chunks: Vec<_> = stream.split("\x1b[201~\x1b[C").filter(|s| !s.is_empty()).map(|s| s.strip_prefix("\x1b[200~").unwrap()).collect();
+                    assert_eq!(chunks.len(), 2);
+                    assert_eq!(chunks[1].chars().count(), 256);
+                    assert_eq!(chunks.concat(), long, "split pastes preserve all Unicode and newlines");
+                    assert!(!stream.contains('\r'), "confirmation still owns Enter");
+
                 }
             }
         });

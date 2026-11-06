@@ -123,7 +123,9 @@ pub fn input_shown(screen: &ScreenState, text: &str, known: bool) -> bool {
         let mut pieces = Vec::new();
         let mut end = 0;
         for span in spans.find_iter(draft) {
-            pieces.push(draft[end..span.start()].chars().rev().collect::<String>());
+            // The viewport may begin halfway through an earlier placeholder.
+            // Match from the first complete span, leaving that clipped prefix unknown.
+            if end != 0 { pieces.push(draft[end..span.start()].chars().rev().collect::<String>()); }
             pieces.push(span.as_str().to_owned());
             end = span.end();
         }

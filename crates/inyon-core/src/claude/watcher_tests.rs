@@ -1191,3 +1191,19 @@ fn scrolling_a_codex_composer_never_replaces_the_full_app_draft() {
         watchers().stop(KEY);
     });
 }
+
+#[test]
+fn closing_the_page_keeps_a_slow_mirror_and_send_ledger_alive() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        w.track_send("slow", "complete long text", false);
+        w.st.borrow_mut().mirroring = Some(Deferred::new());
+        watchers().stop_if_idle(KEY);
+        assert!(watchers().peek(&w.host_id, &w.pane_id).is_some());
+        assert_eq!(w.delivery("slow").unwrap().state, SendStatus::Sending);
+        assert!(!w.st.borrow().stopped);
+        w.st.borrow_mut().mirroring = None;
+        watchers().stop_if_idle(KEY);
+        assert!(watchers().peek(&w.host_id, &w.pane_id).is_none());
+    });
+}

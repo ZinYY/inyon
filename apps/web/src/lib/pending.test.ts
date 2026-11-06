@@ -157,6 +157,14 @@ describe('settle', () => {
   })
 })
 
+test('a live hub receipt restores a sending bubble recovered after reload', () => {
+  const p: PendingMessage = { ...msg('long text'), status: 'failed', error: 'Delivery was interrupted. Check the terminal before retrying.' }
+  for (const state of ['sending', 'sent'] as const) {
+    const receipt: SendState = { id: p.id, text: p.text, at: p.at, state }
+    expect(settle([p], [], [receipt])).toEqual([{ ...p, status: state, queued: false, error: undefined, retryable: undefined }])
+  }
+})
+
 describe('othersSends', () => {
   afterEach(() => setSystemTime())
   const send = (id: string, state: SendState['state'], ageMs = 0): SendState => ({ id, text: `text ${id}`, at: T - ageMs, state })

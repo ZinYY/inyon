@@ -277,3 +277,14 @@ fn clipped_split_pastes_require_the_known_literal_ending() {
     partial.draft = screen.draft.clone(); partial.draft_clipped = Some("both".into());
     assert!(!input_shown(&partial, &text, true));
 }
+
+#[test]
+fn clipped_partial_placeholder_does_not_hide_the_complete_known_tail() {
+    let text = "prefix ".repeat(1000) + &"x".repeat(1200) + " unique complete literal ending 068";
+    let mut screen = state(false, Some("GPT-6-Luna"));
+    screen.input_visible = Some(true); screen.draft_clipped = Some("start".into());
+    screen.draft = Some("7540 chars] leftover [Pasted Content 1200 chars] unique complete literal ending 068".into());
+    assert!(input_shown(&screen, &text, true));
+    assert!(!input_shown(&screen, &text, false));
+    assert!(!input_shown(&screen, &(text + " unfinished"), true));
+}

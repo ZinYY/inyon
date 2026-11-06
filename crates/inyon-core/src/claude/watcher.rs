@@ -995,7 +995,7 @@ impl ChatWatcher {
             return;
         }
         let key = self.key.clone();
-        let t = set_timeout(IDLE_SHUTDOWN_MS, move || watchers().stop(&key));
+        let t = set_timeout(IDLE_SHUTDOWN_MS, move || watchers().stop_if_idle(&key));
         let mut st = self.st.borrow_mut();
         rt::clear(&mut st.idle_timer);
         st.idle_timer = Some(t);
@@ -1007,7 +1007,7 @@ impl ChatWatcher {
         if st.subs.is_empty() {
             let key = self.key.clone();
             // the TS leaves an earlier idle timer running beside this one; both stop the same watcher
-            st.idle_timer = Some(set_timeout(IDLE_SHUTDOWN_MS, move || watchers().stop(&key)));
+            st.idle_timer = Some(set_timeout(IDLE_SHUTDOWN_MS, move || watchers().stop_if_idle(&key)));
         }
     }
 
@@ -3228,6 +3228,16 @@ impl WatchersRef {
 
     pub fn peek(&self, host_id: &str, pane_id: &str) -> Option<Rc<ChatWatcher>> {
         self.with(|w| w.map.borrow().get(&chat_key(host_id, pane_id)).cloned())
+    }
+
+    fn stop_if_idle(&self, key: &str) {
+        let Some(w) = self.with(|ws| ws.map.borrow().get(key).cloned()) else { return };
+        if !w.st.borrow().subs.is_empty() { return; }
+        if w.st.borrow().mirroring.is_some() || super::actions::typing_in_progress(&w.host_id, &w.pane_id) {
+            w.idle_later();
+            return;
+        }
+        self.stop(key);
     }
 
     pub fn stop(&self, key: &str) {
