@@ -128,6 +128,12 @@ pub async fn clear_input(host_id: &str, pane_id: &str, draft: &str) -> HubResult
     if registry().get(host_id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
         && !crate::tmux::herdr::enabled(&host)
     {
+        if registry().pane_agent(host_id, pane_id).is_some_and(|a| a.kind == inyon_protocol::AgentKind::Codex)
+            && crate::terminal::psmux::available(&host)
+        {
+            let text: String = keys.iter().map(|k| if *k == "C-u" { '\x15' } else { '\x7f' }).collect();
+            return crate::terminal::psmux::send_input(&host, pane_id, &text).await;
+        }
         // PSmux accepts a key sequence in one request. Separate processes per key leave
         // the composer halfway cleared across many redraws and round trips on Windows.
         let cmd = format!("tmux send-keys -t {} {}", crate::hosts::host::shq(pane_id), keys.join(" "));

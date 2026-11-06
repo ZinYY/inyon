@@ -110,6 +110,11 @@ struct LaneTurn {
     done: Deferred<()>,
 }
 
+pub(super) fn typing_in_progress(host_id: &str, pane_id: &str) -> bool {
+    let key = crate::js::json::stringify(&json!([host_id, pane_id]));
+    LANES.with(|l| l.borrow().contains_key(&key))
+}
+
 impl Drop for LaneTurn {
     fn drop(&mut self) {
         LANES.with(|l| {

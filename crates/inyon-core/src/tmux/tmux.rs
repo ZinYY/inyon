@@ -1006,7 +1006,7 @@ pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> Hub
                 if crate::terminal::psmux::available(host) {
                     // Force the paste envelope on the same byte channel as Terminal. The
                     // buffer path depends on PSmux's cached bracket mode and newline conversion.
-                    crate::terminal::psmux::send_input(host, pane, &format!("\x1b[200~{input}\x1b[201~")).await?;
+                    crate::terminal::psmux::send_paste(host, pane, &input).await?;
                     if submit {
                         sleep(150).await;
                         send_keys(host, pane, &["Enter"]).await?;

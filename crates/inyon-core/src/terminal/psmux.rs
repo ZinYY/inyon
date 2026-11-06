@@ -204,33 +204,69 @@ pub(crate) fn available(host: &Host) -> bool {
 /// The same private byte channel as Terminal, without attaching or resizing a view.
 /// Text is written on the control stream, never put in process arguments or a CLI debug log.
 pub(crate) async fn send_input(host: &Host, pane: &str, text: &str) -> HubResult<()> {
+    send_parts(host, pane, vec![Some(text.to_owned())], false).await
+}
+
+/// Windows Codex can treat a fast run of console newline events as a paste burst,
+/// losing separators even inside an explicit paste envelope. Send each newline as
+/// Ctrl+J, after the preceding text is acknowledged, with time for the TUI to consume it.
+pub(crate) async fn send_paste(host: &Host, pane: &str, text: &str) -> HubResult<()> {
+    let mut parts = vec![Some("\x1b[200~".to_owned())];
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 { parts.push(None); }
+        parts.push(Some(line.to_owned()));
+    }
+    parts.push(Some("\x1b[201~".to_owned()));
+    send_parts(host, pane, parts, true).await
+}
+
+async fn send_parts(host: &Host, pane: &str, parts: Vec<Option<String>>, paced: bool) -> HubResult<()> {
     let raw = raw_pane(pane).ok_or_else(|| http(400, "Invalid PSmux pane"))?;
     let found = crate::hosts::registry::registry().find_pane(&host.config().id, pane)
         .ok_or_else(|| http(404, "Pane not found"))?;
-    let mut decoder = Decoder::new(raw);
-    let command = decoder.input(text);
-    if command.is_empty() { return Ok(()); }
-    let done = Deferred::<Result<(), String>>::new();
-    let reply = done.clone();
+    let decoder = Rc::new(RefCell::new(Decoder::new(raw.clone())));
+    let active = Rc::new(RefCell::new(None::<Deferred<Result<(), String>>>));
+    let failure = Rc::new(RefCell::new(None::<String>));
+    let (read, reply, error) = (decoder.clone(), active.clone(), failure.clone());
     let cmd = format!("inyon-psmux-control:{}", serde_json::to_string(&found.session.name).expect("session string"));
     let pipe = host.pty(&cmd, 80, 24, move |bytes| {
-        match decoder.feed(&bytes) {
-            Err(e) => reply.resolve(Err(e)),
-            Ok(_) if decoder.replies.is_empty() && decoder.frame.is_none() => reply.resolve(Ok(())),
-            _ => {}
-        }
+        let mut decoder = read.borrow_mut();
+        let result = match decoder.feed(&bytes) {
+            Err(e) => { *error.borrow_mut() = Some(e.clone()); Some(Err(e)) }
+            Ok(_) if decoder.replies.is_empty() && decoder.frame.is_none() => Some(Ok(())),
+            _ => None,
+        };
+        if let (Some(result), Some(done)) = (result, reply.borrow().as_ref()) { done.resolve(result); }
     })?;
-    pipe.write(&command);
-    for _ in 0..100 {
-        if done.is_settled() { break; }
-        if pipe.exited.is_settled() {
-            done.resolve(Err("Windows input connection closed before acknowledgement".into()));
-            break;
+    let mut result = Ok(());
+    for part in parts {
+        if let Some(e) = failure.borrow().clone() { result = Err(e); break; }
+        let command = match part {
+            Some(text) => decoder.borrow_mut().input(&text),
+            None => {
+                decoder.borrow_mut().replies.push_back(Reply::Input);
+                format!("send-keys -t {raw} C-j\n")
+            }
+        };
+        if command.is_empty() { continue; }
+        let done = Deferred::<Result<(), String>>::new();
+        *active.borrow_mut() = Some(done.clone());
+        pipe.write(&command);
+        for _ in 0..100 {
+            if done.is_settled() { break; }
+            if pipe.exited.is_settled() {
+                done.resolve(Err("Windows input connection closed before acknowledgement".into()));
+                break;
+            }
+            sleep(50).await;
         }
-        sleep(50).await;
+        result = done.value().unwrap_or_else(|| Err("Windows input acknowledgement timed out".into()));
+        *active.borrow_mut() = None;
+        if result.is_err() { break; }
+        if paced { sleep(60).await; }
     }
     pipe.kill();
-    done.value().unwrap_or_else(|| Err("Windows input acknowledgement timed out".into())).map_err(|e| http(409, e))
+    result.map_err(|e| http(409, e))
 }
 
 #[cfg(test)]
@@ -281,6 +317,25 @@ mod tests {
                 }).collect::<Vec<_>>();
                 assert_eq!(bytes, text.as_bytes());
                 assert_eq!(writes.borrow().len(), 1, "no duplicate fallback after an uncertain write");
+                if result.is_ok() {
+                    writes.borrow_mut().clear();
+                    let at = crate::clock::now_ms();
+                    send_paste(&host, "%14.1", "first\n\n中文 last").await.unwrap();
+                    assert!(crate::clock::now_ms() - at >= 360, "pace each acknowledged text/newline event");
+                    let written = writes.borrow();
+                    assert_eq!(written.len(), 6);
+                    assert_eq!(written[2], "send-keys -t %1 C-j\n");
+                    assert_eq!(written[3], "send-keys -t %1 C-j\n");
+                    let mut reconstructed = Vec::new();
+                    for s in written.iter() {
+                        if s.ends_with(" C-j\n") { reconstructed.push(b'\n'); }
+                        else {
+                            reconstructed.extend(s.trim().strip_prefix("send-keys -t %1 -H ").unwrap().split(' ').map(|b| u8::from_str_radix(b, 16).unwrap()));
+                        }
+                    }
+                    assert_eq!(reconstructed, "\x1b[200~first\n\n中文 last\x1b[201~".as_bytes());
+                    assert!(!written.iter().any(|s| s.contains("Enter")));
+                }
             }
         });
     }

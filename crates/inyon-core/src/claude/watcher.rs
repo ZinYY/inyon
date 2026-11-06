@@ -745,6 +745,9 @@ impl ChatWatcher {
         let until = self.st.borrow().sending_until;
         // read once: the clock can tick between two reads
         let now = now_ms();
+        // Paced Windows input can outlast the grace period. The action lane owns
+        // the keyboard until it actually finishes, including on a slow connection.
+        let until = if super::actions::typing_in_progress(&self.host_id, &self.pane_id) { until.max(now + 1000) } else { until };
         if now < until {
             let t = self.later(until - now + 100, |w| w.mirror());
             let mut st = self.st.borrow_mut();
@@ -960,6 +963,7 @@ impl ChatWatcher {
 
     /// The terminal's input box changed: if someone typed there, adopt it as the draft.
     fn sync_draft_from_screen(&self) {
+        if super::actions::typing_in_progress(&self.host_id, &self.pane_id) { return; }
         let term = {
             let st = self.st.borrow();
             if st.mirroring.is_some() || now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) || st.screen.draft_clipped.is_some() {

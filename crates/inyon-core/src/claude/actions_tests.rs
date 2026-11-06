@@ -1340,3 +1340,31 @@ fn windows_codex_pastes_keep_linefeeds_and_submit_only_with_a_separate_enter() {
         }
     });
 }
+
+#[test]
+fn a_slow_send_keeps_draft_mirroring_out_until_its_action_lane_finishes() {
+    run(|| async {
+        let fake = Fake::install(|_, cmd, _| if cmd.contains("capture-pane") {
+            ok("@@CAP %9\n› \n\n  GPT-6-Astra high · ~\n")
+        } else { ok("") });
+        pane("slow-send", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }])).borrow_mut().hold_polls();
+        let w = watchers().get("slow-send", "%9");
+        let writer = w.clone();
+        let sending = spawn_task(async move {
+            in_lane("slow-send", "%9", move || async move {
+                writer.begin_send().await;
+                writer.draft_from_app("next message", None);
+                sleep(20_000).await;
+                Ok(())
+            }).await
+        });
+        crate::test_support::rt::wait(16_000).await;
+        assert!(typing_in_progress("slow-send", "%9"));
+        assert!(!fake.cmds().iter().any(|s| s.contains("send-keys") || s.contains("paste-buffer")));
+        sending.wait().await.unwrap();
+        crate::test_support::rt::wait(2500).await;
+        assert!(!typing_in_progress("slow-send", "%9"));
+        assert!(fake.cmds().iter().any(|s| s.contains("send-keys") || s.contains("paste-buffer")));
+        w.stop();
+    });
+}
