@@ -168,8 +168,8 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
     // writes next and show as delivered
     check_send(host_id, pane_id, text)?;
     let w = watchers().get(host_id, pane_id);
-    if w.delivery(&id).is_some_and(|s| matches!(s.state, SendStatus::Sent | SendStatus::Queued | SendStatus::Delivered)) {
-        return Ok(());
+    if let Some(sent) = w.delivery(&id).filter(|s| matches!(s.state, SendStatus::Sent | SendStatus::Queued | SendStatus::Delivered)) {
+        return if sent.text == text { Ok(()) } else { Err(http(409, "This send ID already belongs to different text. Send a new message.")) };
     }
     w.track_send(&id, text, setting);
     let r = async {

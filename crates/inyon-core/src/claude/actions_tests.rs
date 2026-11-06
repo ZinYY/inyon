@@ -1381,6 +1381,22 @@ fn windows_codex_tabs_use_exact_direct_input_and_never_fall_back_to_keys() {
 }
 
 #[test]
+fn a_confirmed_send_id_only_accepts_a_retry_of_the_same_text() {
+    run(|| async {
+        let fake = Fake::install(|_, _, _| ok(""));
+        pane("retry-id", json!([{ "id":"%1", "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        let w = watchers().get("retry-id", "%1");
+        w.track_send("same-id", "original\ttext", false);
+        w.settle_send("same-id", Some(SendStatus::Delivered), None);
+        let count = fake.calls.borrow().len();
+        assert!(send_and_follow("retry-id", "%1", "original\ttext", true, "same-id".into(), false, false).await.is_ok());
+        assert!(send_and_follow("retry-id", "%1", "changed text", true, "same-id".into(), false, false).await.is_err());
+        assert_eq!(fake.calls.borrow().len(), count, "neither retry writes to the terminal or API");
+        w.stop();
+    });
+}
+
+#[test]
 fn a_slow_send_keeps_draft_mirroring_out_until_its_action_lane_finishes() {
     run(|| async {
         let fake = Fake::install(|_, cmd, _| if cmd.contains("capture-pane") {
