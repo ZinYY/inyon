@@ -1019,7 +1019,7 @@ fn function_call(p: Option<&Value>, meta: &mut TranscriptMeta, base: &Base, uuid
         return vec![tool("TodoWrite", obj([("todos", Some(Value::Array(todos)))]))];
     }
     if matches!(name, Some("request_user_input" | "request_user_input_async")) {
-        let input = obj([("questions", Some(questions(args)))]);
+        let input = obj([("questions", Some(questions(args))), ("async", (name == Some("request_user_input_async")).then_some(Value::Bool(true)))]);
         meta.tools.insert(call_id.clone(), crate::claude::transcript::ToolCall { name: "AskUserQuestion".into(), input: input.clone() });
         return vec![tool("AskUserQuestion", input)];
     }

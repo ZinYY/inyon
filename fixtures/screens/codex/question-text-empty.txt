@@ -1,0 +1,10 @@
+• Working (5s • esc to interrupt)
+
+[2m• [0mQueued follow-up inputs
+
+
+  [38;2;99;168;248mWhat label should this test use?[39m
+
+  [2mType your answer[0m
+
+  [1menter[0m submit   [1m⌃][0m skip   [1m⇧→[0m main prompt

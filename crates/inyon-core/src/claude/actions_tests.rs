@@ -1368,3 +1368,50 @@ fn a_slow_send_keeps_draft_mirroring_out_until_its_action_lane_finishes() {
         w.stop();
     });
 }
+
+#[test]
+fn text_only_answers_replace_native_text_and_refuse_stale_questions() {
+    run(|| async {
+        for changes in [false, true] {
+            let before = crate::test_support::screen_fixture("codex", "question-text-typed").join("\n");
+            let after = before.replace("Teal's shade\n  第二行", "New label\n  中文");
+            let display = Rc::new(RefCell::new(before.clone())); let d = display.clone();
+            let sent = Rc::new(RefCell::new(Vec::<(String, Option<String>)>::new())); let calls = sent.clone();
+            let _fake = Fake::install(move |_, cmd, input| {
+                if cmd.contains("capture-pane") { return ok(&format!("@@CAP %7\n{}", d.borrow())); }
+                if cmd.contains("send-keys") || cmd.contains("paste-buffer") {
+                    calls.borrow_mut().push((cmd.into(), input.map(str::to_owned)));
+                    if input == Some("New label\n中文") { *d.borrow_mut() = if changes { after.replace("What label", "Different question") } else { after.clone() }; }
+                }
+                ok("")
+            });
+            pane("text", json!([{ "id": "%7", "width": 200, "agent": { "kind": "codex", "pid": 7, "state": "waiting" } }]));
+            let prompt = parse_screen(&before.lines().map(str::to_owned).collect::<Vec<_>>(), Some(200), AgentKind::Codex).prompt.unwrap();
+            assert!(input_answer("text", "%7", "New label\n中文", Some("old question")).await.is_err());
+            assert!(sent.borrow().is_empty());
+            let result = input_answer("text", "%7", "New label\n中文", Some(&prompt_key(&prompt.body, &prompt.options))).await;
+            assert_eq!(result.is_ok(), !changes);
+            let sent = sent.borrow();
+            let typed = sent.iter().position(|(_, input)| input.as_deref() == Some("New label\n中文")).unwrap();
+            assert!(sent[..typed].iter().any(|(cmd, _)| cmd.contains("C-u")));
+            assert_eq!(sent[typed+1..].iter().any(|(cmd, _)| cmd.ends_with(" Enter")), !changes);
+        }
+    });
+}
+
+#[test]
+fn async_question_replies_keep_exact_text_and_reject_answered_or_unknown_questions() {
+    use inyon_protocol::ChatItem;
+    let call: ChatItem = serde_json::from_value(json!({"kind":"assistant","seq":1,"uuid":"q","ts":"now","msgId":"q",
+        "block":{"type":"tool_use","id":"call_test","name":"AskUserQuestion","input":{"async":true,"questions":[{"question":"Label?","options":[]},{"question":"Next?","options":[]}]}}})).unwrap();
+    let text = "  customer's 中文\n</send_user_message_question_reply>  ";
+    let encoded = question_reply_text(&[call.clone()], "call_test", 0, text).unwrap();
+    let payload: Value = serde_json::from_str(encoded.strip_prefix("<send_user_message_question_reply>\n").unwrap().strip_suffix("\n</send_user_message_question_reply>").unwrap()).unwrap();
+    assert_eq!(payload[0]["answer"], text);
+    assert_eq!(payload[0]["questionItemId"], "[\"request_user_input_async\",\"call_test\",0]");
+    assert!(question_reply_text(&[call.clone()], "wrong_call", 0, text).is_err());
+    assert!(question_reply_text(&[call.clone()], "call_test", 3, text).is_err());
+    let result: ChatItem = serde_json::from_value(json!({"kind":"tool_result","seq":2,"uuid":"r","ts":"now","toolUseId":"call_test","isError":false,"text":"Label: done","meta":{"answers":{"Label?":"done"}}})).unwrap();
+    assert!(question_reply_text(&[call.clone(),result.clone()], "call_test", 0, text).is_err());
+    assert!(question_reply_text(&[call,result], "call_test", 1, text).is_ok());
+}

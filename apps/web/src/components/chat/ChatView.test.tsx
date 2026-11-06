@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, jest, mock, spyOn, test } from 'bun:test'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ChatItem, SendState } from '@inyon/protocol'
 import { ChatView, reconnect } from './ChatView.tsx'
 import { GoalRow } from './Messages.tsx'
@@ -173,6 +173,23 @@ describe('ChatView', () => {
     await flush()
     expect(screen.getByText('Question answered')).toBeTruthy()
     expect(screen.getByText('Red')).toBeTruthy()
+  })
+
+
+  test('an unanswered async text question remains answerable after Codex ends its turn', async () => {
+    useStore.setState({ connected: true, hosts: [host('box', { panes: [agentPane('%1', 'codex', { agent: { kind: 'codex', pid: 1, state: 'idle', sessionId: 'current' } })] })] })
+    render(<ChatView host="box" pane="%1" agent="codex" onTerminal={() => {}} />)
+    load([item.user('ask me'), item.tool('call_text', 'AskUserQuestion', { async: true, questions: [{ question: 'What label?', options: [] }] }), item.end(100)], chatInfo({ sessionId: 'current', agent: 'codex' }))
+    act(() => emit({ t: 'chat.screen', key: 'box:%1', screen: { working: false, width: 120 } }))
+    await flush()
+    const answer = "Teal's shade\n中文"
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: answer } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send answer' }))
+    expect(api.questionReply).toHaveBeenCalledWith('box', '%1', 'current', 'call_text', 0, answer)
+    act(() => emit({ t: 'chat.append', key: 'box:%1', items: [{ ...item.result('call_text', 'answered'), meta: { answers: { 'What label?': answer } } } as ChatItem] }))
+    await flush()
+    expect(screen.queryByRole('textbox', { name: 'Your answer' })).toBeNull()
+    expect(screen.getByText('Question answered')).toBeTruthy()
   })
 
   // the terminal draws only the highlighted option's preview, so the card shows every one

@@ -16,7 +16,7 @@ use crate::platform::store::{key_part, kv};
 pub const KEEP: usize = 300;
 /// Bumped when reading a transcript changes how the summary is built (tasks, queue, subagents), so
 /// a chat saved by an older reader is read again from the start instead of carrying its mistakes on.
-pub const READER: u32 = 7;
+pub const READER: u32 = 8;
 
 fn store_key(key: &str) -> String {
     format!("chats/{}", key_part(key))

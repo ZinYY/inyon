@@ -738,12 +738,23 @@ pub fn add(routes: &mut Routes) {
     guarded(routes, "/api/hosts/:id/panes/:pane/files", vec![(M::GET, h(|r| async move { Ok(json_of(&feat::list_files(&id(&r), &pane(&r)).await?)) }))]);
     guarded(
         routes,
+        "/api/hosts/:id/panes/:pane/question-reply",
+        vec![(M::POST, h(|mut r| async move {
+            let b = r.body().await?;
+            let index = b.get("index").and_then(Value::as_u64).ok_or_else(|| http(400, "Question index is required"))?;
+            actions::question_reply(&id(&r), &pane(&r), &str_or_empty(field(&b, "session")?),
+                &str_or_empty(field(&b, "call")?), index as usize, &str_or_empty(field(&b, "text")?)).await?;
+            Ok(ok())
+        }))],
+    );
+    guarded(
+        routes,
         "/api/hosts/:id/panes/:pane/input",
         vec![(
             M::POST,
             h(|mut r| async move {
                 let b = r.body().await?;
-                actions::input_answer(&id(&r), &pane(&r), &str_or_empty(field(&b, "text")?)).await?;
+                actions::input_answer(&id(&r), &pane(&r), &str_or_empty(field(&b, "text")?), as_str(field(&b, "question")?).as_deref()).await?;
                 Ok(ok())
             }),
         )],

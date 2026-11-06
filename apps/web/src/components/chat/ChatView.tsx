@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import clsx from 'clsx'
 import { ArrowDown, History, Play, SquareTerminal } from 'lucide-react'
 import { agentDef, chatKey, type AgentKind, type HeldPrompt, type HostStatus, type LiveItem } from '@inyon/protocol'
+import { pendingTextQuestion } from '../../lib/asyncQuestion.ts'
 import { lastAsk } from '../../lib/lastAsk.ts'
 import { socket } from '../../lib/socket.ts'
 import { msgKey, notifyTag, patchChat, PENDING_MS, toast, useStore, type PendingMessage } from '../../lib/store.ts'
@@ -92,6 +93,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   // a question asked before the connection dropped (opened from its alert, say) keeps its buttons,
   // held until the machine is back and its own screen takes over
   const shownPrompt = prompt ?? (connected ? undefined : lastAsk(host, pane))
+  const textQuestion = useMemo(() => agent === 'codex' ? pendingTextQuestion(chat?.items ?? []) : undefined, [agent, chat?.items])
   const reconnecting = useReconnecting(machine?.status)
   const queue = chat?.info?.queue ?? NO_QUEUE
   const held = chat?.info?.held ?? NO_HELD
@@ -492,7 +494,11 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                 ) : machineDown ? (
                   <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3">{machine!.config.name} is offline. This is the conversation as last seen; you can send again once it reconnects.<HelpLink id={host} /></div>
                 ) : null}
-                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching} controls={controls} ultracode={ultracode} />}
+                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected} /> : textQuestion && chat?.info?.sessionId ?
+                  <PromptCard key={`${chat.info.sessionId}:${textQuestion.call}:${textQuestion.index}`} host={host} pane={pane}
+                    disabled={!connected || identifying || switching}
+                    prompt={{ body: [textQuestion.question], options: [], multi: false, input: { label: 'Your answer', multiline: true } }}
+                    onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching} controls={controls} ultracode={ultracode} />}
               </div>
             )}
           </div>

@@ -868,8 +868,9 @@ impl ChatWatcher {
         if mirror_to_terminal(&self.host_id, &self.pane_id, &target, Some(&current)).await.is_ok() {
             // A paste command acknowledges the write, not the TUI's consumption of it.
             // Keep the mirror in flight until its result is visible so Send cannot race it.
-            for _ in 0..15 {
-                rt::sleep(120).await;
+            let deadline = now_ms() + super::actions::input_wait_ms(&self.host_id, &target);
+            while now_ms() < deadline {
+                rt::sleep(250).await;
                 let Ok(shown) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { break };
                 if shown.input_visible == Some(true) && shown.prompt.is_none() && input_shown(&shown, &target, true) {
                     if let Some(latest) = get_draft(&self.key) {

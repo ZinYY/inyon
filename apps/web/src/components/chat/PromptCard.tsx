@@ -94,9 +94,10 @@ function CodeBlock({ lines }: { lines: string[] }) {
 }
 
 /** `disabled`: shown as last seen while the machine reconnects; nothing can be answered yet */
-export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPrompt; host: string; pane: string; disabled?: boolean }) {
+export function PromptCard({ prompt, host, pane, disabled, onInput }: { prompt: ScreenPrompt; host: string; pane: string; disabled?: boolean; onInput?: (text: string) => Promise<unknown> }) {
   const [busy, setBusy] = useState<number | string | null>(null)
   const [freeText, setFreeText] = useState<string | null>(null)
+  const [typedInput, setTypedInput] = useState(prompt.input?.value ?? '')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { title, blocks } = parseBody(prompt.body)
   // the hub sends Claude's prompts as whole lines, so their line breaks are the agent's own
@@ -105,8 +106,13 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
   const locked = busy !== null || !!disabled
   const questionKey = promptKey(prompt)
 
-  useEffect(() => setBusy(null), [prompt])
+  useEffect(() => setBusy(null), [host, pane, questionKey])
+  useEffect(() => { if (!prompt.input?.multiline) setBusy(null) }, [prompt])
   useEffect(() => setFreeText(null), [host, pane, questionKey, prompt.freeTextOption])
+  useEffect(() => {
+    setTypedInput(prompt.input?.value ?? '')
+    if (prompt.input?.multiline) inputRef.current?.focus()
+  }, [host, pane, questionKey])
   useEffect(() => {
     if (freeText !== null) inputRef.current?.focus()
   }, [freeText !== null])
@@ -204,15 +210,19 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
           className="flex shrink-0 items-end gap-2 px-3 pb-3 sm:px-4"
           onSubmit={(e) => {
             e.preventDefault()
-            const v = (e.currentTarget.elements.namedItem('answer') as HTMLInputElement).value
-            if (v.trim()) run('input', () => api.input(host, pane, v.trim()))
+            const v = prompt.input?.multiline ? typedInput : (e.currentTarget.elements.namedItem('answer') as HTMLInputElement).value
+            if (v.trim()) run('input', () => onInput ? onInput(v) : prompt.input?.multiline ? api.input(host, pane, v, questionKey) : api.input(host, pane, v.trim()))
           }}
         >
           <label className="min-w-0 flex-1">
             <span className="mb-1 block text-[12px] text-fg-3">{prompt.input.label}</span>
-            <input name="answer" autoComplete="off" autoCapitalize="off" spellCheck={false} className="h-11 w-full rounded-xl border border-field bg-bg px-3 font-mono text-[14px] transition-colors focus:border-fg" placeholder="Paste here" />
+            {prompt.input.multiline ? (
+              <textarea ref={inputRef} name="answer" value={typedInput} onChange={(e) => setTypedInput(e.target.value)} rows={2} placeholder="Type your answer…" aria-label="Your answer" className="min-h-[52px] w-full resize-none rounded-2xl border border-field bg-bg px-3.5 py-2.5 text-[15px] outline-none focus:border-fg" />
+            ) : (
+              <input name="answer" autoComplete="off" autoCapitalize="off" spellCheck={false} className="h-11 w-full rounded-xl border border-field bg-bg px-3 font-mono text-[14px] transition-colors focus:border-fg" placeholder="Paste here" />
+            )}
           </label>
-          <button type="submit" disabled={locked} className="press flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg disabled:opacity-40" aria-label="Submit">
+          <button type="submit" disabled={locked || !!prompt.input.multiline && !typedInput.trim()} className="press flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg disabled:opacity-40" aria-label={prompt.input.multiline ? 'Send answer' : 'Submit'}>
             <Send className="size-4" />
           </button>
         </form>
@@ -284,7 +294,7 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
         </div>
       )}
 
-      <div className="flex shrink-0 items-center gap-1 border-t border-line px-2 py-1.5">
+      {!onInput && <div className="flex shrink-0 items-center gap-1 border-t border-line px-2 py-1.5">
         <button
           type="button"
           disabled={disabled}
@@ -307,7 +317,7 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
           ) : (
             <>
               {/* raw keys only when the choices couldn't be read as buttons, or for multi-select steps */}
-              {(!prompt.options.length || prompt.multi) && [
+              {(!prompt.input && (!prompt.options.length || prompt.multi)) && [
                 { k: 'Up', icon: ArrowUp, label: 'Up' },
                 { k: 'Down', icon: ArrowDown, label: 'Down' },
                 { k: 'Enter', icon: CornerDownLeft, label: 'Enter' },
@@ -329,7 +339,7 @@ export function PromptCard({ prompt, host, pane, disabled }: { prompt: ScreenPro
             </>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

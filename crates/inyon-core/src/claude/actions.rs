@@ -434,6 +434,12 @@ pub async fn send_message_to_pane(host_id: &str, pane_id: &str, text: &str, from
     r
 }
 
+/// PSmux acknowledges queued console input before Codex has consumed it. A large paste
+/// can take tens of seconds; keep ownership of the keyboard while confirming its full preview.
+pub(super) fn input_wait_ms(host_id: &str, text: &str) -> u64 {
+    if on_psmux(host_id) { (5_000 + text.len() as u64 * 3).min(180_000) } else { 2_500 }
+}
+
 /// The part of a send that types and submits, between holding a draft and putting it back.
 struct Typing<'a> {
     host_id: &'a str,
@@ -495,9 +501,10 @@ impl Typing<'_> {
         }
         // set once this send has emptied the box and typed the message: only then is a paste preview
         // known to be this message rather than a shorter draft the mirror put there earlier
-        let mut typed = false;
+        let mut typed = super::drafts::get_draft(&inyon_protocol::chat_key(host_id, pane_id))
+            .is_some_and(|d| d.mirrored.as_deref() == Some(text));
         // the draft may already be in the box (mirrored from the app); otherwise replace whatever is there
-        if !input_shown(screen, text, false) {
+        if !input_shown(screen, text, typed) {
             // a second go when the first doesn't show up: a mirrored draft still being typed can leave
             // the box with something else in it, which is cleared first. Only then: an empty box or
             // one that can't be read may just be slow to show the text, and typing again would double it.
@@ -512,8 +519,9 @@ impl Typing<'_> {
                 }
                 type_into(host, pane_id, text, false).await?;
                 typed = true;
-                for i in 0..15 {
-                    sleep(if i < 3 { 80 } else { 150 }).await;
+                let deadline = now_ms() + input_wait_ms(host_id, text);
+                while now_ms() < deadline {
+                    sleep(if on_psmux(host_id) { 350 } else { 120 }).await;
                     let now = current_screen(host_id, pane_id).await?;
                     readable = now.input_visible == Some(true);
                     observed = now;
@@ -522,6 +530,8 @@ impl Typing<'_> {
                     }
                 }
                 round += 1;
+                // Do not clear/retype an unconfirmed Windows paste: input may still be queued.
+                if on_psmux(host_id) { break; }
             }
         }
         let name = name_of(self.kind);
@@ -575,17 +585,78 @@ impl Typing<'_> {
 }
 
 /// Answers a dialog that asks for typed input (e.g. the /login code).
-pub async fn input_answer(host_id: &str, pane_id: &str, text: &str) -> HubResult<()> {
+pub async fn input_answer(host_id: &str, pane_id: &str, text: &str, question: Option<&str>) -> HubResult<()> {
+    let (h, p, t, q) = (host_id.to_owned(), pane_id.to_owned(), text.to_owned(), question.map(str::to_owned));
+    in_lane(host_id, pane_id, move || async move { input_answer_in_lane(&h, &p, &t, q.as_deref()).await }).await
+}
+
+async fn input_answer_in_lane(host_id: &str, pane_id: &str, text: &str, question: Option<&str>) -> HubResult<()> {
     let (host, _) = agent_pane(host_id, pane_id)?;
     let s = current_screen(host_id, pane_id).await?;
-    if s.prompt.and_then(|p| p.input).is_none() {
-        return Err(http(409, "That prompt is no longer on screen"));
+    let p = s.prompt.filter(|p| p.input.is_some()).ok_or_else(|| http(409, "That prompt is no longer on screen"))?;
+    let key = prompt_key(&p.body, &p.options);
+    if question.is_some_and(|q| q != key) { return Err(http(409, "That question has changed; check it before answering")); }
+    if text.is_blank() { return Err(http(400, "Answer is empty")); }
+    let input = p.input.as_ref().unwrap();
+    if input.multiline == Some(true) {
+        if question.is_none() { return Err(http(400, "The question is required")); }
+        if let Some(old) = input.value.as_deref().filter(|v| !v.is_empty()) { clear_input(host_id, pane_id, old).await?; }
     }
     type_into(&host, pane_id, text, false).await?;
-    sleep(250).await;
+    if input.multiline == Some(true) {
+        let deadline = now_ms() + input_wait_ms(host_id, text);
+        loop {
+            sleep(150).await;
+            let now = current_screen(host_id, pane_id).await?;
+            let p = now.prompt.filter(|p| prompt_key(&p.body, &p.options) == key)
+                .ok_or_else(|| http(409, "That question has changed; the answer was not submitted"))?;
+            if input_contains(p.input.as_ref().and_then(|i| i.value.as_deref()), text, true) { break; }
+            if now_ms() >= deadline { return Err(http(409, "Could not confirm the answer in the question's input box")); }
+        }
+    } else { sleep(250).await; }
     send_keys(&host, pane_id, &["Enter"]).await?;
     nudge(host_id, pane_id);
     Ok(())
+}
+
+/// The async Codex question can outlive the turn and its native editor. Address the reply to
+/// the recorded call, and refuse stale sessions or a question answered on another device.
+fn question_reply_text(items: &[inyon_protocol::ChatItem], call: &str, index: usize, text: &str) -> HubResult<String> {
+    use inyon_protocol::{AssistantBlock, ChatItem};
+    let question = items.iter().rev().take_while(|i| !matches!(i, ChatItem::User { .. })).find_map(|item| match item {
+        ChatItem::Assistant { block: AssistantBlock::ToolUse { id, name, input }, .. }
+            if id == call && name == "AskUserQuestion" && input.get("async") == Some(&Value::Bool(true)) =>
+            input.get("questions").and_then(Value::as_array).and_then(|q| q.get(index)).and_then(|q| q.get("question")).and_then(Value::as_str),
+        _ => None,
+    }).ok_or_else(|| http(409, "That question is no longer available in this conversation"))?;
+    if items.iter().any(|item| matches!(item, ChatItem::ToolResult { tool_use_id, meta, .. }
+        if tool_use_id == call && meta.as_ref().and_then(|m| m.answers.as_ref()).is_none_or(|a| a.contains_key(question)))) {
+        return Err(http(409, "That question has already been answered"));
+    }
+    if text.is_blank() { return Err(http(400, "Answer is empty")); }
+    let reply = json!([{ "answer": text, "question": question,
+        "questionItemId": serde_json::to_string(&json!(["request_user_input_async", call, index])).unwrap() }]);
+    let reply = reply.to_string().replace('<', "\\u003c").replace('>', "\\u003e");
+    Ok(format!("<send_user_message_question_reply>\n{reply}\n</send_user_message_question_reply>"))
+}
+
+pub async fn question_reply(host_id: &str, pane_id: &str, session: &str, call: &str, index: usize, text: &str) -> HubResult<()> {
+    let (h, p, session, call, text) = (host_id.to_owned(), pane_id.to_owned(), session.to_owned(), call.to_owned(), text.to_owned());
+    in_lane(host_id, pane_id, move || async move {
+        let (_, found) = agent_pane(&h, &p)?;
+        if !found.pane.agent.as_ref().is_some_and(|a| a.kind == AgentKind::Codex && a.session_id.as_deref() == Some(&session)) {
+            return Err(http(409, "The conversation has changed; reopen the question"));
+        }
+        let w = watchers().get(&h, &p);
+        if w.info().session_id.as_deref() != Some(&session) { return Err(http(409, "The conversation is still loading")); }
+        let reply = question_reply_text(&w.items(), &call, index, &text)?;
+        let screen = current_screen(&h, &p).await?;
+        if screen.prompt.is_some() { return Err(http(409, "Answer the question currently shown above the message box")); }
+        let release = w.hold_draft(screen.draft.as_deref()).await;
+        let result = send_message_to_pane(&h, &p, &reply, false, true).await;
+        release().await;
+        result
+    }).await
 }
 
 /// What stopping a background task did.

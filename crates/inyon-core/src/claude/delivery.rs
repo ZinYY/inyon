@@ -28,9 +28,8 @@ pub fn has_paste_preview(text: &str) -> bool {
 /// (inside a string, say) would be taken for the message, and Enter would send the old one.
 pub fn input_contains(draft: Option<&str>, text: &str, known: bool) -> bool {
     let trimmed = draft.unwrap_or("").jtrim();
-    if let Some(preview) = re!(r"^\[Pasted Content (\d+) chars\]$", "i").captures(trimmed) {
-        let n = crate::js::to_number(&preview[1]);
-        return known && (n == text.chars().count() as f64 || n == text.len16() as f64);
+    if re!(r"\[Pasted\s+Content\s+\d+\s+chars\]", "i").is_match(trimmed) {
+        return known && codex_paste_matches(trimmed, text);
     }
     // OpenCode collapses a multi-line paste to its line count
     if let Some(lines) = re!(r"^\[Pasted ~(\d+) lines?\]$", "i").captures(trimmed) {
@@ -57,6 +56,54 @@ pub fn input_contains(draft: Option<&str>, text: &str, known: bool) -> bool {
     let same = |s: &str| if known { squash(s) } else { collapse(s) };
     let value = same(draft.unwrap_or(""));
     value == same(text) || image > 0 && value == same(&rendered) || known && re!(r"^(\[Pastedtext#\d+(\+\d+lines?)?\])+$").is_match(&value)
+}
+
+/// Windows can split one paste into several collapsed spans with literal text between them.
+/// Check every visible character and every span's length against the text we just pasted.
+/// Whitespace around spans is ambiguous after terminal wrapping, so retain those few positions.
+fn codex_paste_matches(draft: &str, text: &str) -> bool {
+    let spans = re!(r"\[Pasted\s+Content\s+(\d+)\s+chars\]", "i");
+    for utf16 in [false, true] {
+        let chars: Vec<char> = text.chars().collect();
+        let mut positions = vec![0usize];
+        let mut end = 0;
+        for span in spans.captures_iter(draft) {
+            let m = span.get(0).unwrap();
+            positions = match_literal(&draft[end..m.start()], &chars, positions);
+            let n = span[1].parse::<usize>().unwrap_or(usize::MAX);
+            let mut next = Vec::new();
+            for mut start in positions {
+                loop {
+                    let mut at = start;
+                    let mut count = 0usize;
+                    while at < chars.len() && count < n {
+                        count += if utf16 { chars[at].len_utf16() } else { 1 };
+                        at += 1;
+                    }
+                    if count == n { next.push(at); }
+                    if start == chars.len() || !chars[start].is_whitespace() { break; }
+                    start += 1;
+                }
+            }
+            next.sort_unstable(); next.dedup();
+            positions = next;
+            end = m.end();
+        }
+        let positions = match_literal(&draft[end..], &chars, positions);
+        if positions.iter().any(|&at| chars[at..].iter().all(|c| c.is_whitespace())) { return true; }
+    }
+    false
+}
+
+fn match_literal(literal: &str, text: &[char], positions: Vec<usize>) -> Vec<usize> {
+    positions.into_iter().filter_map(|mut at| {
+        for c in literal.chars().filter(|c| !c.is_whitespace()) {
+            while at < text.len() && text[at].is_whitespace() { at += 1; }
+            if text.get(at) != Some(&c) { return None; }
+            at += 1;
+        }
+        Some(at)
+    }).collect()
 }
 
 /// A scrolled composer can confirm a paste this operation just placed in an emptied box,

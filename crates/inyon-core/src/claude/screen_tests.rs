@@ -1076,3 +1076,33 @@ fn codex_scroll_arrows_mark_partial_drafts_without_polluting_text_or_newlines() 
     assert_eq!(s.draft_clipped, None);
     assert_eq!(s.draft.as_deref(), Some("keep literal arrows ↑ ↓ ↕\nnext line"));
 }
+
+#[test]
+fn codex_text_only_question_keeps_its_identity_and_multiline_answer() {
+    let mut key = None;
+    for name in ["question-text-empty", "question-text-typed"] {
+        let lines = screen_fixture("codex", name);
+        for s in [parse_screen(&lines, Some(200), AgentKind::Codex), parse_psmux_screen(&lines, Some(200), AgentKind::Codex)] {
+            let p = s.prompt.expect("text-only question is actionable");
+            assert_eq!(p.body, ["What label should this test use?"]);
+            assert!(p.options.is_empty());
+            let input = p.input.as_ref().unwrap();
+            assert_eq!(input.multiline, Some(true));
+            assert_eq!(input.value.as_deref(), Some(if name.ends_with("empty") { "" } else { "Teal's shade\n第二行" }));
+            let now = inyon_protocol::prompt_key(&p.body, &p.options);
+            if let Some(was) = &key { assert_eq!(&now, was); }
+            key = Some(now);
+        }
+    }
+    let literal = screen_fixture("codex", "question-text-typed").join("\n").replace("Teal's shade\n  第二行", "Type your answer");
+    let p = parse_screen(&literal.lines().map(str::to_owned).collect::<Vec<_>>(), Some(200), AgentKind::Codex).prompt.unwrap();
+    assert_eq!(p.input.unwrap().value.as_deref(), Some("Type your answer"), "real text is not the dim placeholder");
+}
+
+#[test]
+fn a_numbered_list_in_a_text_only_answer_is_not_a_choice_menu() {
+    let rows = screen_fixture("codex", "question-text-typed").join("\n").replace("Teal's shade\n  第二行", "1. First\n  2. Second");
+    let p = parse_screen(&rows.lines().map(str::to_owned).collect::<Vec<_>>(), Some(200), AgentKind::Codex).prompt.unwrap();
+    assert_eq!(p.input.unwrap().value.as_deref(), Some("1. First\n2. Second"));
+    assert!(p.options.is_empty());
+}

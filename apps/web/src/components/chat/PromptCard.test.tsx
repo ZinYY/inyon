@@ -107,3 +107,20 @@ test('a refreshed question keeps a typed answer, but a different question discar
   expect(screen.queryByRole('textbox', { name: 'Your answer' })).toBeNull()
   expect(api.answer).not.toHaveBeenCalled()
 })
+
+test('a question without choices has a focused multiline answer with a guarded submit', async () => {
+  const prompt: ScreenPrompt = { body: ['What label?'], options: [], multi: false, input: { label: 'Your answer', multiline: true, value: '' } }
+  const view = await render(<PromptCard prompt={prompt} host="box" pane="%3" />)
+  const input = screen.getByRole('textbox', { name: 'Your answer' }) as HTMLTextAreaElement
+  expect(input).toBe(document.activeElement as HTMLTextAreaElement)
+  expect((screen.getByRole('button', { name: 'Send answer' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.queryByRole('button', { name: 'Enter' })).toBeNull()
+  const text = "  Teal's shade\n第二行  "
+  fireEvent.change(input, { target: { value: text } })
+  await act(async () => view.rerender(<PromptCard prompt={{ ...prompt }} host="box" pane="%3" />))
+  expect(input.value).toBe(text)
+  fireEvent.click(screen.getByRole('button', { name: 'Send answer' }))
+  expect(api.input.mock.calls.at(-1)).toEqual(['box', '%3', text, promptKey(prompt)])
+  await act(async () => view.rerender(<PromptCard prompt={{ ...prompt, body: ['Next label?'], input: { ...prompt.input!, value: 'From terminal' } }} host="box" pane="%3" />))
+  expect(input.value).toBe('From terminal')
+})

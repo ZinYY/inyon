@@ -452,7 +452,7 @@ export interface ScreenPrompt {
   /** options aren't numbered on screen: answer by moving the cursor (↑/↓) and pressing Enter */
   navigate?: boolean
   /** the dialog asks for typed input (e.g. "Paste code here if prompted >") */
-  input?: { label: string }
+  input?: { label: string; multiline?: boolean; value?: string }
   /** URLs shown in the dialog, re-joined when the terminal wrapped them */
   links?: string[]
   /** answered through the agent's API rather than keystrokes (OpenCode permissions and questions) */

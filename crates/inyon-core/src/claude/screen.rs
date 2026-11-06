@@ -475,7 +475,7 @@ fn parse_input_dialog(lines: &[String], tops: &[usize], _width: u32) -> Option<S
     let label = re!(r"\s*[>:]\s*$").replacen(lines[at].jtrim(), 1, "").into_owned();
     let mut p = prompt(body, vec![]);
     p.footer = Some(footer.jtrim().to_owned());
-    p.input = Some(PromptInput { label });
+    p.input = Some(PromptInput { label, multiline: None, value: None });
     Some(p)
 }
 
@@ -1346,7 +1346,7 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
     let width = width_of(pane_width, &lines);
     let mut state = new_state(width);
     let Some((bx, foot_at)) = codex_composer_footer(&lines) else {
-        state.prompt = parse_codex_menu(&lines);
+        state.prompt = parse_codex_menu(&lines, ghost, width);
         return state;
     };
     if CX_ID_FOOTER!().is_match(&lines[foot_at]) {
@@ -1446,10 +1446,30 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
 }
 
 /// An approval or picker: title and body lines, numbered options with a detail column, a key hint.
-fn parse_codex_menu(lines: &[String]) -> Option<ScreenPrompt> {
+fn parse_codex_menu(lines: &[String], ghost: &[bool], width: u32) -> Option<ScreenPrompt> {
     let tail = last_n(lines, 40);
     let nav_at = find_last(tail, |l| CX_NAV!().is_match(l))?;
     let footer = tail[nav_at].jtrim();
+    // A queued text-only question has an editor instead of numbered choices.
+    // Keep its question separate from the changing answer so its identity stays stable.
+    if footer.contains("skip") && footer.contains("main prompt") {
+        if let Some(queue) = find_last(&tail[..nav_at], |l| l.jtrim() == "• Queued follow-up inputs") {
+            let start = (queue + 1..nav_at).find(|&i| !tail[i].is_blank())?;
+            let end = (start..nav_at).find(|&i| tail[i].is_blank())?;
+            let input = (end + 1..nav_at).find(|&i| !tail[i].is_blank())?;
+            if !tail[input..nav_at].iter().any(|l| CX_OPTION!().captures(l).is_some_and(|c| c.get(1).is_some_and(|m| m.as_str() == "›"))) {
+                let mut rows = tail[input..nav_at].to_vec();
+                while rows.last().is_some_and(|l| l.is_blank()) { rows.pop(); }
+                let placeholder = ghost.get(lines.len() - tail.len() + input).copied().unwrap_or(false)
+                    && rows.len() == 1 && rows[0].jtrim() == "Type your answer";
+                let value = if placeholder { String::new() } else { join_box(&rows, width, re!(r"^ {2}")) };
+                let mut p = prompt(vec![tail[start..end].iter().map(|l| l.jtrim()).collect::<Vec<_>>().join(" ")], vec![]);
+                p.input = Some(PromptInput { label: "Your answer".into(), multiline: Some(true), value: Some(value) });
+                p.footer = Some(footer.to_owned());
+                return Some(p);
+            }
+        }
+    }
     let notes = footer.starts_with("tab to add notes |") || footer.starts_with("tab or esc to clear notes |");
     // Plan-mode questions keep their choices above a notes editor. Its prompt and
     // wrapped text are input, not another option or part of the question's body.

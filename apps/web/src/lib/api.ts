@@ -407,7 +407,8 @@ export const api = {
   rc: (host: string, pane: string, on: boolean) => request('POST', `${panePath(host, pane)}/rc`, { on }),
   /** Claude Code's ultracode switch, for the session */
   ultracode: (host: string, pane: string, on: boolean) => request('POST', `${panePath(host, pane)}/ultracode`, { on }),
-  input: (host: string, pane: string, text: string) => request('POST', `${panePath(host, pane)}/input`, { text }),
+  questionReply: (host: string, pane: string, session: string, call: string, index: number, text: string) => request('POST', `${panePath(host, pane)}/question-reply`, { session, call, index, text }, 310_000),
+  input: (host: string, pane: string, text: string, question?: string) => request('POST', `${panePath(host, pane)}/input`, { text, ...(question !== undefined && { question }) }, 310_000),
   stopTask: (host: string, task: { id: string; path?: string }) => request<{ stopped: boolean; detail: string }>('POST', `${h(host)}/tasks/stop`, { id: task.id, path: task.path }),
   start: (host: string, pane: string, agent: AgentKind, resume?: string) => request('POST', `${panePath(host, pane)}/start`, { agent, resume }),
   /** the agent's past conversations in the pane's folder; `agent` says whose when none is running */

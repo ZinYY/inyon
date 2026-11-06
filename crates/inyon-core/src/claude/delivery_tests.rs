@@ -243,3 +243,20 @@ fn a_failed_attempt_does_not_claim_the_receipt_of_a_live_retry() {
     assert_eq!(state_of(&ledger, "retry"), Some(SendStatus::Delivered));
     assert_eq!(state_of(&ledger, "failed"), Some(SendStatus::Failed));
 }
+
+#[test]
+fn split_codex_paste_previews_require_the_complete_known_text() {
+    let text = "BEGIN INYON_LONG_066_BUFFER ".to_owned() + &"中文 customer's \"quote\" alpha beta gamma delta; ".repeat(1100)
+        + " END INYON_LONG_066_BUFFER. Reply LONG_OK only. Do not use tools.";
+    let lines = crate::test_support::screen_fixture("codex", "paste-split-windows");
+    let screen = crate::claude::screen::parse_psmux_screen(&lines, Some(120), inyon_protocol::AgentKind::Codex);
+    assert!(input_shown(&screen, &text, true), "{:?}", screen.draft);
+    assert!(!input_shown(&screen, &text, false));
+    let draft = screen.draft.unwrap();
+    assert!(!input_contains(Some(&draft.replace("8496 chars", "8495 chars")), &text, true));
+    assert!(!input_contains(Some(&draft.replace("ustomer", "wrong")), &text, true));
+    assert!(!input_contains(Some(&draft), &(text.clone() + " more"), true));
+    assert!(!input_contains(Some("[Pasted Content 8496 chars]"), &text, true));
+    assert!(input_contains(Some("a[Pasted Content 2 chars]z"), "a😀z", true));
+    assert!(input_contains(Some("a[Pasted Content 1 chars]z"), "a😀z", true));
+}

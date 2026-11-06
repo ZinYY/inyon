@@ -583,7 +583,7 @@ export type PromptTab = { label: string, done: boolean, current: boolean, };
 /**
  * The dialog asks for typed input (e.g. "Paste code here if prompted >").
  */
-export type PromptInput = { label: string, };
+export type PromptInput = { label: string, multiline?: boolean, value?: string, };
 
 export type ScreenPrompt = { 
 /**

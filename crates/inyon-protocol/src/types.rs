@@ -746,9 +746,13 @@ pub struct PromptTab {
 }
 
 /// The dialog asks for typed input (e.g. "Paste code here if prompted >").
+#[skip_serializing_none]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(optional_fields)]
 pub struct PromptInput {
     pub label: String,
+    pub multiline: Option<bool>,
+    pub value: Option<String>,
 }
 
 #[skip_serializing_none]

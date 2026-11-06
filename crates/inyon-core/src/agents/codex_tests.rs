@@ -530,7 +530,7 @@ mod codex_questions {
         ));
         assert_eq!(
             call[0]["block"],
-            json!({ "type": "tool_use", "id": "call_32ce", "name": "AskUserQuestion", "input": { "questions": [{ "question": "Colour", "options": [{ "label": "Red" }, { "label": "Blue" }] }] } })
+            json!({ "type": "tool_use", "id": "call_32ce", "name": "AskUserQuestion", "input": { "async": true, "questions": [{ "question": "Colour", "options": [{ "label": "Red" }, { "label": "Blue" }] }] } })
         );
         // the async form only acknowledges here
         assert_eq!(
