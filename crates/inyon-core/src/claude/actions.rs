@@ -255,13 +255,21 @@ fn only_paste_preview(squashed: &str) -> bool {
 pub(super) async fn empty_input(host_id: &str, pane_id: &str, mut draft: String) -> HubResult<()> {
     for _round in 0..3 {
         clear_input(host_id, pane_id, &draft).await?;
-        for i in 0..6 {
-            sleep(if i < 2 { 60 } else { 120 }).await;
+        let mut empty_reads = 0;
+        for _ in 0..6 {
+            sleep(120).await;
             let screen = current_screen(host_id, pane_id).await?;
+            if screen.prompt.is_some() || screen.input_visible != Some(true) {
+                empty_reads = 0; // a menu or redraw is unknown, not an emptied composer
+                continue;
+            }
             match screen.draft {
-                Some(left) if !left.is_blank() => draft = left,
-                _ if screen.draft_clipped.is_some() => draft = "\n".repeat(20),
-                _ => return Ok(()),
+                Some(left) if !left.is_blank() => { draft = left; empty_reads = 0; }
+                _ if screen.draft_clipped.is_some() => { draft = "\n".repeat(20); empty_reads = 0; }
+                _ => {
+                    empty_reads += 1;
+                    if empty_reads >= 2 { return Ok(()); }
+                }
             }
         }
     }

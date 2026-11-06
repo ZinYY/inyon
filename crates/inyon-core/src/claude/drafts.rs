@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 pub use inyon_protocol::DraftSource;
 use serde::{Deserialize, Serialize};
 
-use crate::hosts::http_error::HubResult;
+use crate::hosts::http_error::{HubError, HubResult};
 use crate::hosts::registry::registry;
 pub use crate::js::text::squash;
 use crate::js::JsStr;
@@ -124,7 +124,18 @@ pub fn set_draft(key: &str, d: Option<Draft>) {
 pub async fn clear_input(host_id: &str, pane_id: &str, draft: &str) -> HubResult<()> {
     let host = registry().host(host_id)?;
     let width = registry().find_pane(host_id, pane_id).and_then(|f| pane_width(&f.pane));
-    send_keys(&host, pane_id, &clear_input_keys(draft, width)).await
+    let keys = clear_input_keys(draft, width);
+    if registry().get(host_id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
+        && !crate::tmux::herdr::enabled(&host)
+    {
+        // PSmux accepts a key sequence in one request. Separate processes per key leave
+        // the composer halfway cleared across many redraws and round trips on Windows.
+        let cmd = format!("tmux send-keys -t {} {}", crate::hosts::host::shq(pane_id), keys.join(" "));
+        let result = host.run(&cmd).await?;
+        if result.code != 0 { return Err(HubError::plain(result.stderr)); }
+        return Ok(());
+    }
+    send_keys(&host, pane_id, &keys).await
 }
 
 /// Puts `text` into Claude's input box without submitting it (replacing what's there).

@@ -1237,3 +1237,50 @@ fn codex_scrolled_multiline_input_is_replaced_and_sent_in_full_once() {
         assert!(b.borrow().0.is_empty());
     });
 }
+
+
+#[test]
+fn clearing_waits_past_unknown_and_transient_empty_frames() {
+    run(|| async {
+        let captures = Rc::new(Cell::new(0));
+        let reads = captures.clone();
+        Fake::install(move |_, cmd, _| {
+            if !cmd.contains("@@CAP") { return ok(""); }
+            let i = reads.get(); reads.set(i+1);
+            match i {
+                0 => ok("@@CAP %9\n"), // clearing started a redraw
+                2 => ok("@@CAP %9\n› hidden remainder\n\n  GPT-6-Astra high · ~\n"),
+                _ => ok("@@CAP %9\n› \n\n  GPT-6-Astra high · ~\n"),
+            }
+        });
+        pane("clear-frames", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        empty_input("clear-frames", "%9", "old draft".into()).await.unwrap();
+        assert_eq!(captures.get(), 5, "only consecutive visible empty frames confirm a clear");
+    });
+}
+
+#[test]
+fn clearing_an_unknown_screen_never_confirms_empty() {
+    run(|| async {
+        Fake::install(|_, _, _| ok("@@CAP %9\n"));
+        pane("clear-unknown", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        assert!(empty_input("clear-unknown", "%9", "old draft".into()).await.is_err());
+    });
+}
+
+#[test]
+fn psmux_clears_a_multiline_draft_in_one_ordered_key_request_without_enter() {
+    run(|| async {
+        let commands = Rc::new(RefCell::new(Vec::new()));
+        let seen = commands.clone();
+        Fake::install(move |_, cmd, _| { seen.borrow_mut().push(cmd.to_owned()); ok("") });
+        let rt = pane("clear-windows", json!([{ "id":"%1.1", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        rt.borrow_mut().state.os = Some("Windows".into());
+        clear_input("clear-windows", "%1.1", "first\nsecond\nlast").await.unwrap();
+        let cmds = commands.borrow();
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(cmds[0].matches("send-keys").count(), 1);
+        assert!(cmds[0].contains("C-u BSpace C-u BSpace"));
+        assert!(!cmds[0].contains("Enter"));
+    });
+}
