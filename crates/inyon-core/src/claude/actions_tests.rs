@@ -1315,3 +1315,28 @@ fn psmux_clears_a_multiline_draft_in_one_ordered_key_request_without_enter() {
         assert!(!cmds[0].contains("Enter"));
     });
 }
+
+#[test]
+fn windows_codex_pastes_keep_linefeeds_and_submit_only_with_a_separate_enter() {
+    run(|| async {
+        for (os, kind, raw) in [("Windows", "codex", true), ("Windows", "claude", false), ("Linux", "codex", false)] {
+            let fake = Fake::install(|_, _, _| ok(""));
+            let rt = pane("paste-newlines", json!([{ "id":"%1.1", "width":120, "agent":{"kind":kind,"pid":7,"state":"idle"} }]));
+            rt.borrow_mut().state.os = Some(os.into());
+            let host = registry().host("paste-newlines").unwrap();
+            let text = "first line\nsecond line\n末行 customer's choice";
+            type_into(&host, "%1.1", text, false).await.unwrap();
+            let calls = fake.calls.borrow();
+            assert_eq!(calls.len(), 1);
+            assert_eq!(calls[0].cmd.contains("paste-buffer -d -p -r "), raw);
+            assert_eq!(calls[0].input.as_deref(), Some(text));
+            assert!(!calls[0].cmd.contains("Enter"));
+            assert!(!calls[0].cmd.contains(text));
+            drop(calls);
+            fake.calls.borrow_mut().clear();
+            type_into(&host, "%1.1", text, true).await.unwrap();
+            assert_eq!(fake.calls.borrow().len(), 2);
+            assert!(fake.cmds()[1].ends_with(" Enter"));
+        }
+    });
+}

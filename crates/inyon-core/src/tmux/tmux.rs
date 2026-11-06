@@ -997,7 +997,17 @@ pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> Hub
             }
             Ok(())
         }
-        TypeText::Paste { command, input, submit } => {
+        TypeText::Paste { mut command, input, submit } => {
+            let registry = crate::hosts::registry::registry();
+            let id = &host.config().id;
+            if registry.get(id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
+                && registry.pane_agent(id, pane).is_some_and(|a| a.kind == AgentKind::Codex)
+            {
+                // PSmux normally converts LF to CR. Windows Codex can consume a paste as
+                // console key events, where CR submits an unfinished burst. Keep LF as
+                // a newline; only the separate, verified Enter is allowed to submit it.
+                command = command.replacen("paste-buffer -d -p ", "paste-buffer -d -p -r ", 1);
+            }
             let r = host.exec(&command, ExecOptions::input(input)).await?;
             if r.code != 0 {
                 return Err(HubError::plain(nonempty_or(r.stderr.jtrim(), "Could not paste text into the terminal")));
