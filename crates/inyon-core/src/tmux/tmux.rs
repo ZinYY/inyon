@@ -1003,6 +1003,16 @@ pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> Hub
             if registry.get(id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
                 && registry.pane_agent(id, pane).is_some_and(|a| a.kind == AgentKind::Codex)
             {
+                if crate::terminal::psmux::available(host) {
+                    // Force the paste envelope on the same byte channel as Terminal. The
+                    // buffer path depends on PSmux's cached bracket mode and newline conversion.
+                    crate::terminal::psmux::send_input(host, pane, &format!("\x1b[200~{input}\x1b[201~")).await?;
+                    if submit {
+                        sleep(150).await;
+                        send_keys(host, pane, &["Enter"]).await?;
+                    }
+                    return Ok(());
+                }
                 // PSmux normally converts LF to CR. Windows Codex can consume a paste as
                 // console key events, where CR submits an unfinished burst. Keep LF as
                 // a newline; only the separate, verified Enter is allowed to submit it.
@@ -1023,6 +1033,16 @@ pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> Hub
 
 /// `sendKeys(host, pane, keys)`
 pub async fn send_keys(host: &Host, pane: &str, keys: &[&str]) -> HubResult<()> {
+    let registry = crate::hosts::registry::registry();
+    let id = &host.config().id;
+    if !keys.is_empty() && keys.iter().all(|k| matches!(*k, "Enter" | "Tab"))
+        && registry.get(id).is_some_and(|r| r.borrow().state.os.as_deref() == Some("Windows"))
+        && registry.pane_agent(id, pane).is_some_and(|a| a.kind == AgentKind::Codex)
+        && crate::terminal::psmux::available(host)
+    {
+        let text: String = keys.iter().map(|k| if *k == "Enter" { '\r' } else { '\t' }).collect();
+        return crate::terminal::psmux::send_input(host, pane, &text).await;
+    }
     let cmd = send_keys_command(pane, keys).map_err(HubError::plain)?;
     let cmd = if super::herdr::enabled(host) { super::herdr::command(serde_json::json!({"op":"input", "pane":pane, "inputs":[{"keys":keys}]})) } else { cmd };
     let r = host.run(&cmd).await?;

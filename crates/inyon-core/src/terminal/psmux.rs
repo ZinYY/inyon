@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use crate::hosts::host::{Host, PtyHandle};
 use crate::hosts::http_error::{http, HubResult};
-use crate::platform::rt::spawn;
+use crate::platform::rt::{spawn, sleep, Deferred};
 use super::mirror::{draw_screen, parse_screen};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -194,9 +194,96 @@ pub fn open(host: Host, session: &str, pane: &str, cols: u16, rows: u16, mut on_
     ))
 }
 
+pub(crate) fn available(host: &Host) -> bool {
+    !crate::tmux::herdr::enabled(host)
+        && crate::hosts::node_link::info(&host.config().id).and_then(|n| n.version)
+            .is_some_and(|v| v == inyon_protocol::VERSION)
+        && inyon_protocol::MANAGED_NODE_RELEASES
+}
+
+/// The same private byte channel as Terminal, without attaching or resizing a view.
+/// Text is written on the control stream, never put in process arguments or a CLI debug log.
+pub(crate) async fn send_input(host: &Host, pane: &str, text: &str) -> HubResult<()> {
+    let raw = raw_pane(pane).ok_or_else(|| http(400, "Invalid PSmux pane"))?;
+    let found = crate::hosts::registry::registry().find_pane(&host.config().id, pane)
+        .ok_or_else(|| http(404, "Pane not found"))?;
+    let mut decoder = Decoder::new(raw);
+    let command = decoder.input(text);
+    if command.is_empty() { return Ok(()); }
+    let done = Deferred::<Result<(), String>>::new();
+    let reply = done.clone();
+    let cmd = format!("inyon-psmux-control:{}", serde_json::to_string(&found.session.name).expect("session string"));
+    let pipe = host.pty(&cmd, 80, 24, move |bytes| {
+        match decoder.feed(&bytes) {
+            Err(e) => reply.resolve(Err(e)),
+            Ok(_) if decoder.replies.is_empty() && decoder.frame.is_none() => reply.resolve(Ok(())),
+            _ => {}
+        }
+    })?;
+    pipe.write(&command);
+    for _ in 0..100 {
+        if done.is_settled() { break; }
+        if pipe.exited.is_settled() {
+            done.resolve(Err("Windows input connection closed before acknowledgement".into()));
+            break;
+        }
+        sleep(50).await;
+    }
+    pipe.kill();
+    done.value().unwrap_or_else(|| Err("Windows input acknowledgement timed out".into())).map_err(|e| http(409, e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chat_byte_writes_keep_the_paste_exact_and_close_on_ack_error_or_timeout() {
+        use crate::hosts::host::{set_host_backends, HostBackend, ExecOptions, ExecResult, OnData, OnLine, StreamHandle};
+        use futures_util::future::LocalBoxFuture;
+        use inyon_protocol::HostConfig;
+        struct Control {
+            writes: Rc<RefCell<Vec<String>>>,
+            killed: Rc<Cell<bool>>,
+            answer: Option<&'static str>,
+        }
+        impl HostBackend for Control {
+            fn exec(&self, _: &HostConfig, _: &str, _: ExecOptions) -> LocalBoxFuture<'static, HubResult<ExecResult>> { panic!("text must not go through CLI arguments") }
+            fn stream(&self, _: &HostConfig, _: &str, _: OnLine, _: bool) -> StreamHandle { panic!("no log-producing CLI stream") }
+            fn pty(&self, _: &HostConfig, cmd: &str, _: u16, _: u16, on_data: OnData) -> HubResult<PtyHandle> {
+                assert_eq!(cmd, "inyon-psmux-control:\"work\"");
+                let data = Rc::new(RefCell::new(on_data));
+                let (writes, killed, answer) = (self.writes.clone(), self.killed.clone(), self.answer);
+                Ok(PtyHandle::new(move |s| {
+                    writes.borrow_mut().push(s.to_owned());
+                    if let Some(answer) = answer {
+                        for (i, _) in s.lines().enumerate() {
+                            (data.borrow_mut())(format!("%begin 1 {i} 1\n{answer}\n%error 1 {i} 1\n").into_bytes());
+                        }
+                    }
+                }, |_, _| panic!("Chat must not resize the terminal"), move || killed.set(true), Deferred::new()))
+            }
+        }
+        crate::test_support::rt::run(|| async {
+            for answer in [Some("command timed out"), Some("can't find pane"), None] {
+                let writes = Rc::new(RefCell::new(Vec::new()));
+                let killed = Rc::new(Cell::new(false));
+                let backend = Rc::new(Control { writes: writes.clone(), killed: killed.clone(), answer });
+                set_host_backends(move |_| backend.clone());
+                crate::test_support::machine("chat-bytes", "local", serde_json::json!([{ "id":"%14.1" }])).borrow_mut().hold_polls();
+                let host = crate::hosts::registry::registry().host("chat-bytes").unwrap();
+                let text = format!("\x1b[200~{}last customer's line\x1b[201~", "中文 row\n".repeat(900));
+                let result = send_input(&host, "%14.1", &text).await;
+                assert_eq!(result.is_ok(), answer == Some("command timed out"));
+                assert!(killed.get(), "every one-shot channel is closed");
+                let bytes = writes.borrow().iter().flat_map(|s| s.lines()).flat_map(|line| {
+                    line.strip_prefix("send-keys -t %1 -H ").unwrap().split(' ').map(|b| u8::from_str_radix(b, 16).unwrap())
+                }).collect::<Vec<_>>();
+                assert_eq!(bytes, text.as_bytes());
+                assert_eq!(writes.borrow().len(), 1, "no duplicate fallback after an uncertain write");
+            }
+        });
+    }
 
     #[test]
     fn claude_confirmation_capture_precedes_enter_without_redrawing_the_terminal() {

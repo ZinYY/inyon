@@ -132,4 +132,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep Windows Codex multiline pastes as linefeeds instead of converting every newline to a submit key. Retain verified draft replacement and complete scrolled composer input across Windows, macOS and Linux.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Send Windows Codex Chat pastes and submissions through the same private byte channel as Terminal, preserving explicit paste boundaries and linefeeds. Keep verified draft replacement and complete scrolled composer input across Windows, macOS and Linux.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
