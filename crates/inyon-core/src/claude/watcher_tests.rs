@@ -351,6 +351,47 @@ fn slow_draft_writes_are_serial_and_partial_echo_cannot_replace_the_new_draft() 
     });
 }
 
+#[test]
+fn a_mirror_reads_the_live_box_and_waits_for_the_paste_to_be_visible() {
+    run(|| async {
+        let text = "new first line\nnew second line";
+        let box_text = Rc::new(RefCell::new("older text already pasted".to_owned()));
+        let actual = box_text.clone();
+        let after_paste = Rc::new(Cell::new(None::<usize>));
+        let reads = after_paste.clone();
+        let fake = Fake::install(move |_, cmd, input| {
+            if cmd.contains("capture-pane") {
+                let visible = match reads.get() {
+                    Some(n) => { reads.set(Some(n + 1)); n >= 2 }
+                    None => true,
+                };
+                let shown = if visible { actual.borrow().clone() } else { String::new() };
+                return ok(&format!("@@CAP %9\n› {}\n\n  GPT-6-Astra high · ~\n", shown.replace('\n', "\n  ")));
+            }
+            if cmd.contains("C-u") { actual.borrow_mut().clear(); }
+            if cmd.contains("paste-buffer") {
+                actual.borrow_mut().push_str(input.unwrap_or(""));
+                reads.set(Some(0));
+            }
+            ok("")
+        });
+        machine("mirror-live", "local", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }])).borrow_mut().hold_polls();
+        let w = watchers().get("mirror-live", "%9");
+        // The background poll still says empty, but the earlier paste is already in the TUI.
+        w.st.borrow_mut().screen.input_visible = Some(true);
+        w.st.borrow_mut().screen.draft = None;
+        set_draft(&w.key, draft(text, now_ms() as f64, None));
+        w.mirror();
+        let pending = w.st.borrow().mirroring.clone().unwrap();
+        pending.wait().await;
+        assert_eq!(&*box_text.borrow(), text, "replace the actual draft instead of appending: {:?}", fake.cmds());
+        assert!(after_paste.get().is_some_and(|n| n >= 3), "do not release Send during the paste redraw");
+        assert_eq!(get_draft(&w.key).unwrap().mirrored.as_deref(), Some(text));
+        assert_eq!(fake.cmds().iter().filter(|c| c.contains("paste-buffer")).count(), 1);
+        w.stop();
+    });
+}
+
 // draft-sent.test.ts
 
 #[test]

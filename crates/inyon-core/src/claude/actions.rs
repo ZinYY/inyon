@@ -500,8 +500,10 @@ impl Typing<'_> {
             let mut readable = screen.input_visible == Some(true) || !self.checked_input;
             let mut round = 0;
             while round < 2 && !self.arrived(&observed, typed) && (round == 0 || (readable && observed.draft.as_deref().is_some_and(|d| !d.is_empty()))) {
-                if let Some(d) = observed.draft.clone().filter(|d| !d.is_empty()) {
-                    empty_input(host_id, pane_id, d).await?;
+                if self.checked_input || observed.draft.as_ref().is_some_and(|d| !d.is_empty()) {
+                    // A completed mirror command can still be waiting for the TUI to redraw.
+                    // Even an apparently empty frame needs an ordered clear before another paste.
+                    empty_input(host_id, pane_id, observed.draft.clone().unwrap_or_default()).await?;
                 }
                 type_into(host, pane_id, text, false).await?;
                 typed = true;

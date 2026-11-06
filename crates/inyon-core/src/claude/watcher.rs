@@ -19,7 +19,7 @@ use inyon_protocol::{
 use serde_json::Value;
 
 use super::chat_cache::{load_chat, remove_chat, save_chat, CachedChat, ChatAt, KEEP as CACHE_KEEP, READER};
-use super::delivery::{has_paste_preview, input_contains, SendLedger};
+use super::delivery::{has_paste_preview, input_contains, input_shown, SendLedger};
 use super::drafts::{get_draft, mirror_to_terminal, set_draft, squash, Draft, DraftSource};
 use super::driving::{is_driving, start_driving};
 use super::screen_reply::{carry_on, codex_reply, continued_screen_reply, reads_reply, unrecorded};
@@ -780,6 +780,7 @@ impl ChatWatcher {
         if let Some(m) = m {
             m.wait().await;
         }
+        self.st.borrow_mut().sending_until = now_ms() + 15_000;
     }
 
     /// A settings command borrows the input box (it clears it, types "/model", opens a menu): keep
@@ -830,26 +831,20 @@ impl ChatWatcher {
     }
 
     async fn do_mirror(&self) {
-        let (stopped, prompt, input_visible, mut clipped, mut current) = {
-            let st = self.st.borrow();
-            (st.stopped, st.screen.prompt.is_some(), st.screen.input_visible == Some(true), st.screen.draft_clipped.is_some(), st.screen.draft.clone().unwrap_or_default())
-        };
-        if stopped {
+        if self.st.borrow().stopped {
             return;
         }
         let kind = registry().pane_agent(&self.host_id, &self.pane_id).map(|a| a.kind);
-        let d = get_draft(&self.key);
-        if !kind.is_some_and(|k| MIRRORS.contains(&k)) || prompt || !input_visible {
+        if !kind.is_some_and(|k| MIRRORS.contains(&k)) {
             return;
         }
-        if self.host().is_ok_and(|h| crate::tmux::herdr::enabled(&h)) {
-            // A slow preceding write can finish before the screen poll. Read its actual result
-            // before replacing the draft, otherwise the newer draft is appended to the old one.
-            let Ok(screen) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { return };
-            if screen.prompt.is_some() || screen.input_visible != Some(true) { return; }
-            clipped = screen.draft_clipped.is_some();
-            current = screen.draft.unwrap_or_default();
-        }
+        // Polling can lag behind a preceding paste on any host. Never append using a cached
+        // empty frame, or count a cached matching frame as proof the new draft is in place.
+        let Ok(screen) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { return };
+        if screen.prompt.is_some() || screen.input_visible != Some(true) { return; }
+        let clipped = screen.draft_clipped.is_some();
+        let mut current = screen.draft.unwrap_or_default();
+        let d = get_draft(&self.key);
         let target = d.as_ref().map(|d| d.text.clone()).unwrap_or_default();
         // a paste preview in the box is this draft only if the mirror put this draft there
         let known = squash(d.as_ref().and_then(|d| d.mirrored.as_deref()).unwrap_or("")) == squash(&target);
@@ -860,9 +855,6 @@ impl ChatWatcher {
             return;
         }
         self.st.borrow_mut().mirroring_until = now_ms() + 2500;
-        if let Some(d) = d {
-            set_draft(&self.key, Some(Draft { mirrored: Some(target.clone()), ..d }));
-        }
         if clipped {
             if super::actions::empty_input(&self.host_id, &self.pane_id, current.clone()).await.is_err() {
                 self.st.borrow_mut().mirroring_until = now_ms() + 800;
@@ -870,7 +862,20 @@ impl ChatWatcher {
             }
             current.clear();
         }
-        let _ = mirror_to_terminal(&self.host_id, &self.pane_id, &target, Some(&current)).await;
+        if mirror_to_terminal(&self.host_id, &self.pane_id, &target, Some(&current)).await.is_ok() {
+            // A paste command acknowledges the write, not the TUI's consumption of it.
+            // Keep the mirror in flight until its result is visible so Send cannot race it.
+            for _ in 0..15 {
+                rt::sleep(120).await;
+                let Ok(shown) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { break };
+                if shown.input_visible == Some(true) && shown.prompt.is_none() && input_shown(&shown, &target, true) {
+                    if let Some(latest) = get_draft(&self.key) {
+                        set_draft(&self.key, Some(Draft { mirrored: Some(target.clone()), ..latest }));
+                    }
+                    break;
+                }
+            }
+        }
         self.st.borrow_mut().mirroring_until = now_ms() + 800;
         self.kick_screen();
     }

@@ -1269,6 +1269,37 @@ fn clearing_an_unknown_screen_never_confirms_empty() {
 }
 
 #[test]
+fn codex_send_clears_a_mirror_hidden_by_an_empty_redraw_before_pasting() {
+    run(|| async {
+        let b = Rc::new(RefCell::new(("old mirror still in the TUI".to_owned(), Vec::<String>::new(), 0)));
+        let actual = b.clone();
+        Fake::install(move |_, cmd, input| {
+            let mut b = actual.borrow_mut();
+            if cmd.contains("capture-pane") {
+                b.2 += 1;
+                let rows = b.0.lines().collect::<Vec<_>>();
+                let from = rows.len().saturating_sub(15);
+                let shown = if b.2 == 1 { String::new() }
+                    else if from > 0 { format!("{:<117}↑\n  {}", rows[from], rows[from+1..].join("\n  ")) }
+                    else { b.0.replace('\n', "\n  ") };
+                return ok(&format!("@@CAP %9\n› {shown}\n\n  GPT-6-Astra high · ~\n"));
+            }
+            if cmd.contains("C-u") { b.0.clear(); }
+            if cmd.contains("paste-buffer") { b.0.push_str(input.unwrap_or("")); }
+            if cmd.ends_with(" Enter") {
+                let sent = std::mem::take(&mut b.0);
+                b.1.push(sent);
+            }
+            ok("")
+        });
+        pane("hidden-mirror", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        let text = format!("new message\n{}", (1..=30).map(|i| format!("row{i:02}")).collect::<Vec<_>>().join("\n"));
+        send_message_to_pane("hidden-mirror", "%9", &text, true, false).await.unwrap();
+        assert_eq!(b.borrow().1, [text]);
+    });
+}
+
+#[test]
 fn psmux_clears_a_multiline_draft_in_one_ordered_key_request_without_enter() {
     run(|| async {
         let commands = Rc::new(RefCell::new(Vec::new()));

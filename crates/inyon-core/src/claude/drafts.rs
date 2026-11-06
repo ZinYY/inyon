@@ -144,7 +144,7 @@ pub async fn mirror_to_terminal(host_id: &str, pane_id: &str, text: &str, curren
         return Ok(());
     }
     if let Some(c) = current.filter(|c| !c.is_empty()) {
-        clear_input(host_id, pane_id, c).await?;
+        super::actions::empty_input(host_id, pane_id, c.to_owned()).await?;
     }
     if !text.is_empty() {
         type_into(&registry().host(host_id)?, pane_id, text, false).await?;
