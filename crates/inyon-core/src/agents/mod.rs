@@ -4,6 +4,7 @@ pub mod antigravity;
 pub mod antigravity_models;
 pub mod claude_usage;
 pub mod codex;
+pub mod codex_input;
 pub mod codex_limits;
 pub mod codex_live;
 pub mod codex_models;

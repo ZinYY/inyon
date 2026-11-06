@@ -14,7 +14,7 @@ use serde_json::Value;
 use super::machine_kind::machine_kind;
 use crate::clock::now_ms;
 use crate::hosts::host::{shq, ExecOptions, Host, StreamHandle};
-use crate::hosts::http_error::{HubError, HubResult};
+use crate::hosts::http_error::{http, HubError, HubResult};
 use crate::js::json::{self, Js};
 use crate::js::num::parse_int;
 use crate::js::{to_number, JsStr};
@@ -690,7 +690,7 @@ pub enum TypeText {
 /// multi-line text is one paste through `buffer` (`inyon-<uuid>` in the hub).
 pub fn type_text(pane: &str, text: &str, submit: bool, buffer: &str) -> TypeText {
     let normal = re!(r"\r\n?", "g").replace_all(text, "\n").into_owned();
-    if text.len16() > 800 || re!(r"[\r\n]").is_match(text) {
+    if text.len16() > 800 || re!(r"[\t\r\n]").is_match(text) {
         // Deliver one bracketed paste instead of a burst of individual key events. The CLI can
         // preserve long/multiline text atomically and display its own collapsed paste preview.
         return TypeText::Paste { command: paste_command(buffer, pane), input: paste_text(text), submit };
@@ -978,9 +978,12 @@ pub async fn capture_panes(host: &Host, pane_ids: &[String]) -> HubResult<IndexM
 
 /// `typeText(host, pane, text, submit)`: types text into a pane as a person would.
 pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> HubResult<()> {
+    if crate::agents::codex_input::required(&host.config().id, pane, text) {
+        return Err(http(409, "Text containing tabs must be sent through Codex's direct input, not terminal keys."));
+    }
     if super::herdr::enabled(host) {
         if text.is_empty() && !submit { return Ok(()); }
-        let part = if text.len16() > 800 || re!(r"[\r\n]").is_match(text) {
+        let part = if text.len16() > 800 || re!(r"[\t\r\n]").is_match(text) {
             serde_json::json!({"paste":paste_text(text)})
         } else { serde_json::json!({"text":text}) };
         let cmd = super::herdr::command(serde_json::json!({"op":"input", "pane":pane,
@@ -1423,6 +1426,7 @@ mod tests {
         assert_eq!(type_text("%1", "", true, "b"), TypeText::Keys { command: "sleep 0.12 && tmux send-keys -t '%1' Enter".into(), input: String::new() });
         assert_eq!(type_text("%1", "", false, "b"), TypeText::Nothing);
         assert!(matches!(type_text("%1", "a\r\nb", false, "b"), TypeText::Paste { input, .. } if input == "a\nb"));
+        assert!(matches!(type_text("%1", "short\ttext", false, "b"), TypeText::Paste { input, .. } if input == "short\ttext"));
         assert_eq!(send_keys_command("%1", &["Enter", "rm"]), Err("key not allowed: rm".into()));
         assert_eq!(claude_slug("/home/u/my.app"), "-home-u-my-app");
     }

@@ -395,6 +395,35 @@ fn a_mirror_reads_the_live_box_and_waits_for_the_paste_to_be_visible() {
 // draft-sent.test.ts
 
 #[test]
+fn windows_codex_tab_drafts_stay_in_chat_until_explicit_send() {
+    run(|| async {
+        let fake = Fake::install(|_, cmd, _| {
+            if cmd.contains("capture-pane") { return ok("@@CAP %9\n› prior prefix\n\n  GPT-6-Astra high · ~\n"); }
+            ok("")
+        });
+        let rt = machine("tab-draft", "local", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle"} }]));
+        rt.borrow_mut().hold_polls();
+        rt.borrow_mut().state.os = Some("Windows".into());
+        let w = watchers().get("tab-draft", "%9");
+        let text = "first\n\t\t中文 customer's text\nlast";
+        set_draft(&w.key, draft(text, now_ms() as f64, Some("prior prefix")));
+        w.do_mirror().await;
+        assert!(fake.cmds().iter().all(|c| !c.contains("send-keys") && !c.contains("paste-buffer") && !c.contains("codex-input-receipts")));
+        {
+            let mut st = w.st.borrow_mut();
+            st.mirroring = None;
+            st.mirroring_until = 0;
+            st.sending_until = 0;
+            st.screen.input_visible = Some(true);
+            st.screen.draft = None;
+        }
+        w.sync_draft_from_screen();
+        assert_eq!(get_draft(&w.key).unwrap().text, text, "the empty native composer cannot erase the unmirrored Chat draft");
+        w.stop();
+    });
+}
+
+#[test]
 fn a_phone_keyboard_putting_a_sent_message_back_in_the_box_doesnt_make_it_a_draft_again() {
     run(|| async {
         let (_fake, w) = draft_box();

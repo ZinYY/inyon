@@ -1342,6 +1342,45 @@ fn windows_codex_pastes_keep_linefeeds_and_submit_only_with_a_separate_enter() {
 }
 
 #[test]
+fn windows_codex_tabs_use_exact_direct_input_and_never_fall_back_to_keys() {
+    run(|| async {
+        let id = "11111111-1111-4111-8111-111111111111";
+        let other = "22222222-2222-4222-8222-222222222222";
+        for (footer, accepted) in [(id, true), (id, false), (other, true)] {
+            let fake = Fake::install(move |_, cmd, _| {
+                if cmd.contains("capture-pane") {
+                    return ok(&format!("@@CAP %1.1\n› \n\n  {footer} · GPT-6-Astra high · ~\\work\n"));
+                }
+                if cmd.contains("codex-input-receipts") {
+                    return if accepted { ok(r#"{"ok":true}"#) } else { ExecResult { code: 1, stdout: r#"{"error":"not available"}"#.into(), stderr: String::new() } };
+                }
+                ok("")
+            });
+            let rt = pane("tab-input", json!([{ "id":"%1.1", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle","sessionId":id} }]));
+            rt.borrow_mut().state.os = Some("Windows".into());
+            let text = "sample output\n\t\t中文 customer's note\n\nfinal question";
+            let result = send_message_to_pane_id("tab-input", "%1.1", text, true, false, "test-send-id").await;
+            assert_eq!(result.is_ok(), footer == id && accepted, "{result:?}");
+            let calls = fake.calls.borrow();
+            let direct: Vec<_> = calls.iter().filter(|c| c.cmd.contains("codex-input-receipts")).collect();
+            assert_eq!(direct.len(), usize::from(footer == id));
+            if let Some(call) = direct.first() {
+                let payload: Value = serde_json::from_str(call.input.as_deref().unwrap()).unwrap();
+                assert_eq!(payload["text"], text);
+                assert_eq!(payload["thread"], id);
+                assert_eq!(payload["id"], "test-send-id");
+                assert!(!call.cmd.contains(text));
+            }
+            assert!(!calls.iter().any(|c| c.cmd.contains("paste-buffer") || c.cmd.ends_with(" Enter") || c.cmd.ends_with(" Tab")));
+            drop(calls);
+            let before = fake.calls.borrow().len();
+            assert!(type_into(&registry().host("tab-input").unwrap(), "%1.1", text, false).await.is_err());
+            assert_eq!(fake.calls.borrow().len(), before, "unsafe lower-level calls refuse before writing");
+        }
+    });
+}
+
+#[test]
 fn a_slow_send_keeps_draft_mirroring_out_until_its_action_lane_finishes() {
     run(|| async {
         let fake = Fake::install(|_, cmd, _| if cmd.contains("capture-pane") {

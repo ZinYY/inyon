@@ -168,10 +168,14 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
     // writes next and show as delivered
     check_send(host_id, pane_id, text)?;
     let w = watchers().get(host_id, pane_id);
+    if w.delivery(&id).is_some_and(|s| matches!(s.state, SendStatus::Sent | SendStatus::Queued | SendStatus::Delivered)) {
+        return Ok(());
+    }
     w.track_send(&id, text, setting);
     let r = async {
         let (h, p, t) = (host_id.to_owned(), pane_id.to_owned(), text.to_owned());
-        in_lane(host_id, pane_id, move || async move { send_message_to_pane(&h, &p, &t, from_composer, steer).await }).await?;
+        let send_id = id.clone();
+        in_lane(host_id, pane_id, move || async move { send_message_to_pane_id(&h, &p, &t, from_composer, steer, &send_id).await }).await?;
         confirm_delivery(host_id, pane_id, &id, text).await
     }
     .await;
@@ -301,6 +305,10 @@ fn check_send(host_id: &str, pane_id: &str, text: &str) -> HubResult<()> {
 /// after the turn (the TUI's own hint, "tab to queue message"), which is what a message sent
 /// without `steer` does.
 pub async fn send_message_to_pane(host_id: &str, pane_id: &str, text: &str, from_composer: bool, steer: bool) -> HubResult<()> {
+    send_message_to_pane_id(host_id, pane_id, text, from_composer, steer, &crate::ids::random_uuid()).await
+}
+
+async fn send_message_to_pane_id(host_id: &str, pane_id: &str, text: &str, from_composer: bool, steer: bool, send_id: &str) -> HubResult<()> {
     let (host, found) = agent_pane(host_id, pane_id)?;
     let Some(agent) = found.pane.agent.clone() else { return Err(http(409, "No agent is running in this pane")) };
     if text.is_blank() {
@@ -390,6 +398,33 @@ pub async fn send_message_to_pane(host_id: &str, pane_id: &str, text: &str, from
     let screen = current_screen(host_id, pane_id).await?;
     if screen.prompt.is_some() {
         return Err(http(409, "The agent is waiting for an answer to a question first"));
+    }
+    if crate::agents::codex_input::required(host_id, pane_id, text) {
+        if text.jtrim_start().starts_with(['/', '!']) {
+            return Err(http(409, "Use spaces between command arguments. Windows Codex interprets terminal tabs as submit keys."));
+        }
+        if screen.input_visible != Some(true) {
+            return Err(http(409, "Codex input is not visible. Open the terminal to check before sending."));
+        }
+        let info = watchers().peek(host_id, pane_id).map(|w| w.info());
+        let thread = agent.session_id.clone().or_else(|| info.as_ref().and_then(|i| i.session_id.clone()))
+            .ok_or_else(|| http(409, "The Codex thread is not identified. Open the terminal to check before sending."))?;
+        let lines = screen_lines(&host, pane_id).await?;
+        if crate::agents::codex::codex_footer_thread(&lines, std::slice::from_ref(&thread)).as_deref() != Some(&thread) {
+            return Err(http(409, "Codex's current thread differs from Chat. Refresh the conversation before sending."));
+        }
+        // A cached title, working directory or transcript is not enough to dispatch an RPC.
+        // Recheck the live footer after clearing any older mirrored prefix.
+        empty_input(host_id, pane_id, screen.draft.clone().unwrap_or_default()).await?;
+        let lines = screen_lines(&host, pane_id).await?;
+        if crate::agents::codex::codex_footer_thread(&lines, std::slice::from_ref(&thread)).as_deref() != Some(&thread) {
+            return Err(http(409, "Codex's current thread differs from Chat. Refresh the conversation before sending."));
+        }
+        let turn = info.as_ref().and_then(|i| i.turn.as_ref()).and_then(|t| t.id.as_deref());
+        crate::agents::codex_input::submit(&host, &thread, send_id, text, steer && screen.working, turn).await?;
+        if let Some(w) = watchers().peek(host_id, pane_id) { w.draft_sent(Some(text), started_at); }
+        nudge(host_id, pane_id);
+        return Ok(());
     }
     let is_codex = kind == AgentKind::Codex;
     let is_agy = kind == AgentKind::Antigravity;
