@@ -1051,3 +1051,28 @@ fn the_folder_trust_question_without_numbers_has_no_exit_first() {
     assert_eq!(p.navigate, Some(true));
     assert!(p.body.iter().any(|l| l.starts_with("Quick safety check")), "{:?}", p.body);
 }
+
+
+#[test]
+fn codex_scroll_arrows_mark_partial_drafts_without_polluting_text_or_newlines() {
+    for first in ["row18", "中文第一行", "customer's choice"] {
+        let pad = 119 - unicode_width::UnicodeWidthStr::width(first) - 2;
+        let lines = vec![format!("› {first}{}\x1b[2m↑\x1b[0m", " ".repeat(pad)),
+            "  row19".into(), "  末行 customer's choice".into(), "".into(), "  GPT-6-Astra high · ~".into()];
+        for s in [parse_screen(&lines, Some(120), AgentKind::Codex), parse_psmux_screen(&lines, Some(120), AgentKind::Codex)] {
+            assert_eq!(s.draft_clipped.as_deref(), Some("start"));
+            assert_eq!(s.draft.as_deref(), Some(format!("{first}\nrow19\n末行 customer's choice").as_str()));
+        }
+    }
+    let mut lines = vec!["› ordinary ↑".into(), format!("  middle{}↓", " ".repeat(111)), "".into(), "  GPT-6-Astra high · ~".into()];
+    let s = parse_screen(&lines, Some(120), AgentKind::Codex);
+    assert_eq!(s.draft_clipped.as_deref(), Some("end"));
+    assert_eq!(s.draft.as_deref(), Some("ordinary ↑\nmiddle"));
+    lines[0] = format!("› first{}↑", " ".repeat(112));
+    assert_eq!(parse_screen(&lines, Some(120), AgentKind::Codex).draft_clipped.as_deref(), Some("both"));
+    lines[0] = "› keep literal arrows ↑ ↓ ↕".into();
+    lines[1] = "  next line".into();
+    let s = parse_screen(&lines, Some(120), AgentKind::Codex);
+    assert_eq!(s.draft_clipped, None);
+    assert_eq!(s.draft.as_deref(), Some("keep literal arrows ↑ ↓ ↕\nnext line"));
+}

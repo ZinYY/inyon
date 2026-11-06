@@ -807,6 +807,8 @@ pub struct ScreenState {
     pub mode: Option<String>,
     /// text sitting in Claude's input box (typed but not sent)
     pub draft: Option<String>,
+    /// Hidden composer rows: "start", "end", or "both". A viewport is not a complete draft.
+    pub draft_clipped: Option<String>,
     /// Remote Control as the screen last reported it: its link while on, null once turned off (agy)
     #[serde(default, deserialize_with = "double_option")]
     pub remote: Option<Option<String>>,

@@ -645,6 +645,10 @@ since?: number, mode?: string,
  */
 draft?: string, 
 /**
+ * Hidden composer rows: "start", "end", or "both". A viewport is not a complete draft.
+ */
+draftClipped?: string, 
+/**
  * Remote Control as the screen last reported it: its link while on, null once turned off (agy)
  */
 remote?: string | null, 

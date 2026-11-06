@@ -129,6 +129,7 @@ pub(crate) fn new_state(width: u32) -> ScreenState {
         since: None,
         mode: None,
         draft: None,
+        draft_clipped: None,
         remote: None,
         background: None,
         queue: None,
@@ -1363,9 +1364,30 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
     while rows.len() > 1 && rows.last().is_some_and(|l| l.is_empty()) {
         rows.pop();
     }
+    // Codex scrolls tall composers and paints dim arrows in the rightmost column.
+    // Remove their padding before joining rows; it is UI, not whitespace the user typed.
+    let mut above = false;
+    let mut below = false;
+    let last = rows.len().saturating_sub(1);
+    for (i, row) in rows.iter_mut().enumerate() {
+        if (i == 0 || i == last) && unicode_width::UnicodeWidthStr::width(row.as_str()) >= width.saturating_sub(1) as usize {
+            if let Some(c) = re!(r" {2,}([↑↓↕])$").captures(row) {
+                let arrow = &c[1];
+                above |= arrow == "↑" || arrow == "↕";
+                below |= arrow == "↓" || arrow == "↕";
+                row.truncate(c.get(0).unwrap().start());
+            }
+        }
+    }
+    state.draft_clipped = match (above, below) {
+        (true, true) => Some("both".into()),
+        (true, false) => Some("start".into()),
+        (false, true) => Some("end".into()),
+        _ => None,
+    };
     let draft = join_box(&rows, width, re!(r"^[›»]\s?"));
     // the empty composer shows a dimmed suggestion ("Ask Codex to do anything")
-    if !draft.is_blank() && !ghost.get(bx).copied().unwrap_or(false) {
+    if !draft.is_blank() && (state.draft_clipped.is_some() || !ghost.get(bx).copied().unwrap_or(false)) {
         state.draft = Some(draft.jtrim().to_owned());
     }
 

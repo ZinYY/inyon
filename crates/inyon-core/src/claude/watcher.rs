@@ -830,9 +830,9 @@ impl ChatWatcher {
     }
 
     async fn do_mirror(&self) {
-        let (stopped, prompt, input_visible, mut current) = {
+        let (stopped, prompt, input_visible, mut clipped, mut current) = {
             let st = self.st.borrow();
-            (st.stopped, st.screen.prompt.is_some(), st.screen.input_visible == Some(true), st.screen.draft.clone().unwrap_or_default())
+            (st.stopped, st.screen.prompt.is_some(), st.screen.input_visible == Some(true), st.screen.draft_clipped.is_some(), st.screen.draft.clone().unwrap_or_default())
         };
         if stopped {
             return;
@@ -847,12 +847,13 @@ impl ChatWatcher {
             // before replacing the draft, otherwise the newer draft is appended to the old one.
             let Ok(screen) = super::actions::current_screen(&self.host_id, &self.pane_id).await else { return };
             if screen.prompt.is_some() || screen.input_visible != Some(true) { return; }
+            clipped = screen.draft_clipped.is_some();
             current = screen.draft.unwrap_or_default();
         }
         let target = d.as_ref().map(|d| d.text.clone()).unwrap_or_default();
         // a paste preview in the box is this draft only if the mirror put this draft there
         let known = squash(d.as_ref().and_then(|d| d.mirrored.as_deref()).unwrap_or("")) == squash(&target);
-        if squash(&current) == squash(&target) || (!target.is_empty() && input_contains(Some(&current), &target, known)) {
+        if !clipped && (squash(&current) == squash(&target) || (!target.is_empty() && input_contains(Some(&current), &target, known))) {
             if let Some(d) = d {
                 set_draft(&self.key, Some(Draft { mirrored: Some(target), ..d }));
             }
@@ -861,6 +862,13 @@ impl ChatWatcher {
         self.st.borrow_mut().mirroring_until = now_ms() + 2500;
         if let Some(d) = d {
             set_draft(&self.key, Some(Draft { mirrored: Some(target.clone()), ..d }));
+        }
+        if clipped {
+            if super::actions::empty_input(&self.host_id, &self.pane_id, current.clone()).await.is_err() {
+                self.st.borrow_mut().mirroring_until = now_ms() + 800;
+                return;
+            }
+            current.clear();
         }
         let _ = mirror_to_terminal(&self.host_id, &self.pane_id, &target, Some(&current)).await;
         self.st.borrow_mut().mirroring_until = now_ms() + 800;
@@ -949,7 +957,7 @@ impl ChatWatcher {
     fn sync_draft_from_screen(&self) {
         let term = {
             let st = self.st.borrow();
-            if st.mirroring.is_some() || now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) {
+            if st.mirroring.is_some() || now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) || st.screen.draft_clipped.is_some() {
                 return;
             }
             st.screen.draft.clone().unwrap_or_default()

@@ -213,3 +213,33 @@ fn before_typing_a_draft_that_differs_only_in_spaces_or_line_breaks_is_not_the_m
     // once typed, the terminal's wrapping may split a long word; that still counts
     assert!(input_contains(Some("https://example.com/a\n  very/long/path"), "https://example.com/avery/long/path", true));
 }
+
+
+#[test]
+fn only_a_known_paste_can_be_confirmed_by_its_scrolled_tail() {
+    let text = "hidden first line\nrow20\n末行 customer's choice\nReply VIEWPORT_OK only.";
+    let mut s = state(false, Some("GPT-6-Astra"));
+    s.draft = Some("row20\n末行 customer's choice\nReply VIEWPORT_OK only.".into());
+    assert!(!input_shown(&s, text, true));
+    s.draft_clipped = Some("start".into());
+    assert!(input_shown(&s, text, true));
+    assert!(!input_shown(&s, text, false), "a stale draft with the same suffix must be replaced");
+    assert!(!input_shown(&s, "a different message", true));
+    for clip in ["end", "both"] {
+        s.draft_clipped = Some(clip.into());
+        assert!(!input_shown(&s, text, true));
+    }
+    s.draft = None;
+    assert!(!codex_accepted(&s, text), "hidden rows cannot be mistaken for an empty box");
+}
+
+#[test]
+fn a_failed_attempt_does_not_claim_the_receipt_of_a_live_retry() {
+    let mut ledger = SendLedger::new();
+    ledger.track("failed", "long multiline message", &[], false);
+    ledger.settle("failed", Some(SendStatus::Failed), Some("not submitted".into()));
+    ledger.track("retry", "long multiline message", &[], false);
+    ledger.match_items(&[user("receipt", "long multiline message", None, None)], &[]);
+    assert_eq!(state_of(&ledger, "retry"), Some(SendStatus::Delivered));
+    assert_eq!(state_of(&ledger, "failed"), Some(SendStatus::Failed));
+}

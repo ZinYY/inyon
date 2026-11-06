@@ -59,10 +59,24 @@ pub fn input_contains(draft: Option<&str>, text: &str, known: bool) -> bool {
     value == same(text) || image > 0 && value == same(&rendered) || known && re!(r"^(\[Pastedtext#\d+(\+\d+lines?)?\])+$").is_match(&value)
 }
 
+/// A scrolled composer can confirm a paste this operation just placed in an emptied box,
+/// but never an unknown older draft. A paste leaves the cursor at the end, so only a visible
+/// suffix with no rows hidden below it is evidence; an arbitrary middle fragment is not.
+pub fn input_shown(screen: &ScreenState, text: &str, known: bool) -> bool {
+    if screen.draft_clipped.is_none() {
+        return input_contains(screen.draft.as_deref(), text, known);
+    }
+    let tail = squash(screen.draft.as_deref().unwrap_or(""));
+    known && screen.draft_clipped.as_deref() == Some("start")
+        && tail.chars().filter(|c| c.is_alphanumeric()).count() >= 16
+        && squash(text).ends_with(&tail)
+}
+
 /// A missing composer is unknown, rather than evidence that input was submitted.
 pub fn codex_accepted(screen: &ScreenState, text: &str) -> bool {
     (screen.model.as_deref().is_some_and(|m| !m.is_empty()) || screen.input_visible == Some(true))
         && screen.prompt.is_none()
+        && screen.draft_clipped.is_none()
         && screen.draft.as_deref().is_none_or(|d| d.jtrim().is_empty())
         || screen.queue.as_ref().is_some_and(|q| q.iter().any(|queued| input_contains(Some(queued), text, true)))
 }
@@ -174,7 +188,12 @@ impl SendLedger {
         let mut changed = false;
         let mut claimed: HashSet<String> = self.sends.iter().filter_map(|(s, _)| s.uuid.clone()).collect();
         let recent = recent(items);
-        for (s, known) in &mut self.sends {
+        // An earlier attempt that failed before Enter must not steal a retry's receipt.
+        // Keep FIFO among live sends, and still allow late receipts to recover old failures.
+        let mut order: Vec<usize> = (0..self.sends.len()).collect();
+        order.sort_by_key(|&i| self.sends[i].0.state == SendStatus::Failed);
+        for i in order {
+            let (s, known) = &mut self.sends[i];
             if s.state == SendStatus::Delivered {
                 continue;
             }

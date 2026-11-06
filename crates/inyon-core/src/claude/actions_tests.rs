@@ -1195,3 +1195,45 @@ fn rewound_claude_forks_use_the_official_sdk_without_typing_into_the_source() {
         assert!(!fake.cmds().iter().any(|cmd| cmd.contains("send-keys") || cmd.contains("new-window")));
     });
 }
+
+
+#[test]
+fn codex_scrolled_multiline_input_is_replaced_and_sent_in_full_once() {
+    run(|| async {
+        let message = format!("BEGIN\n{}\n末行 customer's choice\nReply VIEWPORT_OK only.", (1..=30).map(|i| format!("row{i:02}")).collect::<Vec<_>>().join("\n"));
+        // Same visible tail, different hidden first line: the send must replace this draft.
+        let b = Rc::new(RefCell::new((message.replacen("BEGIN", "STALE", 1), Vec::<String>::new())));
+        let state = b.clone();
+        let re = keys_re();
+        Fake::install(move |_, cmd, input| {
+            let mut b = state.borrow_mut();
+            if cmd.contains("@@CAP") {
+                let rows: Vec<_> = b.0.split('\n').collect();
+                let from = rows.len().saturating_sub(15);
+                let mut shown = rows[from..].to_vec().join("\n  ");
+                if from > 0 {
+                    let first = rows[from];
+                    shown = format!("{first}{}↑\n  {}", " ".repeat(117 - first.len()), rows[from+1..].join("\n  "));
+                }
+                return ok(&format!("@@CAP %9\n› {shown}\n\n  GPT-6-Astra high · ~\n"));
+            }
+            if cmd.contains("paste-buffer") { b.0.push_str(input.unwrap_or("")); }
+            else {
+                for part in cmd.split(" && ") {
+                    let Some(k) = re.captures(part) else { continue };
+                    match k.get(2).map(|m| m.as_str()) {
+                        Some("C-u") => { let at = b.0.rfind('\n').map_or(0, |i| i+1); b.0.truncate(at); }
+                        Some("BSpace") => { b.0.pop(); }
+                        Some("Enter") => { let sent = std::mem::take(&mut b.0); b.1.push(sent); }
+                        _ => {}
+                    }
+                }
+            }
+            ok("")
+        });
+        pane("local", json!([{ "id":"%9", "width":120, "agent":{"kind":"codex", "pid":7, "state":"idle"} }]));
+        send_message_to_pane("local", "%9", &message, true, false).await.unwrap();
+        assert_eq!(b.borrow().1, vec![message]);
+        assert!(b.borrow().0.is_empty());
+    });
+}

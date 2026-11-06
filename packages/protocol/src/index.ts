@@ -478,6 +478,8 @@ export const promptKey = (p: Pick<ScreenPrompt, 'body' | 'options'>) =>
 export interface ScreenState {
   /** A recognizable input box is present, even with a custom footer. */
   inputVisible?: boolean
+  /** Hidden composer rows: start, end, or both. Never mirror a partial viewport as a full draft. */
+  draftClipped?: string
   /** a menu/prompt is waiting for an answer */
   prompt?: ScreenPrompt
   working: boolean

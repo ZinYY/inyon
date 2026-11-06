@@ -12,7 +12,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use super::delivery::{codex_accepted, has_paste_preview, input_contains};
+use super::delivery::{codex_accepted, has_paste_preview, input_contains, input_shown};
 use super::drafts::clear_input;
 use super::driving::start_driving;
 use super::keep_default::{keep_claude_defaults, KeepOptions};
@@ -252,13 +252,15 @@ fn only_paste_preview(squashed: &str) -> bool {
 
 /// Clears the input box and waits until it reads empty. Pasting next to leftovers of an older
 /// draft would send both, with the start of the message twice.
-async fn empty_input(host_id: &str, pane_id: &str, mut draft: String) -> HubResult<()> {
+pub(super) async fn empty_input(host_id: &str, pane_id: &str, mut draft: String) -> HubResult<()> {
     for _round in 0..3 {
         clear_input(host_id, pane_id, &draft).await?;
         for i in 0..6 {
             sleep(if i < 2 { 60 } else { 120 }).await;
-            match current_screen(host_id, pane_id).await?.draft {
+            let screen = current_screen(host_id, pane_id).await?;
+            match screen.draft {
                 Some(left) if !left.is_blank() => draft = left,
+                _ if screen.draft_clipped.is_some() => draft = "\n".repeat(20),
                 _ => return Ok(()),
             }
         }
@@ -434,9 +436,10 @@ struct Typing<'a> {
 }
 
 impl Typing<'_> {
-    fn arrived(&self, d: Option<&str>, typed: bool) -> bool {
+    fn arrived(&self, screen: &ScreenState, typed: bool) -> bool {
+        let d = screen.draft.as_deref();
         if self.checked_input {
-            return input_contains(d, self.text, typed);
+            return input_shown(screen, self.text, typed);
         }
         let now = squash(d.unwrap_or(""));
         // the whole message, Claude's paste preview of it, or the end of a long one whose start has
@@ -481,15 +484,15 @@ impl Typing<'_> {
         // known to be this message rather than a shorter draft the mirror put there earlier
         let mut typed = false;
         // the draft may already be in the box (mirrored from the app); otherwise replace whatever is there
-        if !input_contains(screen.draft.as_deref(), text, false) {
+        if !input_shown(screen, text, false) {
             // a second go when the first doesn't show up: a mirrored draft still being typed can leave
             // the box with something else in it, which is cleared first. Only then: an empty box or
             // one that can't be read may just be slow to show the text, and typing again would double it.
-            let mut draft = screen.draft.clone();
+            let mut observed = screen.clone();
             let mut readable = screen.input_visible == Some(true) || !self.checked_input;
             let mut round = 0;
-            while round < 2 && !self.arrived(draft.as_deref(), typed) && (round == 0 || (readable && draft.as_deref().is_some_and(|d| !d.is_empty()))) {
-                if let Some(d) = draft.clone().filter(|d| !d.is_empty()) {
+            while round < 2 && !self.arrived(&observed, typed) && (round == 0 || (readable && observed.draft.as_deref().is_some_and(|d| !d.is_empty()))) {
+                if let Some(d) = observed.draft.clone().filter(|d| !d.is_empty()) {
                     empty_input(host_id, pane_id, d).await?;
                 }
                 type_into(host, pane_id, text, false).await?;
@@ -497,9 +500,9 @@ impl Typing<'_> {
                 for i in 0..15 {
                     sleep(if i < 3 { 80 } else { 150 }).await;
                     let now = current_screen(host_id, pane_id).await?;
-                    draft = now.draft;
                     readable = now.input_visible == Some(true);
-                    if self.arrived(draft.as_deref(), typed) {
+                    observed = now;
+                    if self.arrived(&observed, typed) {
                         break;
                     }
                 }
@@ -507,14 +510,14 @@ impl Typing<'_> {
             }
         }
         let name = name_of(self.kind);
-        if self.checked_input && !self.arrived(current_screen(host_id, pane_id).await?.draft.as_deref(), typed) {
+        if self.checked_input && !self.arrived(&current_screen(host_id, pane_id).await?, typed) {
             return Err(http(409, format!("Could not confirm the message reached {name}. Your message is available to copy or retry.")));
         }
         let slash = text.jtrim_start().starts_with('/');
         for _attempt in 0..3 {
             let before_submit = if self.checked_input { Some(current_screen(host_id, pane_id).await?) } else { None };
             if let Some(b) = &before_submit {
-                if b.prompt.is_some() || !(nonempty(&b.model) || b.input_visible == Some(true)) || !self.arrived(b.draft.as_deref(), typed) {
+                if b.prompt.is_some() || !(nonempty(&b.model) || b.input_visible == Some(true)) || !self.arrived(b, typed) {
                     return Err(http(409, format!("{name} input changed before sending. Open the terminal to check before retrying.")));
                 }
             }
@@ -530,7 +533,7 @@ impl Typing<'_> {
                         || (s.input_visible == Some(false) && !nonempty(&s.draft))
                         // OpenCode's /undo puts the undone message back in the box
                         || (is_open_code && s.input_visible == Some(true) && squash(s.draft.as_deref().unwrap_or("")) != squash(text)));
-                let accepted = if self.checked_input { codex_accepted(&s, text) } else { s.prompt.is_some() || !self.arrived(s.draft.as_deref(), typed) };
+                let accepted = if self.checked_input { codex_accepted(&s, text) } else { s.prompt.is_some() || !self.arrived(&s, typed) };
                 if opens_menu || accepted {
                     if !self.held {
                         if let Some(w) = watchers().peek(host_id, pane_id) {

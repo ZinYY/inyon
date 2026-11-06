@@ -1128,3 +1128,25 @@ fn reopening_a_blank_codex_thread_does_not_revive_parked_or_persisted_history() 
         }
     });
 }
+
+
+#[test]
+fn scrolling_a_codex_composer_never_replaces_the_full_app_draft() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        let full = "first line\nsecond line\nlast line";
+        set_draft(KEY, draft(full, now_ms() as f64, Some(full)));
+        {
+            let mut st = w.st.borrow_mut();
+            st.screen.input_visible = Some(true);
+            st.screen.draft = Some("last line".into());
+            st.screen.draft_clipped = Some("start".into());
+        }
+        w.sync_draft_from_screen();
+        assert_eq!(get_draft(KEY).unwrap().text, full);
+        set_draft(KEY, None);
+        w.sync_draft_from_screen();
+        assert!(get_draft(KEY).is_none(), "do not invent a complete draft from a terminal viewport");
+        watchers().stop(KEY);
+    });
+}
