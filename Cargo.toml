@@ -10,7 +10,7 @@ default-members = ["apps/cli", "crates/inyon-protocol", "crates/inyon-link", "cr
 
 [workspace.package]
 # the release number, the same as package.json; every crate takes it from here
-version = "0.24.69"
+version = "0.24.70"
 edition = "2021"
 license = "MIT"
 publish = false

@@ -294,6 +294,29 @@ struct Initial {
     t0: u64,
 }
 
+/// A failed initial read has no stream whose exit can trigger reconnection.
+struct FollowAttempt<'a> {
+    watcher: &'a ChatWatcher,
+    gen: u64,
+    full_read: bool,
+}
+
+impl Drop for FollowAttempt<'_> {
+    fn drop(&mut self) {
+        let missing = {
+            let mut st = self.watcher.st.borrow_mut();
+            let missing = self.gen == st.generation && !st.stopped && st.tail.is_none();
+            if missing {
+                st.full_read |= self.full_read;
+            }
+            missing
+        };
+        if missing {
+            self.watcher.retry_follow(self.gen);
+        }
+    }
+}
+
 impl ChatWatcher {
     fn new(host_id: &str, pane_id: &str, parked: Option<Parked>, full_read: bool) -> Rc<ChatWatcher> {
         let key = chat_key(host_id, pane_id);
@@ -1912,26 +1935,36 @@ impl ChatWatcher {
         spawn(async move {
             t.exited.wait().await;
             let Some(w) = me.upgrade() else { return };
-            let retries = {
-                let mut st = w.st.borrow_mut();
+            {
+                let st = w.st.borrow();
                 if gen != st.generation || !st.tail.as_ref().is_some_and(|x| x.same(&t)) || st.stopped {
                     return;
                 }
-                st.tail_lost = true;
-                st.retries += 1;
-                st.retries - 1
-            };
-            // try again soon rather than at the next poll; backing off if it keeps ending at once
-            let ms = retry_ms(retries);
-            let timer = w.later(ms, |w| {
-                if !w.st.borrow().stopped {
-                    w.sync();
-                }
-            });
-            let mut st = w.st.borrow_mut();
-            rt::clear(&mut st.retry_timer);
-            st.retry_timer = Some(timer);
+            }
+            w.retry_follow(gen);
         });
+    }
+
+    /// Retry both a lost tail and a read that failed before a tail could be opened.
+    fn retry_follow(&self, gen: u64) {
+        let retries = {
+            let mut st = self.st.borrow_mut();
+            if gen != st.generation || st.stopped {
+                return;
+            }
+            st.tail_lost = true;
+            let retries = st.retries;
+            st.retries = st.retries.saturating_add(1);
+            retries
+        };
+        let timer = self.later(retry_ms(retries), move |w| {
+            if !w.stale(gen) {
+                w.sync();
+            }
+        });
+        let mut st = self.st.borrow_mut();
+        rt::clear(&mut st.retry_timer);
+        st.retry_timer = Some(timer);
     }
 
     /// Clears what was read, for a file read from its start.
@@ -2007,6 +2040,7 @@ impl ChatWatcher {
             if let Some(t) = st.tail.take() {
                 t.kill();
             }
+            rt::clear(&mut st.retry_timer);
             st.tail_lost = false;
             st.transcript = Some(path.clone());
             st.proc = proc;
@@ -2015,6 +2049,9 @@ impl ChatWatcher {
         };
         if !again {
             self.restart();
+        } else {
+            // Live callbacks belong to the previous generation, even for the same file.
+            self.stop_live();
         }
         if path.starts_with("opencode://") {
             return self.follow_open_code(&path, gen);
@@ -2028,6 +2065,7 @@ impl ChatWatcher {
         if path.contains("/.gemini/antigravity-cli/brain/") {
             return self.follow_doc(&path, gen, AntigravityDoc::new());
         }
+        let _attempt = FollowAttempt { watcher: self, gen, full_read };
         let t0 = now_ms();
         if debug() {
             console::log(&format!("[follow] {} {} {path}", if again { "resume" } else { "start" }, self.key));

@@ -717,6 +717,122 @@ fn a_tail_that_keeps_ending_waits_at_most_30_seconds_however_often_it_ends() {
     assert_eq!([0, 1, 4, 5, 60, u32::MAX].map(retry_ms), [1000, 2000, 16_000, 30_000, 30_000, 30_000]);
 }
 
+/// Simulate a paired link dropping during the size request, before any tail exists.
+fn failed_follow_box(kind: &str) -> (Rc<Fake>, Rc<ChatWatcher>) {
+    use crate::hosts::host::{set_host_backends, ExecOptions, ExecResult, HostBackend, OnData, OnLine, PtyHandle, StreamHandle, UTF8_TMUX};
+    use inyon_protocol::HostConfig;
+    struct DropSize {
+        fake: Rc<Fake>,
+        first: Cell<bool>,
+    }
+    impl HostBackend for DropSize {
+        fn exec(&self, config: &HostConfig, cmd: &str, opts: ExecOptions) -> LocalBoxFuture<'static, HubResult<ExecResult>> {
+            if cmd.strip_prefix(UTF8_TMUX).unwrap_or(cmd) == size_command("/tmp/retry.jsonl", 0) && self.first.replace(false) {
+                return Box::pin(async {
+                    yield_now().await;
+                    Err(HubError::plain("test link disconnected"))
+                });
+            }
+            self.fake.exec(config, cmd, opts)
+        }
+        fn stream(&self, config: &HostConfig, cmd: &str, on_line: OnLine, keep_stdin: bool) -> StreamHandle {
+            self.fake.stream(config, cmd, on_line, keep_stdin)
+        }
+        fn pty(&self, config: &HostConfig, cmd: &str, cols: u16, rows: u16, on_data: OnData) -> HubResult<PtyHandle> {
+            self.fake.pty(config, cmd, cols, rows, on_data)
+        }
+    }
+    let fake = Fake::install(|_, cmd, _| {
+        if cmd == size_command("/tmp/retry.jsonl", 0) {
+            return ok(&format!("{} 1", TAIL_BYTES * 4));
+        }
+        ok("")
+    });
+    let backend = Rc::new(DropSize { fake: fake.clone(), first: Cell::new(true) });
+    set_host_backends(move |_| backend.clone());
+    machine("follow-retry", "local", json!([{ "id":"%9", "agent":{
+        "kind":kind, "pid":7, "state":"idle", "sessionId":"retry", "transcriptPath":"/tmp/retry.jsonl"
+    }}])).borrow_mut().hold_polls();
+    let w = ChatWatcher::new("follow-retry", "%9", None, true);
+    (fake, w)
+}
+
+#[test]
+fn a_failed_initial_follow_reconnects_and_displays_new_messages_without_a_reload() {
+    run(|| async {
+        for kind in ["codex", "claude"] {
+            let (fake, w) = failed_follow_box(kind);
+            wait(20).await;
+            assert!(w.st.borrow().tail.is_none());
+            assert!(w.st.borrow().tail_lost);
+            assert!(w.st.borrow().retry_timer.is_some());
+            wait(1100).await;
+            assert!(w.st.borrow().tail.is_some());
+            assert!(!w.st.borrow().tail_lost);
+            assert_eq!(w.st.borrow().reader.as_ref().unwrap().offset, 0, "retain the full-read request through a failed setup");
+            let tail = fake.streams.borrow().iter().find(|s| s.cmd == tail_command("/tmp/retry.jsonl", 0, false, true)).unwrap().clone();
+            let record = if kind == "codex" {
+                json!({"type":"response_item","payload":{"id":"recovered","type":"message","role":"assistant","content":[{"type":"output_text","text":"reply after reconnect"}]}})
+            } else {
+                json!({"type":"assistant","uuid":"recovered","message":{"role":"assistant","content":[{"type":"text","text":"reply after reconnect"}]}})
+            };
+            tail.line(&record.to_string());
+            assert_eq!(texts(&w), vec!["reply after reconnect"]);
+            assert_eq!(w.st.borrow().retries, 0);
+            // A stream that opens and then immediately exits uses the same recovery path.
+            tail.exited.resolve(1);
+            wait(1100).await;
+            assert!(w.st.borrow().tail.as_ref().is_some_and(|t| !t.exited.same(&tail.exited)));
+            w.stop();
+        }
+    });
+}
+
+#[test]
+fn a_failed_initial_follow_cannot_restart_a_stopped_or_replaced_reader() {
+    run(|| async {
+        for stop in [true, false] {
+            let (fake, w) = failed_follow_box("codex");
+            wait(20).await;
+            assert!(w.st.borrow().tail_lost);
+            if stop {
+                w.stop();
+            } else {
+                // A different transcript superseded this generation before its retry fired.
+                w.st.borrow_mut().generation += 1;
+            }
+            let calls = fake.calls.borrow().len();
+            wait(1100).await;
+            assert_eq!(fake.calls.borrow().len(), calls);
+            assert!(w.st.borrow().tail.is_none());
+            w.stop();
+        }
+    });
+}
+
+#[test]
+fn reconnecting_a_codex_transcript_reopens_live_events_for_the_new_generation() {
+    run(|| async {
+        let fake = Fake::install(|_, _, _| ok("0 1"));
+        let id = "11111111-1111-4111-8111-111111111111";
+        let path = format!("/home/test/.codex/sessions/2026/11/06/rollout-2026-11-06T00-00-00-{id}.jsonl");
+        machine("live-reconnect", "local", json!([{ "id":"%9", "agent":{
+            "kind":"codex", "pid":7, "state":"idle", "sessionId":id, "transcriptPath":path
+        }}])).borrow_mut().hold_polls();
+        let w = ChatWatcher::new("live-reconnect", "%9", None, false);
+        wait(20).await;
+        let live = fake.streams.borrow().iter().find(|s| s.cmd == codex_live_command(id)).unwrap().clone();
+        let tail = w.st.borrow().tail.clone().unwrap();
+        assert!(w.st.borrow().ready);
+        tail.exited.resolve(1);
+        wait(1100).await;
+        assert!(live.killed.get());
+        assert_eq!(fake.streams.borrow().iter().filter(|s| s.cmd == codex_live_command(id)).count(), 2);
+        assert!(w.st.borrow().live_tail.as_ref().is_some_and(|t| !t.exited.same(&live.exited)));
+        w.stop();
+    });
+}
+
 #[test]
 fn a_clock_that_ticks_between_two_reads_never_trips_up_the_draft_mirror() {
     run(|| async {
