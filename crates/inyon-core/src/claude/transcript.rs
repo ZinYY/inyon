@@ -957,7 +957,8 @@ fn user_items(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta, sidecha
     if text.is_blank() && images == 0 {
         return vec![];
     }
-    vec![base.user(clip_text(&unwrap_paste(&text), MAX_TEXT), images)]
+    // The app renders a bounded preview. Keep the message intact for copying and delivery receipts.
+    vec![base.user(unwrap_paste(&text), images)]
 }
 
 #[cfg(test)]
@@ -965,6 +966,15 @@ mod tests {
     use super::*;
     use crate::test_support::assert_match;
     use serde_json::json;
+
+    #[test]
+    fn long_user_input_remains_complete_for_copy_and_receipts() {
+        let text = "中文 customer's \"quote\" with spaces; ".repeat(1600) + "END";
+        let mut meta = new_meta();
+        let event = json!({"type":"user","uuid":"long-user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":text}});
+        let rows = normalize(&event, &mut meta, false);
+        assert!(matches!(&rows[0], ChatItem::User { text: saved, .. } if saved == &text));
+    }
 
     #[test]
     fn forked_local_command_metadata_keeps_the_following_real_user_prompt() {

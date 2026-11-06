@@ -260,3 +260,20 @@ fn split_codex_paste_previews_require_the_complete_known_text() {
     assert!(input_contains(Some("a[Pasted Content 2 chars]z"), "a😀z", true));
     assert!(input_contains(Some("a[Pasted Content 1 chars]z"), "a😀z", true));
 }
+
+#[test]
+fn clipped_split_pastes_require_the_known_literal_ending() {
+    let text = "BEGIN INYON_LONG_1106_C ".to_owned() + &"中文 customer's \"quote\" alpha beta gamma delta; ".repeat(1100)
+        + " END INYON_LONG_1106_C. Reply LONG_OK only. Do not use tools.";
+    let lines = crate::test_support::screen_fixture("codex", "paste-clipped-split-windows");
+    let screen = crate::claude::screen::parse_psmux_screen(&lines, Some(120), inyon_protocol::AgentKind::Codex);
+    assert_eq!(screen.draft_clipped.as_deref(), Some("start"));
+    assert!(input_shown(&screen, &text, true), "{:?}", screen.draft);
+    assert!(!input_shown(&screen, &text, false));
+    assert!(!input_shown(&screen, &(text.clone() + " extra"), true));
+    let mut partial = screen.clone();
+    partial.draft = Some("Repeated input text [Pasted Content 1033 chars]".into());
+    assert!(!input_shown(&partial, &text, true), "a folded last chunk cannot establish the ending");
+    partial.draft = screen.draft.clone(); partial.draft_clipped = Some("both".into());
+    assert!(!input_shown(&partial, &text, true));
+}

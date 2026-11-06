@@ -1003,3 +1003,11 @@ fn an_active_thread_identity_follows_rewinds_without_claiming_a_same_folder_fork
         assert_eq!(find_codex_thread_rollout(&h, &root.s(), "00000000-0000-0000-0000-000000000004").await.unwrap(), None);
     });
 }
+
+#[test]
+fn long_codex_user_input_remains_complete_for_copy_and_receipts() {
+    let text = "中文 customer's \"quote\" with spaces; ".repeat(1600);
+    let mut meta = new_meta();
+    let rows = normalize_codex(&rec("response_item", json!({"type":"message","role":"user","content":[{"type":"input_text","text":text}]})), &mut meta);
+    assert!(matches!(&rows[0], inyon_protocol::ChatItem::User { text: saved, .. } if saved == &text));
+}

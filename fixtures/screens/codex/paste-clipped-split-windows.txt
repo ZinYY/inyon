@@ -1,0 +1,18 @@
+[0;1m›[0m customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote"   [0;2m↑[0m
+[0m  alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma[0m
+[0m  delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文[0m
+[0m  customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote"[0m
+[0m  alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma[0m
+[0m  delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文[0m
+[0m  customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote"[0m
+[0m  alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma[0m
+[0m  delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文[0m
+[0m  customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote"[0m
+[0m  alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma[0m
+[0m  delta; 中文 customer's "quote" alpha beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文[0m
+[0m  customer's "q[0;36m[Pasted Content 1022 chars][0ma beta gamma delta; 中文 customer's "quote" alpha beta gamma delta; 中文[0m
+[0m  customer's "quot[0;36m[Pasted Content 1997 chars][Pasted Content 2373 chars][0me[0;36m[Pasted Content 1033 chars][0mlta;  END[0m
+[0m  INYON_LONG_1106_C. Reply LONG_OK only. Do not use tools.[0m
+[0m
+  GPT-6-Astra high · ~/work
+  ? for shortcuts

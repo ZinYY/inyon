@@ -931,7 +931,7 @@ pub fn normalize_codex(e: &Value, meta: &mut TranscriptMeta) -> Vec<ChatItem> {
                         return reply;
                     }
                     let images = p.at("content").arr().map_or(0, |c| c.iter().filter(|x| Some(*x).at("type").str() == Some("input_image")).count()) as u32;
-                    vec![base.user(clip(&text), images)]
+                    vec![base.user(text, images)]
                 }
                 Some("assistant") => {
                     // in Plan mode the plan is a message wrapped in a tag; it shows as a plan card

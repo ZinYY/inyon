@@ -1,0 +1,39 @@
+{
+  "auto": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"q[Pasted Content 1022 chars]a beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quot[Pasted Content 1997 chars][Pasted Content 2373 chars]e[Pasted Content 1033 chars]lta;  END\nINYON_LONG_1106_C. Reply LONG_OK only. Do not use tools.",
+      "draftClipped": "start",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 116
+    }
+  },
+  "80": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"q[Pasted Content 1022 chars]a beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quot[Pasted Content 1997 chars][Pasted Content 2373 chars]e[Pasted Content 1033 chars]lta;  END INYON_LONG_1106_C. Reply LONG_OK only. Do not use tools.",
+      "draftClipped": "start",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 80
+    }
+  },
+  "120": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\"\nalpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma\ndelta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"q[Pasted Content 1022 chars]a beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文\ncustomer's \"quot[Pasted Content 1997 chars][Pasted Content 2373 chars]e[Pasted Content 1033 chars]lta;  END\nINYON_LONG_1106_C. Reply LONG_OK only. Do not use tools.",
+      "draftClipped": "start",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 120
+    }
+  },
+  "browsing": null
+}

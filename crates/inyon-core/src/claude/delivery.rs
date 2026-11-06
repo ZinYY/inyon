@@ -29,7 +29,7 @@ pub fn has_paste_preview(text: &str) -> bool {
 pub fn input_contains(draft: Option<&str>, text: &str, known: bool) -> bool {
     let trimmed = draft.unwrap_or("").jtrim();
     if re!(r"\[Pasted\s+Content\s+\d+\s+chars\]", "i").is_match(trimmed) {
-        return known && codex_paste_matches(trimmed, text);
+        return known && codex_paste_matches(trimmed, text, true);
     }
     // OpenCode collapses a multi-line paste to its line count
     if let Some(lines) = re!(r"^\[Pasted ~(\d+) lines?\]$", "i").captures(trimmed) {
@@ -61,7 +61,7 @@ pub fn input_contains(draft: Option<&str>, text: &str, known: bool) -> bool {
 /// Windows can split one paste into several collapsed spans with literal text between them.
 /// Check every visible character and every span's length against the text we just pasted.
 /// Whitespace around spans is ambiguous after terminal wrapping, so retain those few positions.
-fn codex_paste_matches(draft: &str, text: &str) -> bool {
+fn codex_paste_matches(draft: &str, text: &str, whole: bool) -> bool {
     let spans = re!(r"\[Pasted\s+Content\s+(\d+)\s+chars\]", "i");
     for utf16 in [false, true] {
         let chars: Vec<char> = text.chars().collect();
@@ -90,7 +90,7 @@ fn codex_paste_matches(draft: &str, text: &str) -> bool {
             end = m.end();
         }
         let positions = match_literal(&draft[end..], &chars, positions);
-        if positions.iter().any(|&at| chars[at..].iter().all(|c| c.is_whitespace())) { return true; }
+        if positions.iter().any(|&at| !whole || chars[at..].iter().all(|c| c.is_whitespace())) { return true; }
     }
     false
 }
@@ -113,10 +113,26 @@ pub fn input_shown(screen: &ScreenState, text: &str, known: bool) -> bool {
     if screen.draft_clipped.is_none() {
         return input_contains(screen.draft.as_deref(), text, known);
     }
-    let tail = squash(screen.draft.as_deref().unwrap_or(""));
-    known && screen.draft_clipped.as_deref() == Some("start")
-        && tail.chars().filter(|c| c.is_alphanumeric()).count() >= 16
-        && squash(text).ends_with(&tail)
+    if !known || screen.draft_clipped.as_deref() != Some("start") { return false; }
+    let draft = screen.draft.as_deref().unwrap_or("");
+    let spans = re!(r"\[Pasted\s+Content\s+\d+\s+chars\]", "i");
+    if let Some(last) = spans.find_iter(draft).last() {
+        // A final folded block could still be an intermediate chunk. Require a literal ending
+        // before trusting a clipped preview; its hidden span lengths alone do not prove arrival.
+        if draft[last.end()..].chars().filter(|c| c.is_alphanumeric()).count() < 16 { return false; }
+        let mut pieces = Vec::new();
+        let mut end = 0;
+        for span in spans.find_iter(draft) {
+            pieces.push(draft[end..span.start()].chars().rev().collect::<String>());
+            pieces.push(span.as_str().to_owned());
+            end = span.end();
+        }
+        pieces.push(draft[end..].chars().rev().collect());
+        pieces.reverse();
+        return codex_paste_matches(&pieces.concat(), &text.chars().rev().collect::<String>(), false);
+    }
+    let tail = squash(draft);
+    tail.chars().filter(|c| c.is_alphanumeric()).count() >= 16 && squash(text).ends_with(&tail)
 }
 
 /// A missing composer is unknown, rather than evidence that input was submitted.
