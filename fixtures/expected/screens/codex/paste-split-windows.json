@@ -1,0 +1,36 @@
+{
+  "auto": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "[Pasted Content 8496 chars]ustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's\n\"quote\" alpha beta ga[Pasted Content 4214 chars]ote[Pasted Content 8013 chars]eta gamma delta; 中文 customer's\n\"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta\ngamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文[Pasted Content 8542 chars]amma[Pasted Content 8202 chars]tome[Pasted Content 7968 chars]\" alph[Pasted Content 4823 chars]",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 116
+    }
+  },
+  "80": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "[Pasted Content 8496 chars]ustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta ga[Pasted Content 4214 chars]ote[Pasted Content 8013 chars]eta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文[Pasted Content 8542 chars]amma[Pasted Content 8202 chars]tome[Pasted Content 7968 chars]\" alph[Pasted Content 4823 chars]",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 80
+    }
+  },
+  "120": {
+    "screen": {
+      "inputVisible": true,
+      "working": false,
+      "draft": "[Pasted Content 8496 chars]ustomer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta;\n中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's\n\"quote\" alpha beta ga[Pasted Content 4214 chars]ote[Pasted Content 8013 chars]eta gamma delta; 中文 customer's\n\"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文 customer's \"quote\" alpha beta\ngamma delta; 中文 customer's \"quote\" alpha beta gamma delta; 中文[Pasted Content 8542 chars]amma[Pasted Content 8202\nchars]tome[Pasted Content 7968 chars]\" alph[Pasted Content 4823 chars]",
+      "background": null,
+      "model": "GPT-6-Astra",
+      "effort": "high",
+      "width": 120
+    }
+  },
+  "browsing": null
+}

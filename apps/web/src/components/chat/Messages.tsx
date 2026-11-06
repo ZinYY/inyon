@@ -26,8 +26,6 @@ export const ChatRewind = createContext<((text: string) => void) | undefined>(un
 export const UserMessage = memo(function UserMessage({ row }: { row: Extract<Row, { type: 'user' }> }) {
   const { item } = row
   const rewind = useContext(ChatRewind)
-  const [expanded, setExpanded] = useState(false)
-  const long = item.text.length > 1200 || item.text.split('\n').length > 18
   if (item.shell) {
     return (
       <div className="flex justify-end">
@@ -48,8 +46,7 @@ export const UserMessage = memo(function UserMessage({ row }: { row: Extract<Row
       <div
         {...menu}
         className={clsx(
-          'relative max-w-[88%] whitespace-pre-wrap break-words rounded-3xl bg-bubble px-4 py-2.5 text-[15px] leading-[1.55] sm:max-w-[78%]',
-          long && !expanded && 'max-h-80 overflow-hidden',
+          'relative min-w-0 max-w-[88%] whitespace-pre-wrap break-words rounded-3xl bg-bubble px-4 py-2.5 text-[15px] leading-[1.55] sm:max-w-[78%]',
         )}
       >
         {item.images > 0 && (
@@ -58,16 +55,7 @@ export const UserMessage = memo(function UserMessage({ row }: { row: Extract<Row
             {item.images} image{item.images > 1 ? 's' : ''}
           </span>
         )}
-        <LinkedPaths text={item.text} />
-        {long && !expanded && (
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="absolute inset-x-0 bottom-0 border-t border-line bg-bubble py-2 text-[13px] font-medium text-fg-2 hover:text-fg"
-          >
-            Show more
-          </button>
-        )}
+        <MessageText text={item.text} />
       </div>
       <div className="mt-1 flex h-6 items-center gap-1 px-1 text-[12px] text-fg-3 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
         {item.queued && <span className="mr-1">Sent while the agent was working ·</span>}
@@ -87,6 +75,33 @@ export const UserMessage = memo(function UserMessage({ row }: { row: Extract<Row
       </div>
     </div>
   )
+})
+
+/** Bound both DOM text and line layout while folded. CSS clipping still lays out the entire
+ * paste, which can make scrolling expensive even though only a few lines are visible. */
+export function messagePreview(text: string): string {
+  let end = Math.min(text.length, 1200)
+  let lines = 1
+  for (let i = 0; i < end; i++) {
+    if (text[i] === '\n' && ++lines > 18) { end = i; break }
+  }
+  if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1] ?? '')) end--
+  return text.slice(0, end)
+}
+
+const MessageText = memo(function MessageText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const preview = useMemo(() => messagePreview(text), [text])
+  const long = preview.length < text.length
+  return <>
+    <span className={clsx('block [overflow-wrap:anywhere]', long && !expanded && 'max-h-72 overflow-hidden')}>
+      <LinkedPaths text={expanded ? text : preview} />
+      {long && !expanded && '…'}
+    </span>
+    {long && <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-2 block text-[13px] font-medium text-fg-2 hover:text-fg">
+      {expanded ? 'Show less' : 'Show more'}
+    </button>}
+  </>
 })
 
 const IMAGE = /\.(png|jpe?g|gif|webp|heic|heif|avif|bmp|svg)$/i
@@ -125,7 +140,7 @@ export function PendingBubble({ p, onRetry, onDismiss, onScreen }: { p: PendingM
         // the same box as the message it becomes, so nothing moves when the agent takes it
         className={clsx('max-w-[88%] whitespace-pre-wrap break-words rounded-3xl bg-bubble px-4 py-2.5 text-[15px] leading-[1.55] transition-opacity sm:max-w-[78%]', p.status !== 'failed' && 'opacity-70')}
       >
-        <LinkedPaths text={p.text} />
+        <MessageText text={p.text} />
       </div>
       <div className="mt-1 flex h-6 items-center gap-1.5 px-1 text-[12px] text-fg-3">
         {p.status === 'sending' && (
@@ -159,7 +174,7 @@ export function QueuedBubble({ text, agent }: { text: string; agent?: AgentKind 
   return (
     <div className="flex flex-col items-end">
       <div className="max-w-[88%] whitespace-pre-wrap break-words rounded-3xl border border-dashed border-line-strong px-4 py-2.5 text-[15px] leading-[1.55] text-fg-2 sm:max-w-[78%]">
-        <LinkedPaths text={text} />
+        <MessageText text={text} />
       </div>
       <div className="mt-1 flex h-6 items-center gap-1.5 px-1 text-[12px] text-fg-3">
         <Clock3 className="size-3" /> Queued · {agent ? agentDef(agent).name : 'the agent'} reads it at its next step

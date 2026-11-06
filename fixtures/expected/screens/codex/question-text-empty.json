@@ -1,0 +1,63 @@
+{
+  "auto": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "What label should this test use?"
+        ],
+        "options": [],
+        "footer": "enter submit   ⌃] skip   ⇧→ main prompt",
+        "multi": false,
+        "input": {
+          "label": "Your answer",
+          "multiline": true,
+          "value": ""
+        }
+      },
+      "working": false,
+      "width": 41
+    },
+    "summary": "Your answer"
+  },
+  "80": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "What label should this test use?"
+        ],
+        "options": [],
+        "footer": "enter submit   ⌃] skip   ⇧→ main prompt",
+        "multi": false,
+        "input": {
+          "label": "Your answer",
+          "multiline": true,
+          "value": ""
+        }
+      },
+      "working": false,
+      "width": 80
+    },
+    "summary": "Your answer"
+  },
+  "120": {
+    "screen": {
+      "prompt": {
+        "body": [
+          "What label should this test use?"
+        ],
+        "options": [],
+        "footer": "enter submit   ⌃] skip   ⇧→ main prompt",
+        "multi": false,
+        "input": {
+          "label": "Your answer",
+          "multiline": true,
+          "value": ""
+        }
+      },
+      "working": false,
+      "width": 120
+    },
+    "summary": "Your answer"
+  },
+  "browsing": null
+}

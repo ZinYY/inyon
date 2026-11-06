@@ -222,9 +222,10 @@ export function Composer({
     if (!el) return
     const max = window.innerHeight * 0.4
     el.style.height = '0px'
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`
-    // phones round line heights, which leaves a 1px overflow and a pointless scrollbar
-    el.style.overflowY = el.scrollHeight > max + 1 ? 'auto' : 'hidden'
+    const height = el.scrollHeight
+    el.style.height = `${Math.min(height, max)}px`
+    // Reuse the measurement: reading after the height write forces a second layout of long input.
+    el.style.overflowY = height > max + 1 ? 'auto' : 'hidden'
   }, [text])
 
   // ---------- suggestions ----------

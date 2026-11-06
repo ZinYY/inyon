@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { AssistantTurn, PendingBubble, QueuedBubble, UserMessage, uploadName, WorkingIndicator } from './Messages.tsx'
+import { AssistantTurn, PendingBubble, QueuedBubble, UserMessage, messagePreview, uploadName, WorkingIndicator } from './Messages.tsx'
 import { ChatHost } from './agent.ts'
 import { usePages, type Page } from '../../lib/pages.ts'
 import { buildRows } from '../../lib/chat.ts'
@@ -63,4 +63,26 @@ test('a reply that links to a page shows it as a card that opens it, once the re
     at(open)
     expect(screen.queryByRole('link', { name: /My plan/ })).toBeNull()
   }
+})
+
+for (const kind of ['sent', 'pending', 'queued']) {
+  test(`a folded ${kind} long message keeps the hidden text out of the DOM and expands losslessly`, () => {
+    const text = "中文 customer's ".repeat(4000) + '\nTHE_EXACT_END'
+    const [row] = buildRows([item.user(text)])
+    if (row.type !== 'user') throw new Error('not a user row')
+    const { container } = render(kind === 'sent' ? <UserMessage row={row} /> : kind === 'pending'
+      ? <PendingBubble p={{ id: 'long', text, status: 'sending', at: 0 }} onRetry={() => {}} onDismiss={() => {}} />
+      : <QueuedBubble text={text} agent="codex" />)
+    expect(container.textContent!.length).toBeLessThan(1400)
+    expect(container.textContent).not.toContain('THE_EXACT_END')
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    expect(container.textContent).toContain(text)
+    fireEvent.click(screen.getByRole('button', { name: 'Show less' }))
+    expect(container.textContent!.length).toBeLessThan(1400)
+  })
+}
+
+test('folded previews bound line count and do not split a Unicode character', () => {
+  expect(messagePreview('line\n'.repeat(50)).split('\n')).toHaveLength(18)
+  expect(messagePreview('x'.repeat(1199) + '😀tail')).toBe('x'.repeat(1199))
 })
