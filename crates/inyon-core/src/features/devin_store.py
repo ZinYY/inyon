@@ -171,7 +171,7 @@ def log_idle(pid):
     return idle
 
 
-def completed_head(db, sid):
+def completed_head(db, sid, native_idle=False):
     row = db.execute('SELECT main_chain_id FROM sessions WHERE id=?', (sid,)).fetchone()
     node, seen = row[0] if row else None, set()
     while node is not None and node not in seen and len(seen) < 200:
@@ -182,7 +182,12 @@ def completed_head(db, sid):
         m = object_json(row[0])
         meta = m.get('metadata') or {}
         if m.get('role') == 'assistant':
-            return meta.get('finish_reason') in ('stop', 'end_turn') and not m.get('tool_calls')
+            # Desktop-imported and compacted replies can omit finish_reason.
+            # Accept those only after independent runtime evidence says idle
+            # (or no native writer exists), never merely after a quiet interval.
+            finished = meta.get('finish_reason') in ('stop', 'end_turn')
+            imported = native_idle and meta.get('finish_reason') is None and bool(text_content(m.get('content')))
+            return (finished or imported) and not m.get('tool_calls')
         if m.get('role') == 'tool' or (m.get('role') == 'user' and meta.get('is_user_input') is True):
             return False
         node = row[1]
@@ -193,7 +198,7 @@ def owner_ready(db, sid):
     pid = lock_owner(sid)
     if pid is None:
         # An interrupted saved turn is not silently continued either.
-        if not completed_head(db, sid):
+        if not completed_head(db, sid, native_idle=True):
             raise Refused(UNKNOWN)
         return None
     idle = log_idle(pid)
@@ -202,7 +207,7 @@ def owner_ready(db, sid):
     # Force open terminates the lock-holder process. Check every session it owns.
     for p in (DATA / 'session_locks').glob('*.lock'):
         try:
-            if p.read_text().strip() == str(pid) and valid_id(p.stem) and lock_owner(p.stem) == pid and not completed_head(db, p.stem):
+            if p.read_text().strip() == str(pid) and valid_id(p.stem) and lock_owner(p.stem) == pid and not completed_head(db, p.stem, native_idle=True):
                 raise Refused(BUSY if p.stem == sid else 'Devin can only resume after every conversation in the same Agent process has finished. Another conversation is still running or waiting for input.')
         except FileNotFoundError:
             continue

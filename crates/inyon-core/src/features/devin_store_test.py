@@ -85,6 +85,17 @@ class DevinStoreTests(unittest.TestCase):
             with self.assertRaises(devin.Refused):
                 devin.owner_ready(db, 'test-session')
 
+    def test_imported_desktop_reply_needs_independent_idle_evidence(self):
+        self.session()
+        self.message(1, None, 'user', 'question', is_user_input=True)
+        self.message(2, 1, 'assistant', 'Desktop reply without a finish_reason')
+        self.db.commit()
+        self.assertFalse(devin.completed_head(self.db, 'test-session'))
+        self.assertTrue(devin.completed_head(self.db, 'test-session', native_idle=True))
+        with patch.object(devin, 'lock_owner', return_value=123), patch.object(devin, 'log_idle', return_value=False):
+            with self.assertRaises(devin.Refused):
+                devin.owner_ready(self.db, 'test-session')
+
     def test_long_graph_and_compaction_links_preserve_source_history(self):
         rows = [(i, i - 1 if i else None, '{}', '{}') for i in range(6000)]
         rows.append((6000, None, '{}', json.dumps({'extensions': {'compact/prior_node_ids': [5999]}})))
