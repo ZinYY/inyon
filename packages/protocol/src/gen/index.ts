@@ -2,7 +2,7 @@
 // change the Rust types, run that test and commit what it writes. gen-check.ts compares these
 // types with the hand-written ones in index.ts.
 
-export type AgentKind = "claude" | "codex" | "opencode" | "copilot" | "gemini" | "antigravity" | "cursor" | "grok" | "pi" | "amp" | "goose" | "hermes" | "kimi" | "kiro" | "qwen" | "qoder" | "codebuddy";
+export type AgentKind = "claude" | "codex" | "opencode" | "copilot" | "gemini" | "antigravity" | "cursor" | "grok" | "pi" | "amp" | "goose" | "hermes" | "kimi" | "kiro" | "qwen" | "qoder" | "codebuddy" | "devin";
 
 export type SkinTokens = { bg: string, panel: string, raised: string, hover: string, line: string, lineStrong: string, fg: string, fg2: string, fg3: string, accent: string, accentFg: string, accentSoft: string, accentText: string, bubble: string, code: string, };
 

@@ -18,6 +18,7 @@ export type AgentKind =
   | 'qwen'
   | 'qoder'
   | 'codebuddy'
+  | 'devin'
 
 export interface SkinTokens {
   bg: string
@@ -858,6 +859,15 @@ export const AGENTS: Record<AgentKind, AgentDef> = {
       { path: '~/.codebuddy/settings.json', label: 'Settings', format: 'json' },
       { path: '{cwd}/CODEBUDDY.md', label: 'Project memory', format: 'md' },
     ],
+  }),
+
+  devin: terminalAgent({
+    kind: 'devin',
+    name: 'Devin CLI', vendor: 'Cognition', comm: ['devin'], args: [program('devin')], launch: 'devin',
+    install: { cmd: 'curl -fsSL https://cli.devin.ai/install.sh | bash', docs: 'https://docs.devin.ai/cli' },
+    update: 'devin update', login: 'devin auth login', version: 'devin --version', authFiles: [],
+    skin: accentSkin(accent('#2067A7', '#FFFFFF', '#E6F2FF', '#175B98'), accent('#74B4EC', '#101A24', '#192C3E', '#94C8F5')),
+    configFiles: [{ path: '~/.config/devin/config.json', label: 'Config', format: 'json' }],
   }),
 }
 

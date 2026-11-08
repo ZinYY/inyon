@@ -3,6 +3,7 @@ import { hubOrigin } from './hub.ts'
 import { isPhone, phone } from './phone.ts'
 import { checkPlain, hubToken, isHubHost, splitHostId, type PairedHub } from './hubs.ts'
 import { NoChunkedUploads, retryable, uploadChunked, UploadError, type Uploaded } from './upload.ts'
+import type { DevinSession, DevinUpdate } from './devin.ts'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -337,6 +338,9 @@ export interface CompanionStatus {
 }
 
 export const api = {
+  devinSessions: (id: string) => request<{ sessions: DevinSession[] }>('GET', `${h(id)}/devin`, undefined, 20_000),
+  devinRead: (id: string, session: string, since: number) => request<DevinUpdate>('GET', `${h(id)}/devin/${encodeURIComponent(session)}${qs({ since: String(since) })}`, undefined, 15_000),
+  devinSend: (id: string, session: string, text: string, requestId: string) => request<{ status: string; tmux: string; pane: string }>('POST', `${h(id)}/devin/${encodeURIComponent(session)}/send`, { text, requestId }, 70_000),
   /** `version` and `commit` say what the hub runs, once signed in */
   session: () => request<{ authed: boolean; setup?: boolean; setupCode?: boolean; version?: string; commit?: string }>('GET', '/api/session'),
   // a new hub: the first visit picks the password

@@ -277,7 +277,10 @@ export function MachinePage() {
           </div>
         </div>
         <div key={tab} className="animate-fade-in">
-          {tab === 'sessions' && <SessionsTab host={host} onNew={() => setNewOpen(true)} />}
+          {tab === 'sessions' && <>
+            {host.status === 'online' && host.config.kind !== 'node' && <Link to={`/m/${encodeURIComponent(id)}/devin`} className="mb-4 flex items-center justify-between rounded-2xl border border-line bg-elev px-4 py-3 hover:bg-hover"><span>Devin conversations</span><ChevronRight className="size-4" /></Link>}
+            <SessionsTab host={host} onNew={() => setNewOpen(true)} />
+          </>}
           {tab === 'setup' && <SetupPanel host={host} />}
           {tab === 'config' && <ConfigTab host={host} />}
           {tab === 'uploads' && <UploadsCard key={host.config.id} host={host} />}

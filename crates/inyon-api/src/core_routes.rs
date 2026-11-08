@@ -345,6 +345,17 @@ pub fn overview(catalog: u32) -> Resp {
 
 pub fn add(routes: &mut Routes) {
     use Method as M;
+    guarded(routes, "/api/hosts/:id/devin", vec![(M::GET, h(|r| async move {
+        Ok(json_of(&inyon_core::features::devin::list(&id(&r)).await?))
+    }))]);
+    guarded(routes, "/api/hosts/:id/devin/:session", vec![(M::GET, h(|r| async move {
+        let since = r.q("since").parse::<u64>().unwrap_or(0);
+        Ok(json_of(&inyon_core::features::devin::read(&id(&r), &r.param("session"), since).await?))
+    }))]);
+    guarded(routes, "/api/hosts/:id/devin/:session/send", vec![(M::POST, h(|mut r| async move {
+        let body = r.body().await?;
+        Ok(json_of(&inyon_core::features::devin::send(&id(&r), &r.param("session"), &body).await?))
+    }))]);
     guarded(routes, "/api/overview", vec![(M::GET, h(|r| async move { Ok(overview(r.catalog())) }))]);
     // sends that failed, newest first, with the bottom of the screen each failed on (from 0.22)
     guarded(routes, "/api/send-failures", vec![(M::GET, h(|_r| async move { Ok(json_of(&inyon_core::claude::send_check::failures())) }))]);

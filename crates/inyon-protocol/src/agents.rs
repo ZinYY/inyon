@@ -32,10 +32,11 @@ pub enum AgentKind {
     Qwen,
     Qoder,
     Codebuddy,
+    Devin,
 }
 
 /// Every agent, in the catalog's order (the order `detect_agent` tries them in).
-pub const AGENT_KINDS: [AgentKind; 17] = [
+pub const AGENT_KINDS: [AgentKind; 18] = [
     AgentKind::Claude,
     AgentKind::Codex,
     AgentKind::Opencode,
@@ -53,6 +54,7 @@ pub const AGENT_KINDS: [AgentKind; 17] = [
     AgentKind::Qwen,
     AgentKind::Qoder,
     AgentKind::Codebuddy,
+    AgentKind::Devin,
 ];
 
 /// The agents every app knows. Apps from before 0.23 crash on a kind they don't have, so the hub
@@ -80,6 +82,7 @@ impl AgentKind {
             AgentKind::Qwen => "qwen",
             AgentKind::Qoder => "qoder",
             AgentKind::Codebuddy => "codebuddy",
+            AgentKind::Devin => "devin",
         }
     }
 

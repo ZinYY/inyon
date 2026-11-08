@@ -33,6 +33,7 @@ jobs:
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p branch_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_identity_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_input_test.py
+      - run: python3 -m unittest discover -s crates/inyon-core/src/features -p devin_store_test.py
       - run: python3 -m unittest discover -s scripts -p claude_auto_title_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: python3 scripts/install-claude-sdk.py
@@ -134,4 +135,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Confirm long Windows Codex input when the composer is scrolled and contains multiple paste previews. Require the known literal ending before submitting; never infer completion from a folded final chunk alone. Preserve full user messages for copying and delivery recovery after navigation while rendering bounded previews. Includes text-only question answers from 0.24.66.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Read saved Devin Desktop and CLI conversations. Reuse existing tmux CLIs or hand off idle App sessions to a visible named tmux session. Keep CLIs running, detect manual exit, block busy or uncertain takeovers, and show incremental history with live terminal previews. Includes duplicate-send protection and folded long messages.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

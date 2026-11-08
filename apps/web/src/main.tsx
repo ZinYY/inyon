@@ -18,6 +18,7 @@ import { Home } from './pages/Home.tsx'
 import { Login } from './pages/Login.tsx'
 // the overview shows first; the other pages load when opened (and right after start, in the background)
 const PanePage = lazy(() => import('./pages/PanePage.tsx').then((m) => ({ default: m.PanePage })))
+const DevinPage = lazy(() => import('./pages/Devin.tsx').then((m) => ({ default: m.DevinPage })))
 const Settings = lazy(() => import('./pages/Settings.tsx').then((m) => ({ default: m.Settings })))
 const MachinesPage = lazy(() => import('./pages/Machines.tsx').then((m) => ({ default: m.MachinesPage })))
 const MachinePage = lazy(() => import('./pages/Machines.tsx').then((m) => ({ default: m.MachinePage })))
@@ -91,6 +92,8 @@ function App() {
         <Route element={<AppShell />}>
           <Route index element={<Home />} />
           <Route path="m/:host/p/:pane" element={<PanePage />} />
+          <Route path="m/:host/devin" element={<DevinPage />} />
+          <Route path="m/:host/devin/:session" element={<DevinPage />} />
           <Route path="machines" element={<MachinesPage />} />
           <Route path="machines/:host" element={<MachinePage />} />
           <Route path="pages" element={<PagesPage />} />

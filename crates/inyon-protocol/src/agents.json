@@ -3056,5 +3056,87 @@
       "@tencent-ai\\/codebuddy-code\\/"
     ],
     "set": {}
+  },
+  "devin": {
+    "replyFont": "sans",
+    "spinner": [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ],
+    "chat": false,
+    "models": [],
+    "efforts": [],
+    "modes": [],
+    "commands": [],
+    "configFiles": [
+      {
+        "path": "~/.config/devin/config.json",
+        "label": "Config",
+        "format": "json"
+      }
+    ],
+    "kind": "devin",
+    "name": "Devin CLI",
+    "vendor": "Cognition",
+    "comm": [
+      "devin"
+    ],
+    "launch": "devin",
+    "install": {
+      "cmd": "curl -fsSL https://cli.devin.ai/install.sh | bash",
+      "docs": "https://docs.devin.ai/cli"
+    },
+    "update": "devin update",
+    "login": "devin auth login",
+    "version": "devin --version",
+    "authFiles": [],
+    "skin": {
+      "light": {
+        "bg": "#FAFAF9",
+        "panel": "#FFFFFF",
+        "raised": "#F3F3F1",
+        "hover": "#EDEDEA",
+        "line": "#E2E1DD",
+        "lineStrong": "#CFCEC8",
+        "fg": "#1A1A19",
+        "fg2": "#4A4945",
+        "fg3": "#5F5E59",
+        "bubble": "#EFEFEC",
+        "code": "#F3F3F1",
+        "accent": "#2067A7",
+        "accentFg": "#FFFFFF",
+        "accentSoft": "#E6F2FF",
+        "accentText": "#175B98"
+      },
+      "dark": {
+        "bg": "#0F0F10",
+        "panel": "#18181A",
+        "raised": "#141416",
+        "hover": "#1E1E21",
+        "line": "#2A2A2E",
+        "lineStrong": "#38383D",
+        "fg": "#EDEDEE",
+        "fg2": "#BDBDC2",
+        "fg3": "#8F8F96",
+        "bubble": "#1F1F22",
+        "code": "#121214",
+        "accent": "#74B4EC",
+        "accentFg": "#101A24",
+        "accentSoft": "#192C3E",
+        "accentText": "#94C8F5"
+      }
+    },
+    "args": [
+      "^(?:\\S*\\/)?(?:(?:node|bun|python3?)\\s+(?:\\S*\\/)?)?devin(?:\\s|$)"
+    ],
+    "set": {}
   }
 }
