@@ -1120,6 +1120,12 @@ impl ChatWatcher {
         (st.codex, st.agent)
     }
 
+    fn normalize_branch_entry(codex: bool, agent: Option<AgentKind>, e: &Value, meta: &mut TranscriptMeta, branch: Option<&super::branch::Branch>) -> Vec<ChatItem> {
+        let mut items = branch.and_then(|b| b.prefix(e)).map(|p| Self::normalize_entry(codex, agent, p, meta)).unwrap_or_default();
+        items.extend(Self::normalize_entry(codex, agent, e, meta));
+        items
+    }
+
     /// Reads lines between two offsets of the transcript, each with the offset its line starts at.
     /// `complete` says every line up to `to` arrived: a dropped connection or a timeout ends the
     /// stream early, and taking that for the whole piece would leave a gap nothing reads again.
@@ -1163,7 +1169,7 @@ impl ChatWatcher {
             &cmd,
             move |line| {
                 if let Some(entry) = reader.line(&line).and_then(|r| r.entry) {
-                    if branch.as_ref().is_none_or(|b| b.includes(&entry)) { Self::normalize_entry(codex, agent, &entry, &mut meta.borrow_mut()); }
+                    if branch.as_ref().is_none_or(|b| b.includes(&entry)) { Self::normalize_branch_entry(codex, agent, &entry, &mut meta.borrow_mut(), branch.as_ref()); }
                 }
             },
             false,
@@ -1228,8 +1234,9 @@ impl ChatWatcher {
             // tool calls and their results sit close together, so a piece's own summary links them
             let mut meta = new_meta();
             let mut got = vec![];
+            let branch = self.st.borrow().claude_branch.clone();
             for (entry, at) in &lines {
-                for d in Self::normalize_entry(codex, agent, entry, &mut meta) {
+                for d in Self::normalize_branch_entry(codex, agent, entry, &mut meta, branch.as_ref()) {
                     got.push((d, *at));
                 }
             }
@@ -1323,7 +1330,7 @@ impl ChatWatcher {
                 if branch.as_ref().is_some_and(|b| !b.includes(e)) { return true; }
                 let mut a = acc.borrow_mut();
                 let Acc { meta, older, seq } = &mut *a;
-                for d in Self::normalize_entry(codex, agent, e, meta) {
+                for d in Self::normalize_branch_entry(codex, agent, e, meta, branch.as_ref()) {
                     if *seq >= first {
                         return false;
                     }
@@ -2012,7 +2019,7 @@ impl ChatWatcher {
                 let (_, replay) = st.replay.take().expect("the replay");
                 let mut meta = prefix.borrow().clone();
                 for e in &replay {
-                    Self::normalize_entry(codex, agent, e, &mut meta);
+                    Self::normalize_branch_entry(codex, agent, e, &mut meta, st.claude_branch.as_ref());
                 }
                 st.meta = meta;
             }
@@ -2269,8 +2276,8 @@ impl ChatWatcher {
                 if let Some((_, replay)) = st.replay.as_mut() {
                     replay.push(e.clone());
                 }
-                let State { meta, seq, .. } = &mut *st;
-                let items: Vec<ChatItem> = Self::normalize_entry(codex, agent, &e, meta)
+                let State { meta, seq, claude_branch, .. } = &mut *st;
+                let items: Vec<ChatItem> = Self::normalize_branch_entry(codex, agent, &e, meta, claude_branch.as_ref())
                     .into_iter()
                     .map(|d| {
                         let it = with_seq(d, *seq);

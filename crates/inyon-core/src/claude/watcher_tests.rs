@@ -40,6 +40,19 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn recovered_windows_prompt_precedes_its_answer_in_history_and_live_normalization() {
+    let branch = serde_json::from_value(json!({"prefixes":{"answer":{
+        "type":"user", "uuid":"missing-user", "message":{"role":"user","content":"Question\n\nAttached files:\n/tmp/example.pdf"}
+    }}})).unwrap();
+    let answer = json!({"type":"assistant","uuid":"answer", "message":{"role":"assistant","content":[{"type":"text","text":"Answer"}]}});
+    let items = ChatWatcher::normalize_branch_entry(false, Some(AgentKind::Claude), &answer, &mut new_meta(), Some(&branch));
+    assert_eq!(items.len(), 2);
+    assert_match(&items[0], json!({"kind":"user", "uuid":"missing-user", "text":"Question\n\nAttached files:\n/tmp/example.pdf"}));
+    assert!(matches!(&items[1], ChatItem::Assistant { .. }));
+    assert_eq!(ChatWatcher::normalize_branch_entry(false, Some(AgentKind::Claude), &answer, &mut new_meta(), None).len(), 1);
+}
+
+#[test]
 fn bursts_of_terminal_output_do_not_overlap_screen_reads() {
     run(|| async {
         let (fake, w) = draft_box();

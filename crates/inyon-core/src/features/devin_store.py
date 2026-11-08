@@ -45,7 +45,12 @@ def object_json(raw):
 
 
 def selected_nodes(rows, head):
-    """Iterative postorder: selected ancestry and explicit compaction links only."""
+    """Selected ancestry, including the source chain of native summaries.
+
+    A summary starts a new context root. Its summarized_from is the old head,
+    whereas compact/prior_node_ids maps individual copied nodes. Both links
+    are needed to recover history without including abandoned branches.
+    """
     nodes = {r[0]: r for r in rows}
     seen, visiting, result = set(), set(), []
     stack = [(head, False)]
@@ -66,6 +71,9 @@ def selected_nodes(rows, head):
         visiting.add(node)
         meta = object_json(row[3])
         prior = (meta.get('extensions') or {}).get('compact/prior_node_ids') or []
+        summary = meta.get('summarized_from')
+        if isinstance(summary, int):
+            prior = [summary] + prior
         prior = [p for p in prior if isinstance(p, int) and p != node and p in nodes]
         stack.append((node, True))
         stack.extend((p, False) for p in reversed([row[1]] + prior))

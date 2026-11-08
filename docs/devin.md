@@ -70,3 +70,8 @@ preview is capped at 4,000 characters. Browser requests wait for a changed versi
 for up to eight seconds instead of repeatedly downloading unchanged responses.
 Readers stop after their last viewer expires, and a closed SSH input terminates
 the remote reader even when it has no output to write.
+
+Native summary nodes also link to the previous conversation head through
+`summarized_from`. History follows that chain as well as copied-node compaction
+links, so summarizing context does not hide older saved turns. Only explicit
+links within the selected session are followed; unrelated forks are excluded.

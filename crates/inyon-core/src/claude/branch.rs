@@ -1,6 +1,6 @@
 //! Claude rewinds keep abandoned turns in the same JSONL. Only the current parent
 //! chain is a conversation; reading every physical line would resurrect old turns.
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::hosts::host::shq;
@@ -16,9 +16,20 @@ pub struct Branch {
     size: u64,
     #[serde(default)]
     bridged: bool,
+    #[serde(default)]
+    prefixes: HashMap<String, Value>,
+    #[serde(default)]
+    repair_pending: bool,
+    #[serde(default)]
+    repair_enabled: bool,
 }
 impl Branch {
-    pub fn needs_replay(&self) -> bool { !self.discarded.is_empty() || self.bridged }
+    pub fn needs_replay(&self) -> bool { !self.discarded.is_empty() || self.bridged || !self.prefixes.is_empty() }
+    /// A native last-prompt leaf can recover a missing Windows user row. Place
+    /// it immediately before its response, regardless of physical file order.
+    pub fn prefix(&self, entry: &Value) -> Option<&Value> {
+        self.prefixes.get(entry.get("uuid")?.as_str()?)
+    }
     pub fn leaf(&self) -> Option<&str> { self.leaf.as_deref() }
     pub fn includes(&self, entry: &Value) -> bool {
         entry.get("uuid").and_then(Value::as_str).is_none_or(|id| !self.discarded.contains(id))
@@ -27,9 +38,14 @@ impl Branch {
     /// Ask for a fresh chain before showing the new branch or saving it to cache.
     pub fn observe(&mut self, entry: &Value, offset: u64) -> bool {
         if offset < self.size || entry.get("isSidechain").and_then(Value::as_bool) == Some(true) { return false; }
+        if self.repair_pending && entry.get("type").and_then(Value::as_str) == Some("last-prompt") { return true; }
         let Some(id) = entry.get("uuid").and_then(Value::as_str) else { return false };
         if entry.get("parentUuid").is_none() { return false; }
         let parent = entry.get("parentUuid").and_then(Value::as_str);
+        if self.repair_enabled && entry.get("type").and_then(Value::as_str) == Some("assistant")
+            && parent.is_some_and(|p| !self.known.contains(p)) && !self.prefixes.contains_key(id) {
+            self.repair_pending = true;
+        }
         let human = entry.get("type").and_then(Value::as_str) == Some("user")
             && entry.get("isMeta").and_then(Value::as_bool) != Some(true)
             && entry.pointer("/message/content").is_some_and(|v| v.is_string() || v.as_array().is_some_and(|a| a.iter().all(|b| b.get("type").and_then(Value::as_str) != Some("tool_result"))));
@@ -100,6 +116,22 @@ pub fn confirmation(lines: &[String], items: &[inyon_protocol::ChatItem]) -> Opt
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn missing_windows_prompt_reloads_when_its_native_leaf_receipt_arrives() {
+        let mut branch: Branch = serde_json::from_value(json!({"known":["old"], "leaf":"old", "size":100, "repair_enabled":true})).unwrap();
+        let response = json!({"type":"assistant", "uuid":"response", "parentUuid":"missing-input"});
+        assert!(!branch.observe(&response, 100));
+        assert!(!branch.observe(&json!({"type":"last-prompt"}), 90));
+        assert!(branch.observe(&json!({"type":"last-prompt"}), 200));
+        let repaired: Branch = serde_json::from_value(json!({"known":["response"], "leaf":"response", "size":300,
+            "prefixes":{"response":{"type":"user","uuid":"missing-input","message":{"content":"Question"}}}})).unwrap();
+        assert!(repaired.needs_replay());
+        assert_eq!(repaired.prefix(&response).unwrap()["uuid"], "missing-input");
+        assert!(repaired.prefix(&json!({"uuid":"unrelated"})).is_none());
+        let mut other = Branch::default();
+        assert!(!other.observe(&response, 100));
+        assert!(!other.observe(&json!({"type":"last-prompt"}), 200));
+    }
     #[test]
     fn repaired_windows_branches_replay_old_caches_without_invalidating_other_hosts() {
         let normal: Branch = serde_json::from_value(json!({"known":["a"],"leaf":"a","size":10})).unwrap();

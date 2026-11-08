@@ -8,6 +8,35 @@ def line(uid, parent, **extra):
 
 
 class BranchTests(unittest.TestCase):
+    def test_windows_missing_pasted_prompt_is_restored_before_its_linked_response(self):
+        raw = [line('answer', 'missing-user', type='assistant', timestamp='2026-01-01T00:00:01Z'),
+               line('call', 'answer', type='assistant'),
+               line('result', 'call', message={'content': [{'type': 'tool_result'}]}),
+               json.dumps({'type': 'api-request-blob', 'message': {'role': 'user', 'content': [
+                   {'type': 'text', 'text': '<system-reminder>private context</system-reminder>'},
+                   {'type': 'text', 'text': '<pasted_content id="test">Question?\n\nAttached files:\n/tmp/example.pdf</pasted_content>'},
+               ]}}).encode() + b'\n',
+               json.dumps({'type': 'last-prompt', 'leafUuid': 'result', 'lastPrompt': 'Question? Attached files: /tmp/example.pdf'}).encode() + b'\n']
+        repaired = index(raw, windows_psmux=True)
+        self.assertEqual(list(repaired['prefixes']), ['answer'])
+        self.assertEqual(repaired['prefixes']['answer']['uuid'], 'missing-user')
+        self.assertEqual(repaired['prefixes']['answer']['message']['content'], 'Question?\n\nAttached files:\n/tmp/example.pdf')
+        self.assertFalse(repaired['repair_pending'])
+        self.assertFalse(index(raw)['prefixes'])
+        raw.append(line('replacement', None, message={'content': 'New root'}))
+        self.assertFalse(index(raw, windows_psmux=True)['prefixes'], 'rewound replies are not recovered')
+
+    def test_prompt_recovery_requires_a_missing_parent_and_unambiguous_linked_turn(self):
+        last = lambda leaf, text: (json.dumps({'type': 'last-prompt', 'leafUuid': leaf, 'lastPrompt': text}) + '\n').encode()
+        persisted = [line('user', None, message={'content': 'Question'}), line('answer', 'user', type='assistant'), last('answer', 'Question')]
+        self.assertFalse(index(persisted, windows_psmux=True)['prefixes'])
+        self.assertFalse(index([line('answer', None, type='assistant'), last('answer', 'Question')], windows_psmux=True)['prefixes'])
+        gap = [line('answer', 'missing', type='assistant')]
+        self.assertTrue(index(gap, windows_psmux=True)['repair_pending'])
+        self.assertFalse(index(gap + [last('unknown-leaf', 'Question')], windows_psmux=True)['prefixes'])
+        self.assertFalse(index(gap + [last('answer', 'First'), last('answer', 'Different')], windows_psmux=True)['prefixes'])
+        self.assertEqual(index(gap + [last('answer', 'Question')], windows_psmux=True)['prefixes']['answer']['message']['content'], 'Question')
+
     def test_windows_tool_continuation_with_unpersisted_attachment_keeps_prompt(self):
         raw = [line('prompt', None, message={'content': 'Explain machine learning'}),
                line('call', 'prompt', type='assistant'),

@@ -126,6 +126,35 @@ class DevinStoreTests(unittest.TestCase):
             with self.assertRaises(devin.Refused):
                 devin.owner_ready(db, 'test-session')
 
+    def test_nested_summaries_restore_history_in_order_without_other_branches(self):
+        self.finished()
+        self.message(3, 1, 'assistant', 'abandoned answer')
+        self.message(4, None, 'system', 'summary of first turn')
+        self.db.execute('UPDATE message_nodes SET metadata=? WHERE node_id=4', (json.dumps({'summarized_from': 2}),))
+        self.message(5, 4, 'user', 'second question', is_user_input=True)
+        self.message(6, 5, 'assistant', 'second answer')
+        self.message(7, None, 'system', 'summary of both turns')
+        self.db.execute('UPDATE message_nodes SET metadata=? WHERE node_id=7', (json.dumps({'summarized_from': 6, 'extensions': {'compact/prior_node_ids': [4, 999]}}),))
+        self.message(8, 7, 'assistant', 'latest answer')
+        self.db.execute('UPDATE sessions SET main_chain_id=8'); self.db.commit()
+        with devin.connect() as db:
+            reader = devin.HistoryReader()
+            _, messages = reader.read(db, 'test-session')
+            self.assertEqual([m['text'] for m in messages.values()], ['hello', 'answer', 'second question', 'second answer', 'latest answer'])
+            self.assertEqual(reader.read(db, 'test-session')[1], messages)
+
+    def test_summary_cycle_is_rejected_and_fork_does_not_read_another_session(self):
+        rows = [(1, None, '{}', json.dumps({'summarized_from': 2})), (2, None, '{}', json.dumps({'summarized_from': 1}))]
+        with self.assertRaises(devin.Refused):
+            devin.selected_nodes(rows, 2)
+        self.finished()
+        self.finished('unrelated-session')
+        self.message(3, None, 'user', 'fork start', is_user_input=True)
+        self.db.execute('UPDATE message_nodes SET metadata=? WHERE session_id=? AND node_id=3', (json.dumps({'summarized_from': 99}), 'test-session'))
+        self.db.execute('UPDATE sessions SET main_chain_id=3 WHERE id=?', ('test-session',)); self.db.commit()
+        with devin.connect() as db:
+            self.assertEqual([m['text'] for m in devin.history(db, 'test-session')[1].values()], ['fork start'])
+
     def test_imported_desktop_reply_needs_independent_idle_evidence(self):
         self.session()
         self.message(1, None, 'user', 'question', is_user_input=True)
