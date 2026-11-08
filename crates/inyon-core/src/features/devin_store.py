@@ -87,34 +87,72 @@ def session_info(db, sid):
     return dict(zip(('id', 'title', 'cwd', 'model', 'mode', 'updated', 'head', 'workspaces'), row))
 
 
+class HistoryReader:
+    """Native nodes form an append-only forest; only the active tail may change.
+
+    Cache immutable records across updates. Re-read both tail nodes to cover an
+    in-place finalization, and all new nodes to preserve forks/compaction links.
+    The native database and its indexes are never modified.
+    """
+    def __init__(self):
+        self.rows = {}
+        self.rendered = {}
+        self.head = None
+        self.high = -1
+        self.loaded = False
+
+    def read(self, db, sid):
+        deadline = time.monotonic() + 5
+        db.set_progress_handler(lambda: int(time.monotonic() > deadline), 10000)
+        db.execute('BEGIN')
+        try:
+            info = session_info(db, sid)
+            columns = 'SELECT node_id,parent_node_id,chat_message,metadata FROM message_nodes WHERE session_id=?'
+            if self.loaded:
+                # Separate indexed ranges; an OR can scan every row in a large session.
+                rows = db.execute(columns + ' AND node_id>?', (sid, self.high)).fetchall()
+                rows += db.execute(columns + ' AND node_id IN (?,?) AND node_id<=?', (sid, self.head, info['head'], self.high)).fetchall()
+            else:
+                rows = db.execute(columns, (sid,)).fetchall()
+            for row in rows:
+                if self.rows.get(row[0]) != row:
+                    self.rendered.pop(row[0], None)
+                    self.rows[row[0]] = row
+                self.high = max(self.high, row[0])
+            messages = {}
+            for row in selected_nodes(list(self.rows.values()), info['head']):
+                node = row[0]
+                if node not in self.rendered:
+                    self.rendered[node] = display_message(row[2])
+                message = self.rendered[node]
+                if message is not None:
+                    messages[message['id']] = message
+            self.head, self.loaded = info['head'], True
+            return info, messages
+        finally:
+            db.rollback()
+            db.set_progress_handler(None, 0)
+
+
+def display_message(raw):
+    m = object_json(raw)
+    role, meta = m.get('role'), m.get('metadata') or {}
+    if role not in ('user', 'assistant', 'tool') or (role == 'user' and meta.get('is_user_input') is not True):
+        return None
+    mid = m.get('message_id')
+    if not isinstance(mid, str):
+        return None
+    text = text_content(m.get('content'))
+    tools = [{'name': t.get('name', 'Tool'), 'input': t.get('arguments')} for t in (m.get('tool_calls') or []) if isinstance(t, dict)]
+    thinking = (m.get('thinking') or {}).get('thinking')
+    if not text and not tools and not thinking:
+        return None
+    return {'id': mid, 'role': role, 'text': text, 'tools': tools, 'thinking': thinking,
+            'time': meta.get('created_at'), 'finish': meta.get('finish_reason')}
+
+
 def history(db, sid):
-    deadline = time.monotonic() + 5
-    db.set_progress_handler(lambda: int(time.monotonic() > deadline), 10000)
-    db.execute('BEGIN')
-    try:
-        info = session_info(db, sid)
-        rows = db.execute('SELECT node_id,parent_node_id,chat_message,metadata FROM message_nodes WHERE session_id=?', (sid,)).fetchall()
-        messages = {}
-        for node, parent, raw, _ in selected_nodes(rows, info['head']):
-            m = object_json(raw)
-            role, meta = m.get('role'), m.get('metadata') or {}
-            if role not in ('user', 'assistant', 'tool') or (role == 'user' and meta.get('is_user_input') is not True):
-                continue
-            mid = m.get('message_id')
-            if not isinstance(mid, str):
-                continue
-            text = text_content(m.get('content'))
-            tools = [{'name': t.get('name', 'Tool'), 'input': t.get('arguments')} for t in (m.get('tool_calls') or []) if isinstance(t, dict)]
-            thinking = (m.get('thinking') or {}).get('thinking')
-            if not text and not tools and not thinking:
-                continue
-            # No signatures, system context, environment or other metadata.
-            messages[mid] = {'id': mid, 'role': role, 'text': text, 'tools': tools, 'thinking': thinking,
-                             'time': meta.get('created_at'), 'finish': meta.get('finish_reason')}
-        return info, messages
-    finally:
-        db.rollback()
-        db.set_progress_handler(None, 0)
+    return HistoryReader().read(db, sid)
 
 
 def process(pid):
@@ -481,7 +519,7 @@ def state(db, sid):
             status = 'busy'
             reason = BUSY
             # A bounded, explicitly labelled terminal preview; saved history remains canonical.
-            preview = current[-18000:]
+            preview = current[-4000:]
     return {'status': status, 'reason': reason, 'source': 'cli' if pane else 'app', 'tmux': r.get('tmux') if pane else None, 'pane': pane, 'live': preview}
 
 
@@ -491,6 +529,7 @@ def emit(value):
 
 def watch(sid):
     previous, previous_state, version = {}, None, None
+    reader = HistoryReader()
     with connect() as db:
         info = None
         while True:
@@ -498,7 +537,7 @@ def watch(sid):
             if current != version:
                 next_info = session_info(db, sid)
                 if info is None or next_info != info:
-                    info, messages = history(db, sid)
+                    info, messages = reader.read(db, sid)
                     emit({'session': info, 'order': list(messages), 'messages': [m for k, m in messages.items() if previous.get(k) != m]})
                     previous = messages
                 version = current
@@ -506,7 +545,7 @@ def watch(sid):
             if current_state != previous_state:
                 emit({'state': current_state})
                 previous_state = current_state
-            time.sleep(.6)
+            time.sleep(1 if current_state['status'] == 'busy' else 3)
 
 
 def main(args):

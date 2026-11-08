@@ -76,6 +76,47 @@ class DevinStoreTests(unittest.TestCase):
             self.assertEqual([m['text'] for m in messages.values()], ['hello', 'answer'])
             self.assertTrue(devin.completed_head(db, 'test-session'))
 
+    def test_incremental_reader_does_not_fetch_or_decode_old_large_records(self):
+        self.finished()
+        self.db.execute('UPDATE message_nodes SET chat_message=? WHERE node_id=1', (json.dumps({'message_id': 'large', 'role': 'user', 'content': 'x' * 1000000, 'metadata': {'is_user_input': True}}),))
+        self.db.commit()
+        reader = devin.HistoryReader()
+        with devin.connect() as db:
+            _, first = reader.read(db, 'test-session')
+            self.message(3, 2, 'assistant', 'new answer')
+            self.db.execute('UPDATE sessions SET main_chain_id=3')
+            self.db.commit()
+            queries = []
+            db.set_trace_callback(queries.append)
+            with patch.object(devin, 'display_message', wraps=devin.display_message) as render:
+                _, second = reader.read(db, 'test-session')
+                self.assertEqual(render.call_count, 1)
+            self.assertIs(second['large'], first['large'])
+            self.assertEqual(second['message-3']['text'], 'new answer')
+            reads = [q for q in queries if 'FROM message_nodes' in q]
+            self.assertEqual(len(reads), 2)
+            self.assertTrue(all('node_id>' in q or 'node_id IN' in q for q in reads))
+
+    def test_incremental_reader_tracks_mutable_tail_forks_and_compaction(self):
+        self.finished()
+        reader = devin.HistoryReader()
+        with devin.connect() as db:
+            reader.read(db, 'test-session')
+            m = {'message_id': 'message-2', 'role': 'assistant', 'content': 'finalized', 'metadata': {}}
+            self.db.execute('UPDATE message_nodes SET chat_message=? WHERE node_id=2', (json.dumps(m),))
+            self.db.commit()
+            _, changed = reader.read(db, 'test-session')
+            self.assertEqual(changed['message-2']['text'], 'finalized')
+            self.message(3, 1, 'assistant', 'forked answer')
+            self.db.execute('UPDATE sessions SET main_chain_id=3'); self.db.commit()
+            _, forked = reader.read(db, 'test-session')
+            self.assertEqual(list(forked), ['message-1', 'message-3'])
+            self.message(4, None, 'assistant', 'after compaction')
+            self.db.execute('UPDATE message_nodes SET metadata=? WHERE node_id=4', (json.dumps({'extensions': {'compact/prior_node_ids': [3]}}),))
+            self.db.execute('UPDATE sessions SET main_chain_id=4'); self.db.commit()
+            _, compacted = reader.read(db, 'test-session')
+            self.assertEqual(list(compacted), ['message-1', 'message-3', 'message-4'])
+
     def test_unfinished_user_turn_is_not_ready_even_without_a_process(self):
         self.finished()
         self.message(3, 2, 'user', 'still pending', is_user_input=True)

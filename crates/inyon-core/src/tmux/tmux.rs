@@ -1131,8 +1131,9 @@ fn nonempty_or(s: &str, fallback: &str) -> String {
 }
 
 /// Real-time pane activity from tmux itself (tmux/live.ts). One control-mode client per tmux
-/// session (flagged so it never affects window sizes) reports `%output` for every
-/// pane as it changes, plus structural events (windows/panes opened, closed, renamed).
+/// session subscribes to activity timestamps, never the terminal's raw redraws.
+/// tmux coalesces subscriptions to at most one notification per pane per second.
+/// Structural events (windows/panes opened, closed, renamed) remain immediate.
 pub struct LiveTmux {
     host: Host,
     on_output: Rc<dyn Fn(&str)>,
@@ -1146,7 +1147,7 @@ impl LiveTmux {
     }
 
     /// Keep exactly one client per session id in `sessions`.
-    pub fn sync(&self, sessions: &[String]) {
+    pub fn sync(&self, sessions: &[String], native_tmux: bool) {
         let want: IndexSet<&str> = sessions.iter().map(String::as_str).collect();
         let gone: Vec<(String, StreamHandle)> = {
             let mut c = self.clients.borrow_mut();
@@ -1158,24 +1159,22 @@ impl LiveTmux {
         }
         for id in want {
             if !self.clients.borrow().contains_key(id) {
-                self.attach(id);
+                self.attach(id, native_tmux);
             }
         }
     }
 
-    fn attach(&self, id: &str) {
+    fn attach(&self, id: &str, native_tmux: bool) {
         // exec skips the tmux() function that adds -u, so add it here (not for psmux, where tmux is a function)
         // tmux 3.7 resolves send-keys against an attached client even when the command
         // arrives separately over SSH. A read-only observer can therefore block all
         // Chat/Terminal input when it is the only client. This authenticated Inyon
         // client already drives the session; keep ignore-size without read-only.
-        let cmd = format!(r#"exec tmux $([ "$(command -v tmux)" = tmux ] || echo -u) -C attach-session -t {} -f ignore-size"#, shq(id));
+        let cmd = activity_command(id, native_tmux);
         let (on_output, on_structure, clients, sid) = (self.on_output.clone(), self.on_structure.clone(), self.clients.clone(), id.to_owned());
         let on_line = move |line: String| {
-            if line.starts_with("%output ") || line.starts_with("%extended-output ") {
-                if let Some(pane) = line.split(' ').nth(1).filter(|p| p.starts_with('%')) {
-                    on_output(pane);
-                }
+            if let Some(pane) = activity_pane(&line) {
+                on_output(pane);
             } else if re!(r"^%(window-add|window-close|unlinked-window-add|unlinked-window-close|window-renamed|layout-change|sessions-changed|session-renamed|pane-mode-changed|window-pane-changed)\b").is_match(&line) {
                 on_structure();
             } else if line.starts_with("%exit") {
@@ -1202,9 +1201,41 @@ impl LiveTmux {
     }
 }
 
+fn activity_command(id: &str, native_tmux: bool) -> String {
+    // Do not use refresh-client -A off: it can stop tmux reading the actual pane.
+    // no-output affects only this observer. Native clients and Terminal keep all output.
+    // PSmux doesn't implement native tmux format subscriptions.
+    let suffix = if native_tmux { ",no-output \\; refresh-client -B 'inyon:%*:#{window_activity}'" } else { "" };
+    format!(r#"exec tmux $([ "$(command -v tmux)" = tmux ] || echo -u) -C attach-session -t {} -f ignore-size{}"#, shq(id), suffix)
+}
+
+fn activity_pane(line: &str) -> Option<&str> {
+    let pane = if line.starts_with("%subscription-changed inyon ") {
+        line.split_whitespace().nth(5)
+    } else if line.starts_with("%output ") || line.starts_with("%extended-output ") {
+        // Structured Windows node/Herdr notifications contain no raw terminal body.
+        line.split_whitespace().nth(1)
+    } else { None }?;
+    pane.strip_prefix('%').filter(|n| n.split('.').all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))).map(|_| pane)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn activity_notifications_keep_pane_identity_without_terminal_payloads() {
+        assert_eq!(activity_pane("%subscription-changed inyon $2 @3 0 %7 : 123456"), Some("%7"));
+        assert_eq!(activity_pane("%subscription-changed other $2 @3 0 %7 : 123456"), None);
+        assert_eq!(activity_pane("%subscription-changed inyon $2 @3 0 invalid : 123456"), None);
+        assert_eq!(activity_pane("%output %7"), Some("%7"));
+        assert_eq!(activity_pane("%output %45.1 changed"), Some("%45.1"));
+        let cmd = activity_command("$2", true);
+        assert!(cmd.contains("ignore-size,no-output"));
+        assert!(cmd.contains("refresh-client -B 'inyon:%*:#{window_activity}'"));
+        assert!(!cmd.contains("read-only"));
+        assert!(!activity_command("$2", false).contains("no-output"));
+    }
 
     /// a paste never carries its own end marker, for any caller (companions.test.ts)
     #[test]

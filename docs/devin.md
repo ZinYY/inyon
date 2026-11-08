@@ -57,3 +57,16 @@ An open Terminal view releases its temporary tmux link when the original session
 Loading earlier history preserves the visible native message and its offset, including when earlier records extend an existing assistant turn. Saved text remains folded and history is loaded in batches; whole-turn estimated heights are not used.
 
 The shared Chat renderer supports GFM tables and TeX formulas with dollar or backslash delimiters. Math rendering and its fonts load on demand from the same Inyon server. Code spans and code fences keep their literal contents.
+
+Native tmux activity observers use `no-output` and format subscriptions, so terminal
+redraws never cross SSH just to signal activity. Notifications are coalesced by
+tmux to at most once per pane per second; an explicitly opened Terminal still
+receives its normal output. PSmux keeps its existing Windows transport.
+
+The history reader caches old native nodes and fetches only new nodes and the
+active tail, including fork and compaction references. Busy conversations check
+once per second, idle conversations once every three seconds. The live screen
+preview is capped at 4,000 characters. Browser requests wait for a changed version
+for up to eight seconds instead of repeatedly downloading unchanged responses.
+Readers stop after their last viewer expires, and a closed SSH input terminates
+the remote reader even when it has no output to write.

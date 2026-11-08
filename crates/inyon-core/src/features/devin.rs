@@ -6,6 +6,7 @@ use std::rc::Rc;
 use serde_json::{json, Value};
 
 use crate::clock::now_ms;
+use crate::claude::transcript_tail::until_stdin_closes;
 use crate::hosts::host::{shq, ExecOptions, Host, StreamHandle};
 use crate::hosts::http_error::{http, HubResult};
 use crate::hosts::registry::registry;
@@ -97,7 +98,7 @@ pub async fn resolve(id: &str, pane: &str) -> HubResult<Value> {
     Ok(v)
 }
 
-pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
+pub async fn read(id: &str, sid: &str, since: u64, wait: bool) -> HubResult<Value> {
     if !valid_id(sid) { return Err(http(400, "Invalid Devin session ID")); }
     let host = machine(id)?;
     let key = (id.to_owned(), sid.to_owned());
@@ -105,7 +106,7 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
         let mut all = all.borrow_mut();
         // Failed or disconnected readers also expire; they have no live stream
         // timer left to remove them and must not exhaust the open-chat limit.
-        all.retain(|_, reader| { let r = reader.borrow(); r.stream.is_some() || now_ms().saturating_sub(r.touched) <= 45_000 });
+        all.retain(|_, reader| { let r = reader.borrow(); r.stream.is_some() || now_ms().saturating_sub(r.touched) <= 15_000 });
         if !all.contains_key(&key) && all.len() >= 8 {
             return Err(http(429, "Too many open Devin conversations. Close an unused tab and try again shortly."));
         }
@@ -115,11 +116,14 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
     let start = { let r = reader.borrow(); r.stream.is_none() && now_ms() >= r.retry_at };
     if start {
         let weak = Rc::downgrade(&reader);
-        let stream = host.stream(&command("watch", Some(sid)), move |line| {
+        // A quiet reader otherwise never writes again after SSH disconnects and
+        // can survive forever. EOF on the owned stdin kills the remote reader.
+        let cmd = until_stdin_closes(&command("watch", Some(sid)));
+        let stream = host.stream(&cmd, move |line| {
             if let (Some(reader), Ok(value)) = (weak.upgrade(), serde_json::from_str::<Value>(&line)) {
                 reader.borrow_mut().apply(value);
             }
-        }, false)?;
+        }, true)?;
         reader.borrow_mut().stream = Some(stream.clone());
         let weak = Rc::downgrade(&reader);
         let ended = stream.clone();
@@ -137,9 +141,9 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
         let weak = Rc::downgrade(&reader);
         spawn(async move {
             loop {
-                sleep(10_000).await;
+                sleep(5_000).await;
                 let Some(reader) = weak.upgrade() else { break };
-                let inactive = now_ms().saturating_sub(reader.borrow().touched) > 45_000;
+                let inactive = now_ms().saturating_sub(reader.borrow().touched) > 15_000;
                 if inactive {
                     stream.kill();
                     READERS.with(|all| { all.borrow_mut().remove(&key); });
@@ -154,6 +158,15 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
         if !reader.borrow().session.is_null() || reader.borrow().error.is_some() { break; }
         sleep(100).await;
     }
+    // One outstanding request per tab. Quiet chats return at most once per
+    // eight seconds; a changed version wakes the response within 200 ms.
+    if wait && since != 0 {
+        for _ in 0..40 {
+            if reader.borrow().version != since || reader.borrow().error.is_some() { break; }
+            sleep(200).await;
+        }
+    }
+    reader.borrow_mut().touched = now_ms();
     let result = reader.borrow().answer(since);
     Ok(result)
 }

@@ -105,9 +105,11 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         if (!document.hidden) {
           const next = parseDevinUpdate(await api.devinRead(host, sid, version.current))
           if (!active) return
-          if (next.version !== version.current || next.reset) setMessages((previous) => mergeDevin(previous, next))
+          if (next.version !== version.current || next.reset) {
+            setMessages((previous) => next.messages.length || next.reset || previous.size > next.order.length ? mergeDevin(previous, next) : previous)
+            setUpdate(next)
+          }
           version.current = next.version
-          setUpdate(next)
           setError(next.error ?? '')
         }
       } catch (e) { if (active) setError((e as Error).message) }

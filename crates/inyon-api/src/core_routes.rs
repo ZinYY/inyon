@@ -353,7 +353,7 @@ pub fn add(routes: &mut Routes) {
     }))]);
     guarded(routes, "/api/hosts/:id/devin/:session", vec![(M::GET, h(|r| async move {
         let since = r.q("since").parse::<u64>().unwrap_or(0);
-        Ok(json_of(&inyon_core::features::devin::read(&id(&r), &r.param("session"), since).await?))
+        Ok(json_of(&inyon_core::features::devin::read(&id(&r), &r.param("session"), since, r.q("wait") == "1").await?))
     }))]);
     guarded(routes, "/api/hosts/:id/devin/:session/send", vec![(M::POST, h(|mut r| async move {
         let body = r.body().await?;

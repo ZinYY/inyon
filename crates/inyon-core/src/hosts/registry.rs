@@ -1067,7 +1067,7 @@ impl Registry {
         let with_agents: Vec<String> = pr.borrow().sessions.iter().filter(|s| s.windows.iter().any(|w| w.panes.iter().any(|p| p.agent.is_some()))).map(|s| s.id.clone()).collect();
         let live = rt.borrow().live.clone();
         if let Some(l) = live {
-            l.sync(&with_agents);
+            l.sync(&with_agents, pr.borrow().os != "Windows");
         }
         let mut prev = prev;
         prev.config = rt.borrow().state.config.clone();
