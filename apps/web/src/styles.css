@@ -336,6 +336,8 @@ select:focus-visible {
 }
 .prose-reply > :first-child { margin-top: 0; }
 .prose-reply > :last-child { margin-bottom: 0; }
+.prose-reply .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block: 0.2em; }
+.prose-reply .katex { font-size: 1.08em; }
 /* agents write one line per thought and the terminal shows each on its own line; so does the chat */
 .prose-reply p { margin: 0.65em 0; white-space: pre-line; }
 .prose-reply h1,

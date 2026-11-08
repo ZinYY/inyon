@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { Markdown } from './Markdown.tsx'
 import { isLoaded, languageOf, loadLanguage } from './highlight.ts'
+import { mathDelimiters } from './mathDelimiters.ts'
 
 const srcs = (text: string) => [...render(<Markdown text={text} />).container.querySelectorAll('img')].map((i) => i.getAttribute('src'))
 
@@ -59,4 +60,43 @@ test('code text is escaped, not rendered as markup', async () => {
 test('a code block keeps the indent of its lines', () => {
   const { container } = render(<Markdown text={'```\ndef f():\n    return 1\n```'} />)
   expect(container.querySelector('pre > code')!.textContent).toBe('def f():\n    return 1\n')
+})
+
+test('TeX delimiters normalize outside inline, fenced and indented code only', () => {
+  expect(mathDelimiters(String.raw`Inline \(x^2\).`)).toBe('Inline $x^2$.')
+  expect(mathDelimiters(String.raw`\[\frac{a}{b}\]`)).toBe('\n$$\n\\frac{a}{b}\n$$\n')
+  for (const code of ['`\\(x\\)`', '`` \\(x\\) ` literal ``', '```tex\n\\[x\\]\n```', '~~~tex\n\\(x\\)\n~~~', '```tex\n\\(x\\)', '    \\(x\\)\n']) {
+    expect(mathDelimiters(code)).toBe(code)
+  }
+})
+
+test('shared chat renders inline math, display math and GFM tables', async () => {
+  const { container } = render(<Markdown text={String.raw`Inline \(x^2 + y^2 = z^2\), and $E=mc^2$.
+
+\[
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+\]
+
+| Quantity | Formula |
+| --- | --- |
+| Area | $\pi r^2$ |
+| Sum | $a+b$ |`} />)
+  await waitFor(() => expect(container.querySelectorAll('.katex')).toHaveLength(5), { timeout: 3000 })
+  expect(container.querySelectorAll('.katex-display')).toHaveLength(1)
+  expect(container.querySelectorAll('table tbody tr')).toHaveLength(2)
+  expect(container.querySelectorAll('math')).toHaveLength(5)
+})
+
+test('invalid and untrusted TeX remain contained without external images or executable links', async () => {
+  const { container } = render(<Markdown text={String.raw`$\includegraphics{https://evil.example/leak}$
+
+$\href{javascript:alert(1)}{bad}$
+
+$\unsupported{x}$
+
+Still readable.`} />)
+  await waitFor(() => expect(container.querySelector('.katex')).not.toBeNull())
+  expect(container.querySelector('img')).toBeNull()
+  expect(container.querySelector('a[href^="javascript:"]')).toBeNull()
+  expect(container.textContent).toContain('Still readable.')
 })

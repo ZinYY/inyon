@@ -3,6 +3,11 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import clsx from 'clsx'
 import { highlight, isLoaded, languageOf, loadLanguage } from './highlight.ts'
+import { mathDelimiters } from './mathDelimiters.ts'
+
+type MathPlugins = typeof import('./math.ts')
+let math: MathPlugins | undefined
+let mathLoading: Promise<MathPlugins> | undefined
 
 export { CopyButton, ReplyFont } from './copy.tsx'
 import { CopyButton, ReplyFont } from './copy.tsx'
@@ -82,10 +87,21 @@ const components: Components = {
 
 export const Markdown = memo(function Markdown({ text, className, sans }: { text: string; className?: string; sans?: boolean }) {
   const font = useContext(ReplyFont)
+  const hasMath = /\$|\\[([]|```math/.test(text)
+  const [plugins, setPlugins] = useState(math)
+  useEffect(() => {
+    if (!hasMath || plugins) return
+    let active = true
+    mathLoading ??= import('./math.ts').then((loaded) => (math = loaded)).catch((e) => { mathLoading = undefined; throw e })
+    void mathLoading.then((loaded) => { if (active) setPlugins(loaded) }).catch(() => {})
+    return () => { active = false }
+  }, [hasMath, plugins])
+  const source = useMemo(() => hasMath ? mathDelimiters(text) : text, [text, hasMath])
   return (
     <div className={clsx('prose-reply', !sans && font !== 'sans' && `reply-${font}`, className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {text}
+      <ReactMarkdown remarkPlugins={plugins && hasMath ? [remarkGfm, plugins.remark] : [remarkGfm]}
+        rehypePlugins={plugins && hasMath ? [[plugins.rehype, plugins.options]] : []} components={components}>
+        {source}
       </ReactMarkdown>
     </div>
   )

@@ -55,3 +55,5 @@ History records for assistant text and tools share one chat turn, with one times
 An open Terminal view releases its temporary tmux link when the original session is closed, so it cannot keep a handoff CLI alive after that session ends. Session renames and temporary disconnects do not trigger this cleanup.
 
 Loading earlier history preserves the visible native message and its offset, including when earlier records extend an existing assistant turn. Saved text remains folded and history is loaded in batches; whole-turn estimated heights are not used.
+
+The shared Chat renderer supports GFM tables and TeX formulas with dollar or backslash delimiters. Math rendering and its fonts load on demand from the same Inyon server. Code spans and code fences keep their literal contents.
