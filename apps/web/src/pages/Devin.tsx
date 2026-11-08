@@ -2,7 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowDown, ChevronLeft, History, MessageSquare, SquareTerminal } from 'lucide-react'
 import { api } from '../lib/api.ts'
-import { DEVIN_BUSY, devinRow, mergeDevin, type DevinMessage, type DevinSession, type DevinUpdate } from '../lib/devin.ts'
+import { DEVIN_BUSY, devinTurn, devinTurns, mergeDevin, parseDevinUpdate, type DevinMessage, type DevinSession, type DevinUpdate } from '../lib/devin.ts'
 import { paneHref } from '../lib/overview.ts'
 import { modelName, shortPath } from '../lib/format.ts'
 import { AgentLogo, SkinScope, useReplyFont } from '../lib/skin.tsx'
@@ -68,12 +68,12 @@ function DevinList({ host }: { host: string }) {
   </div>
 }
 
-const SavedMessage = memo(function SavedMessage({ message }: { message: DevinMessage }) {
-  const row = useMemo(() => devinRow(message), [message])
+const SavedTurn = memo(function SavedTurn({ messages, open }: { messages: DevinMessage[]; open: boolean }) {
+  const row = useMemo(() => devinTurn(messages, open), [messages, open])
   return <div className="[content-visibility:auto] [contain-intrinsic-size:auto_160px]">
     {row.type === 'user' ? <UserMessage row={row} /> : <AssistantTurn row={row} live={false} foldText />}
   </div>
-})
+}, (a, b) => a.open === b.open && a.messages.length === b.messages.length && a.messages.every((m, i) => m === b.messages[i]))
 
 function DevinChat({ host, sid }: { host: string; sid: string }) {
   const nav = useNavigate()
@@ -100,7 +100,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
     const poll = async () => {
       try {
         if (!document.hidden) {
-          const next = await api.devinRead(host, sid, version.current)
+          const next = parseDevinUpdate(await api.devinRead(host, sid, version.current))
           if (!active) return
           if (next.version !== version.current || next.reset) setMessages((previous) => mergeDevin(previous, next))
           version.current = next.version
@@ -131,7 +131,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
     if (column.current) ro.observe(column.current)
     return () => ro.disconnect()
   }, [])
-  const rows = (update?.order ?? []).slice(-limit).flatMap((id) => { const m = messages.get(id); return m ? [m] : [] })
+  const rows = devinTurns((update?.order ?? []).slice(-limit).flatMap((id) => { const m = messages.get(id); return m ? [m] : [] }))
   const state = update?.state
   const send = async () => {
     if (sending || !text.trim()) return
@@ -188,7 +188,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         <ConversationColumn ref={column}>
           {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
           {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; setLimit(limit + 80) }}>Load earlier messages</Button>}
-          <div className="space-y-5">{rows.map((m) => <SavedMessage key={m.id} message={m} />)}</div>
+          <div className="space-y-5">{rows.map((turn, i) => <SavedTurn key={turn[0]!.id} messages={turn} open={state?.status === 'busy' && i === rows.length - 1} />)}</div>
           {state?.status === 'busy' && <div className="mt-5 space-y-2"><WorkingIndicator activity="Working…" />
             {state.live && <details className="ml-9 text-[13px] text-fg-3"><summary className="cursor-pointer py-1.5">Live terminal preview</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-l border-line-strong pl-3 text-[12px]">{state.live}</pre></details>}
           </div>}

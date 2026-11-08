@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from 'bun:test'
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { DevinPage } from './Devin.tsx'
 import { api } from '../test/fakes.ts'
@@ -71,4 +71,39 @@ test('late history layout follows the tail until the reader scrolls up', async (
     fireEvent.click(screen.getByRole('button', { name: 'Jump to latest' }))
     expect(scroller.scrollTop).toBe(2400)
   } finally { globalThis.ResizeObserver = Original }
+})
+
+test('an invalid first response retries without a blank page or losing the draft', async () => {
+  api.devinRead.mockResolvedValueOnce({} as DevinUpdate).mockResolvedValue(saved)
+  await open()
+  expect(screen.getByRole('alert').textContent).toContain('Retrying')
+  const input = screen.getByLabelText('Message Devin') as HTMLTextAreaElement
+  fireEvent.change(input, { target: { value: 'keep draft while reconnecting' } })
+  await waitFor(() => expect(screen.getByText('Saved answer')).toBeTruthy(), { timeout: 2000 })
+  expect(input.value).toBe('keep draft while reconnecting')
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(api.devinRead.mock.calls[1]).toEqual(['example', 'test-chat', 0])
+})
+
+test('a malformed incremental response preserves history and its cursor until recovery', async () => {
+  api.devinRead.mockResolvedValueOnce(saved).mockResolvedValueOnce({ ...saved, version: 99, messages: undefined } as unknown as DevinUpdate)
+    .mockResolvedValue({ ...saved, version: 2, reset: false, order: ['m1', 'm2'], messages: [{ id: 'm2', role: 'assistant', text: 'Recovered answer', tools: [] }] })
+  await open()
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Retrying'), { timeout: 2000 })
+  expect(screen.getByText('Saved answer')).toBeTruthy()
+  await waitFor(() => expect(screen.getByText('Recovered answer')).toBeTruthy(), { timeout: 2000 })
+  expect(api.devinRead.mock.calls[2]).toEqual(['example', 'test-chat', 1])
+})
+
+test('tool calls and intermediate output share the final reply footer', async () => {
+  api.devinRead.mockResolvedValue({ ...saved, order: ['a', 't', 'z'], messages: [
+    { id: 'a', role: 'assistant', text: 'Checking the files', tools: [{ name: 'Read', input: {} }], time: '2026-01-01T01:01:00' },
+    { id: 't', role: 'tool', text: 'Found file', tools: [], time: '2026-01-01T01:02:00' },
+    { id: 'z', role: 'assistant', text: 'All done', tools: [], time: '2026-01-01T01:03:00' },
+  ] })
+  await open()
+  expect(screen.getByText('All done')).toBeTruthy()
+  expect(screen.queryByText('01:01')).toBeNull()
+  expect(screen.queryByText('01:02')).toBeNull()
+  expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(1)
 })

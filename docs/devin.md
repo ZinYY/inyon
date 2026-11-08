@@ -49,3 +49,5 @@ stop, attachments and model changes are not Chat controls in this first version.
 Sends use a per-machine dispatch lock and persistent request receipts; an
 uncertain delivery is not automatically submitted again. The reader never
 changes App startup or ACP configuration.
+
+History records for assistant text and tools share one chat turn, with one timestamp at the end. Invalid history responses preserve the last valid history, cursor and draft while retrying. Ending the owning tmux session ends CLI takeover; reads continue from saved history, and another CLI is started only when a new message is explicitly sent.
