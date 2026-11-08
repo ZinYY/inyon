@@ -1,11 +1,13 @@
 //! Port of terminal/terminal.ts: the phone's terminal on one pane's window.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use super::mirror::{open_mirror, OnOutput};
 use crate::hosts::host::{shq, PtyHandle};
 use crate::hosts::http_error::{http, HubResult};
 use crate::hosts::registry::{registry, RegistryEvent};
+use crate::platform::rt::spawn;
 use crate::tmux::tmux::VIEW_PREFIX;
 
 /// Mouse bindings for the view's own key table: wheel scrolls into tmux's history, clicks and drags
@@ -63,5 +65,62 @@ pub fn open_terminal(host_id: &str, pane_id: &str, cols: u16, rows: u16, on_data
     }
     let id = crate::ids::random_uuid().replace('-', "");
     let view = format!("{VIEW_PREFIX}{}", &id[..6]);
-    host.pty(&view_command(&view, &found.window.id, pane_id), cols, rows, on_data)
+    let terminal = host.pty(&view_command(&view, &found.window.id, pane_id), cols, rows, on_data)?;
+    close_with_session(host_id, &found.session.id, &terminal);
+    Ok(terminal)
+}
+
+/// A linked view must not keep an agent alive after its real session is closed.
+/// Match the stable session ID (renames are fine), and wait for an online
+/// inventory so a temporary disconnect never looks like a deliberate close.
+fn close_with_session(host: &str, session: &str, terminal: &PtyHandle) {
+    let (host, session, view) = (host.to_owned(), session.to_owned(), terminal.clone());
+    let closed = Cell::new(false);
+    let off = registry().on(move |event| {
+        if *event != RegistryEvent::Overview || closed.get() { return; }
+        let gone = registry().get(&host).is_none_or(|rt| {
+            let rt = rt.borrow();
+            rt.state.status == inyon_protocol::HostStatus::Online && !rt.state.sessions.iter().any(|s| s.id == session)
+        });
+        if gone { closed.set(true); view.kill(); }
+    });
+    let ended = terminal.exited.clone();
+    spawn(async move { ended.wait().await; off(); });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::rt::Deferred;
+    use crate::test_support::rt::{run, wait};
+
+    #[test]
+    fn closing_the_original_session_detaches_every_view_but_rename_or_offline_does_not() {
+        run(|| async {
+            let rt = crate::test_support::machine("view-owner", "local", serde_json::json!([]));
+            rt.borrow_mut().hold_polls();
+            let kills = Rc::new(Cell::new(0));
+            let mut handles = Vec::new();
+            for _ in 0..2 {
+                let (k, exit) = (kills.clone(), Deferred::new());
+                let done = exit.clone();
+                let view = PtyHandle::new(|_| {}, |_, _| {}, move || { k.set(k.get() + 1); done.resolve(0); }, exit);
+                close_with_session("view-owner", "$1", &view);
+                handles.push(view);
+            }
+            rt.borrow_mut().state.sessions[0].name = "renamed".into();
+            registry().emit(RegistryEvent::Overview); wait(150).await;
+            assert_eq!(kills.get(), 0);
+            rt.borrow_mut().state.status = inyon_protocol::HostStatus::Offline;
+            rt.borrow_mut().state.sessions.clear();
+            registry().emit(RegistryEvent::Overview); wait(150).await;
+            assert_eq!(kills.get(), 0, "a connection loss must not end an agent");
+            rt.borrow_mut().state.status = inyon_protocol::HostStatus::Online;
+            registry().emit(RegistryEvent::Overview); wait(150).await;
+            assert_eq!(kills.get(), 2, "both linked terminal clients release the closed session");
+            registry().emit(RegistryEvent::Overview); wait(150).await;
+            assert_eq!(kills.get(), 2, "finished views remove their listeners");
+            assert!(handles.iter().all(|view| view.exited.is_settled()));
+        });
+    }
 }
