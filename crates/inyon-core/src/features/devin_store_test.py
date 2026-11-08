@@ -59,6 +59,12 @@ class DevinStoreTests(unittest.TestCase):
         self.assertEqual(devin.tmux_name('one:two.three', 'sample-session'), 'devin-one_two_three')
         self.assertEqual(devin.tmux_name('', 'sample-session'), 'devin-sample-session')
 
+    def test_a_stale_placeholder_above_a_current_draft_is_not_an_empty_composer(self):
+        idle = '── title\n❭ Ask Devin to build features, fix bugs, or work on your code\n──\nModel'
+        self.assertTrue(devin.composer_ready(idle))
+        self.assertFalse(devin.composer_ready(idle + '\n── title\n❭ unsent user draft\n──\nModel'))
+        self.assertFalse(devin.composer_ready(idle.replace('❭ Ask Devin', '❭ Guide Devin')))
+
     def test_selected_branch_excludes_abandoned_and_internal_messages(self):
         self.finished()
         self.message(3, 1, 'assistant', 'abandoned')

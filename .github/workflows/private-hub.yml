@@ -14,8 +14,16 @@ jobs:
           targets: x86_64-unknown-linux-musl
           components: rustfmt
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
         with:
           bun-version: latest
+      - name: Install Bun from its official npm package if the release CDN is unavailable
+        if: steps.bun.outcome == 'failure'
+        run: |
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/inyon-bun" bun@1.4.4
+          echo "$RUNNER_TEMP/inyon-bun/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/inyon-bun/node_modules/.bin/bun" --version
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true

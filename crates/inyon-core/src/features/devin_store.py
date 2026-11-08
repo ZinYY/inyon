@@ -271,7 +271,12 @@ def screen(pane):
 
 
 def composer_ready(text):
-    return bool(re.search(r'^❭ Ask Devin', text, re.M)) and not any(s in text for s in ('esc twice to interrupt', 'Starting session…', 'Force open', '↵ confirm'))
+    lines = text.splitlines()
+    rules = [i for i, line in enumerate(lines) if line.startswith('──')]
+    if len(rules) < 2:
+        return False
+    content = [line.strip() for line in lines[rules[-2] + 1:rules[-1]] if line.strip()]
+    return len(content) == 1 and content[0].startswith('❭ Ask Devin to ') and not any(s in text for s in ('esc twice to interrupt', 'Starting session…', 'Force open', '↵ confirm'))
 
 
 def descendant(child, parent):
