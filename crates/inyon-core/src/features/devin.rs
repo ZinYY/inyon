@@ -93,6 +93,9 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
     let key = (id.to_owned(), sid.to_owned());
     let reader = READERS.with(|all| -> HubResult<_> {
         let mut all = all.borrow_mut();
+        // Failed or disconnected readers also expire; they have no live stream
+        // timer left to remove them and must not exhaust the open-chat limit.
+        all.retain(|_, reader| { let r = reader.borrow(); r.stream.is_some() || now_ms().saturating_sub(r.touched) <= 45_000 });
         if !all.contains_key(&key) && all.len() >= 8 {
             return Err(http(429, "Too many open Devin conversations. Close an unused tab and try again shortly."));
         }
