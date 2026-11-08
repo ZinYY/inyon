@@ -3097,7 +3097,9 @@
     "update": "devin update",
     "login": "devin auth login",
     "version": "devin --version",
-    "authFiles": [],
+    "authFiles": [
+      "~/.local/share/devin/credentials.toml"
+    ],
     "skin": {
       "light": {
         "bg": "#FAFAF9",

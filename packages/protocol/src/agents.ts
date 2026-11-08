@@ -865,7 +865,7 @@ export const AGENTS: Record<AgentKind, AgentDef> = {
     kind: 'devin',
     name: 'Devin CLI', vendor: 'Cognition', comm: ['devin'], args: [program('devin')], launch: 'devin',
     install: { cmd: 'curl -fsSL https://cli.devin.ai/install.sh | bash', docs: 'https://docs.devin.ai/cli' },
-    update: 'devin update', login: 'devin auth login', version: 'devin --version', authFiles: [],
+    update: 'devin update', login: 'devin auth login', version: 'devin --version', authFiles: ['~/.local/share/devin/credentials.toml'],
     skin: accentSkin(accent('#2067A7', '#FFFFFF', '#E6F2FF', '#175B98'), accent('#74B4EC', '#101A24', '#192C3E', '#94C8F5')),
     configFiles: [{ path: '~/.config/devin/config.json', label: 'Config', format: 'json' }],
   }),
