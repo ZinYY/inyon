@@ -70,8 +70,10 @@ function DevinList({ host }: { host: string }) {
 
 const SavedTurn = memo(function SavedTurn({ messages, open }: { messages: DevinMessage[]; open: boolean }) {
   const row = useMemo(() => devinTurn(messages, open), [messages, open])
-  return <div className="[content-visibility:auto] [contain-intrinsic-size:auto_160px]">
-    {row.type === 'user' ? <UserMessage row={row} /> : <AssistantTurn row={row} live={false} foldText />}
+  // Bound history and folded text instead of estimating whole-turn heights:
+  // one Devin turn can contain dozens of tools, whose estimates jump on reveal.
+  return <div data-chat-anchor={row.type === 'user' ? row.key : undefined}>
+    {row.type === 'user' ? <UserMessage row={row} /> : <AssistantTurn row={row} live={false} foldText anchorParts />}
   </div>
 }, (a, b) => a.open === b.open && a.messages.length === b.messages.length && a.messages.every((m, i) => m === b.messages[i]))
 
@@ -89,6 +91,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
   const receipt = useRef<{ text: string; id: string } | null>(null)
   const scroll = useRef<HTMLDivElement>(null)
   const column = useRef<HTMLDivElement>(null)
+  const anchor = useRef<{ id: string; top: number }[]>([])
   const follows = useRef(true)
   const lastTop = useRef(0)
   const inputAt = useRef(0)
@@ -113,19 +116,35 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
     void poll()
     return () => { active = false; clearTimeout(timer) }
   }, [host, sid])
+  const saveAnchor = () => {
+    const el = scroll.current
+    if (!el || !column.current) return
+    const top = el.getBoundingClientRect().top
+    const parts = [...column.current.querySelectorAll<HTMLElement>('[data-chat-anchor]')]
+    const first = parts.findIndex((part) => part.getBoundingClientRect().bottom > top)
+    anchor.current = first < 0 ? [] : parts.slice(first, first + 3).map((part) => ({ id: part.dataset.chatAnchor!, top: part.getBoundingClientRect().top - top }))
+  }
   const settle = () => {
     const el = scroll.current
     if (!el) return
     if (follows.current) el.scrollTop = el.scrollHeight
+    else {
+      const parts = new Map([...column.current?.querySelectorAll<HTMLElement>('[data-chat-anchor]') ?? []].map((part) => [part.dataset.chatAnchor, part]))
+      const a = anchor.current.find((entry) => parts.has(entry.id))
+      if (a) {
+        const delta = parts.get(a.id)!.getBoundingClientRect().top - el.getBoundingClientRect().top - a.top
+        if (Math.abs(delta) >= 1) el.scrollTop += delta
+      }
+    }
     lastTop.current = el.scrollTop
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 100)
   }
-  useLayoutEffect(settle, [messages, update?.state?.live])
+  useLayoutEffect(settle, [messages, limit, update?.state?.live])
   useEffect(() => {
     const el = scroll.current
     if (!el) return
-    // Deferred Markdown and content-visibility can change heights after the
-    // first paint. As in native Chat, keep following until the reader moves up.
+    // As in native Chat, preserve the reading anchor when older messages,
+    // Markdown or an expanded tool change heights above the viewport.
     const ro = new ResizeObserver(settle)
     ro.observe(el)
     if (column.current) ro.observe(column.current)
@@ -184,10 +203,11 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         else if (e.scrollTop < lastTop.current - 2 && Date.now() - inputAt.current < 1200) follows.current = false
         lastTop.current = e.scrollTop
         setAtBottom(away < 100)
+        saveAnchor()
       }}>
         <ConversationColumn ref={column}>
           {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
-          {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; setLimit(limit + 80) }}>Load earlier messages</Button>}
+          {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; saveAnchor(); setLimit(limit + 80) }}>Load earlier messages</Button>}
           <div className="space-y-5">{rows.map((turn, i) => <SavedTurn key={turn[0]!.id} messages={turn} open={state?.status === 'busy' && i === rows.length - 1} />)}</div>
           {state?.status === 'busy' && <div className="mt-5 space-y-2"><WorkingIndicator activity="Working…" />
             {state.live && <details className="ml-9 text-[13px] text-fg-3"><summary className="cursor-pointer py-1.5">Live terminal preview</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-l border-line-strong pl-3 text-[12px]">{state.live}</pre></details>}

@@ -107,3 +107,44 @@ test('tool calls and intermediate output share the final reply footer', async ()
   expect(screen.queryByText('01:02')).toBeNull()
   expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(1)
 })
+
+test('prepending older parts and resizing above them preserves the visible reading anchor', async () => {
+  const messages = Array.from({ length: 171 }, (_, i) => ({ id: `part-${i}`, role: 'assistant' as const, text: `Reply part ${i}`, tools: [] }))
+  api.devinRead.mockResolvedValue({ ...saved, order: messages.map((m) => m.id), messages })
+  const Original = globalThis.ResizeObserver
+  const rect = HTMLElement.prototype.getBoundingClientRect
+  let resized = () => {}
+  let shift = 0
+  globalThis.ResizeObserver = class {
+    callback: () => void
+    constructor(callback: () => void) { this.callback = callback }
+    observe(el: HTMLElement) { if (el.classList.contains('overflow-y-auto')) resized = this.callback }
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+  try {
+    await open()
+    const scroller = screen.getByText('Reply part 170').closest('.overflow-y-auto') as HTMLElement
+    const anchors = () => [...scroller.querySelectorAll<HTMLElement>('[data-chat-anchor]')]
+    Object.defineProperties(scroller, { scrollHeight: { get: () => anchors().length * 100 + shift }, clientHeight: { value: 200 } })
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const index = anchors().indexOf(this)
+      const top = index < 0 ? 0 : index * 100 + shift - scroller.scrollTop
+      return { top, bottom: top + 100, height: 100, width: 200, left: 0, right: 200, x: 0, y: top, toJSON() {} }
+    }
+    fireEvent.wheel(scroller, { deltaY: -100 })
+    scroller.scrollTop = 100
+    fireEvent.scroll(scroller)
+    const visibleId = anchors()[1]!.dataset.chatAnchor
+    fireEvent.click(screen.getByRole('button', { name: 'Load earlier messages' }))
+    // The first assistant turn is rebuilt as earlier parts join it. Match
+    // stable native part IDs, not old DOM nodes or the changing turn key.
+    expect(anchors()).toHaveLength(160)
+    expect(scroller.scrollTop).toBe(8100)
+    expect(anchors().find((el) => el.dataset.chatAnchor === visibleId)!.getBoundingClientRect().top).toBe(0)
+    shift = 500
+    await act(async () => resized())
+    expect(scroller.scrollTop).toBe(8600)
+    expect(anchors().find((el) => el.dataset.chatAnchor === visibleId)!.getBoundingClientRect().top).toBe(0)
+  } finally { globalThis.ResizeObserver = Original; HTMLElement.prototype.getBoundingClientRect = rect }
+})

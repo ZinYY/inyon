@@ -262,7 +262,7 @@ function PageCards({ text }: { text: string }) {
   return <PageRows pages={pages} className="my-3" />
 }
 
-export const AssistantTurn = memo(function AssistantTurn({ row, live, foldText }: { row: Extract<Row, { type: 'assistant' }>; live: boolean; foldText?: boolean }) {
+export const AssistantTurn = memo(function AssistantTurn({ row, live, foldText, anchorParts }: { row: Extract<Row, { type: 'assistant' }>; live: boolean; foldText?: boolean; anchorParts?: boolean }) {
   const text = row.parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text).join('\n\n')
   const menu = contextMenu((e) => {
     const code = (e.target as Element).closest?.('pre')?.textContent
@@ -282,7 +282,8 @@ export const AssistantTurn = memo(function AssistantTurn({ row, live, foldText }
       <div {...menu} className="min-w-0 flex-1">
         <TurnSettled.Provider value={isSettled}>
           {row.parts.map((p) => (
-            <PartView key={p.key} part={p} live={live && row.open} foldText={foldText} />
+            anchorParts ? <div key={p.key} data-chat-anchor={p.key}><PartView part={p} live={live && row.open} foldText={foldText} /></div>
+              : <PartView key={p.key} part={p} live={live && row.open} foldText={foldText} />
           ))}
         </TurnSettled.Provider>
         {!row.open && text.includes('/pages/') && <PageCards text={text} />}
