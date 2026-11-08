@@ -162,12 +162,15 @@ def log_idle(pid):
         end = f.tell()
     prompts = [line for line in lines if 'acp_bridge_dispatch{method="session/prompt"' in line]
     idle = cached['idle'] if incremental else None
+    complete = cached.get('complete', False) if incremental else not truncated
     if prompts:
         idle = bool(re.search(r'\}: (?:chisel_agent::acp_server::manager|chisel_agent::acp_server): close time\.', prompts[-1]))
     # A process which has only loaded a saved session has not started a turn.
-    elif not truncated and any('load_session:' in line and ': close time.' in line for line in lines):
+    # Startup may finish in a later incremental read. Only the root load span
+    # counts; a nested database read does not mean the Agent is ready.
+    elif idle is None and complete and any(re.search(r':load_session: chisel_agent::acp_server::agent_impl: close time\.', line) for line in lines):
         idle = True
-    _LOG_CACHE[pid] = {'path': str(p), 'size': end, 'mtime': stat.st_mtime_ns, 'idle': idle}
+    _LOG_CACHE[pid] = {'path': str(p), 'size': end, 'mtime': stat.st_mtime_ns, 'idle': idle, 'complete': complete}
     return idle
 
 
@@ -212,6 +215,18 @@ def owner_ready(db, sid):
         except FileNotFoundError:
             continue
     return pid
+
+
+def startup_ready(db, sid, pane_pid, current):
+    # The TUI can render its empty composer before the resumed Agent finishes
+    # loading. Keep waiting for the same independent idle evidence used by sends.
+    owner = lock_owner(sid)
+    if not owner or not descendant(owner, pane_pid) or not composer_ready(current):
+        return False
+    try:
+        return owner_ready(db, sid) == owner
+    except Refused:
+        return False
 
 
 def executable(name):
@@ -412,8 +427,7 @@ def send_message(data):
                             raise Refused('Devin ownership changed. Inspect the terminal before retrying.')
                         tmux('send-keys', '-t', pane, 'Down', 'Enter')
                         forced = True
-                    new_owner = lock_owner(sid)
-                    if new_owner and descendant(new_owner, int(pid)) and composer_ready(current):
+                    if startup_ready(db, sid, int(pid), current):
                         break
                     time.sleep(.25)
                 else:

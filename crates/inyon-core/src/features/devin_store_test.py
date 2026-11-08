@@ -120,6 +120,18 @@ class DevinStoreTests(unittest.TestCase):
             with self.assertRaisesRegex(devin.Refused, 'confirmed finished'):
                 devin.owner_ready(self.db, 'test-session')
 
+    def test_startup_waits_for_native_idle_even_after_empty_composer_renders(self):
+        idle = '── title\n❭ Ask Devin to build features, fix bugs, or work on your code\n──\nModel'
+        with patch.object(devin, 'lock_owner', return_value=123), patch.object(devin, 'descendant', return_value=True), patch.object(devin, 'owner_ready', side_effect=[devin.Refused(devin.UNKNOWN), devin.Refused(devin.BUSY), 123]):
+            self.assertFalse(devin.startup_ready(self.db, 'test-session', 100, idle))
+            self.assertFalse(devin.startup_ready(self.db, 'test-session', 100, idle))
+            self.assertTrue(devin.startup_ready(self.db, 'test-session', 100, idle))
+
+    def test_startup_rejects_an_agent_which_moved_during_idle_check(self):
+        idle = '── title\n❭ Ask Devin to build features, fix bugs, or work on your code\n──\nModel'
+        with patch.object(devin, 'lock_owner', return_value=123), patch.object(devin, 'descendant', return_value=True), patch.object(devin, 'owner_ready', return_value=456):
+            self.assertFalse(devin.startup_ready(self.db, 'test-session', 100, idle))
+
     def test_another_unfinished_session_owned_by_same_process_blocks_force(self):
         self.finished()
         self.finished('other-session')
@@ -137,6 +149,20 @@ class DevinStoreTests(unittest.TestCase):
         p.write_text(end)
         self.assertTrue(devin.log_idle(123))
         p.write_text(end + 'INFO acp_bridge_dispatch{method="session/prompt" queue_wait_ms=0}:prompt:session_db_call: close time.busy=1ms\n')
+        self.assertFalse(devin.log_idle(123))
+
+    def test_startup_log_can_finish_in_a_later_incremental_read(self):
+        p = self.data / 'logs/devin_example_123.log'
+        p.write_text('INFO acp_startup:load_session:store_load_session:session_db_call: chisel_agent::session_db: close time.busy=1ms\n')
+        self.assertIsNone(devin.log_idle(123))
+        with p.open('a') as f:
+            f.write('INFO acp_startup:load_session: chisel_agent::acp_server::agent_impl: close time.busy=1ms\n')
+        self.assertTrue(devin.log_idle(123))
+        with p.open('a') as f:
+            f.write('INFO acp_bridge_dispatch{method="session/prompt"}:prompt: begin\n')
+        self.assertFalse(devin.log_idle(123))
+        with p.open('a') as f:
+            f.write('INFO acp_startup:load_session: chisel_agent::acp_server::agent_impl: close time.busy=1ms\n')
         self.assertFalse(devin.log_idle(123))
 
     def test_retry_never_injects_the_same_message_again(self):
