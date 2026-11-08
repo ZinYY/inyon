@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from 'bun:test'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { DevinPage } from './Devin.tsx'
 import { api } from '../test/fakes.ts'
@@ -38,4 +38,37 @@ test('busy sessions cannot send and the unsent draft is preserved', async () => 
   expect(api.devinSend).not.toHaveBeenCalled()
   expect(input.value).toBe('keep this draft')
   expect(screen.getByText('Saved answer')).toBeTruthy()
+})
+
+test('late history layout follows the tail until the reader scrolls up', async () => {
+  const Original = globalThis.ResizeObserver
+  const observers: { callback: () => void; elements: HTMLElement[] }[] = []
+  globalThis.ResizeObserver = class {
+    item: { callback: () => void; elements: HTMLElement[] }
+    constructor(callback: () => void) { this.item = { callback, elements: [] }; observers.push(this.item) }
+    observe(el: HTMLElement) { this.item.elements.push(el) }
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+  try {
+    await open()
+    const observer = observers.find((o) => o.elements.some((el) => el.classList.contains('overflow-y-auto')))!
+    const scroller = observer.elements[0]!
+    const resized = observer.callback
+    let height = 1000
+    Object.defineProperties(scroller, { scrollHeight: { get: () => height }, clientHeight: { value: 200 } })
+    await act(async () => resized())
+    expect(scroller.scrollTop).toBe(1000)
+    height = 2000
+    await act(async () => resized())
+    expect(scroller.scrollTop).toBe(2000)
+    fireEvent.wheel(scroller, { deltaY: -100 })
+    scroller.scrollTop = 1500
+    fireEvent.scroll(scroller)
+    height = 2400
+    await act(async () => resized())
+    expect(scroller.scrollTop).toBe(1500)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to latest' }))
+    expect(scroller.scrollTop).toBe(2400)
+  } finally { globalThis.ResizeObserver = Original }
 })

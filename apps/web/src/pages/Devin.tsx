@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowDown, ChevronLeft, History, MessageSquare, SquareTerminal } from 'lucide-react'
 import { api } from '../lib/api.ts'
@@ -88,7 +88,11 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
   const [limit, setLimit] = useState(80)
   const receipt = useRef<{ text: string; id: string } | null>(null)
   const scroll = useRef<HTMLDivElement>(null)
+  const column = useRef<HTMLDivElement>(null)
   const follows = useRef(true)
+  const lastTop = useRef(0)
+  const inputAt = useRef(0)
+  const touchY = useRef<number | null>(null)
   const version = useRef(0)
   useEffect(() => {
     let active = true
@@ -109,9 +113,24 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
     void poll()
     return () => { active = false; clearTimeout(timer) }
   }, [host, sid])
+  const settle = () => {
+    const el = scroll.current
+    if (!el) return
+    if (follows.current) el.scrollTop = el.scrollHeight
+    lastTop.current = el.scrollTop
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 100)
+  }
+  useLayoutEffect(settle, [messages, update?.state?.live])
   useEffect(() => {
-    if (follows.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight
-  }, [messages, update?.state?.live])
+    const el = scroll.current
+    if (!el) return
+    // Deferred Markdown and content-visibility can change heights after the
+    // first paint. As in native Chat, keep following until the reader moves up.
+    const ro = new ResizeObserver(settle)
+    ro.observe(el)
+    if (column.current) ro.observe(column.current)
+    return () => ro.disconnect()
+  }, [])
   const rows = (update?.order ?? []).slice(-limit).flatMap((id) => { const m = messages.get(id); return m ? [m] : [] })
   const state = update?.state
   const send = async () => {
@@ -152,11 +171,21 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         </SessionHeaderBar>
       </header>
       <div className="sr-only" role="status">{source} · {sending ? 'Sending…' : state?.status === 'idle' ? 'Ready' : 'Waiting for Devin to finish'}</div>
-      <div ref={scroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]" onScroll={() => {
+      <div ref={scroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]"
+        onWheel={(e) => { inputAt.current = Date.now(); if (e.deltaY < 0) follows.current = false }}
+        onTouchStart={(e) => { inputAt.current = Date.now(); touchY.current = e.touches[0]?.clientY ?? null }}
+        onTouchMove={(e) => { inputAt.current = Date.now(); const y = e.touches[0]?.clientY; if (touchY.current !== null && y !== undefined && y > touchY.current + 4) follows.current = false }}
+        onPointerDown={() => { inputAt.current = Date.now() }} onKeyDown={() => { inputAt.current = Date.now() }}
+        onScroll={() => {
         const e = scroll.current
-        if (e) { follows.current = e.scrollHeight - e.scrollTop - e.clientHeight < 100; setAtBottom(follows.current) }
+        if (!e) return
+        const away = e.scrollHeight - e.scrollTop - e.clientHeight
+        if (away < 24) follows.current = true
+        else if (e.scrollTop < lastTop.current - 2 && Date.now() - inputAt.current < 1200) follows.current = false
+        lastTop.current = e.scrollTop
+        setAtBottom(away < 100)
       }}>
-        <ConversationColumn>
+        <ConversationColumn ref={column}>
           {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
           {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; setLimit(limit + 80) }}>Load earlier messages</Button>}
           <div className="space-y-5">{rows.map((m) => <SavedMessage key={m.id} message={m} />)}</div>
@@ -166,7 +195,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         </ConversationColumn>
       </div>
       <div className="relative flex min-h-0 flex-col">
-        {!atBottom && <button type="button" aria-label="Jump to latest" className="absolute -top-12 right-4 z-10 flex size-9 items-center justify-center rounded-full border border-line bg-elev text-fg-2 shadow-float hover:text-fg sm:right-6" onClick={() => { follows.current = true; if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight }}><ArrowDown className="size-4" /></button>}
+        {!atBottom && <button type="button" aria-label="Jump to latest" className="absolute -top-12 right-4 z-10 flex size-9 items-center justify-center rounded-full border border-line bg-elev text-fg-2 shadow-float hover:text-fg sm:right-6" onClick={() => { follows.current = true; settle() }}><ArrowDown className="size-4" /></button>}
         <ComposerDock>
           {error && <p role="alert" className="mb-2 text-center text-[12px] text-danger">{error}</p>}
           <PlainComposer value={text} onChange={setText} onSend={() => { void send() }} disabled={sending} label="Message Devin"
