@@ -111,7 +111,7 @@ pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
         let weak = Rc::downgrade(&reader);
         let ended = stream.clone();
         spawn(async move {
-            let _ = ended.exited.clone().await;
+            let _ = ended.exited.wait().await;
             if let Some(reader) = weak.upgrade() {
                 let mut r = reader.borrow_mut();
                 if r.stream.as_ref().is_some_and(|s| s.same(&ended)) {
