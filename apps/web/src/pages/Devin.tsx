@@ -8,7 +8,7 @@ import { modelName, shortPath } from '../lib/format.ts'
 import { AgentLogo, SkinScope, useReplyFont } from '../lib/skin.tsx'
 import { toast, useStore } from '../lib/store.ts'
 import { Button, Empty, IconButton, Segmented, Waiting } from '../components/ui/primitives.tsx'
-import { StatePill } from '../components/ui/status.tsx'
+import { StateDot, StatePill } from '../components/ui/status.tsx'
 import { ReplyFont } from '../components/chat/Markdown.tsx'
 import { AssistantTurn, ChatAgent, UserMessage, WorkingIndicator } from '../components/chat/Messages.tsx'
 import { ChatHost } from '../components/chat/agent.ts'
@@ -133,6 +133,7 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
     } finally { setSending(false) }
   }
   const busy = sending || state?.status === 'busy'
+  const shown = busy ? 'working' : state?.status === 'idle' ? 'idle' : 'waiting'
   const source = state?.source === 'cli' ? `CLI in tmux: ${state.tmux}` : 'App history'
   return <SkinScope agent="codex" className="flex min-h-0 flex-1 flex-col bg-bg text-fg">
     <ChatAgent.Provider value="devin"><ChatHost.Provider value={host}><ReplyFont.Provider value={font}>
@@ -140,9 +141,9 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         <SessionHeaderBar>
           <Link to={`/m/${encodeURIComponent(host)}/devin`} aria-label="Back" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-fg-2 hover:bg-hover relative after:absolute after:-inset-1 md:hidden"><ChevronLeft className="size-5" /></Link>
           <AgentLogo kind="devin" size={26} active={busy} className="max-sm:hidden" />
-          <SessionHeading title={<span className="truncate" title={sid}>{update?.session?.title || sid}</span>}
+          <SessionHeading title={<><StateDot state={shown} className="sm:hidden" /><span className="truncate" title={sid}>{update?.session?.title || sid}</span></>}
             subtitle={['Devin', machine?.config.name || host, source, shortPath(update?.session?.cwd, 28)].filter(Boolean).join(' · ')} />
-          <StatePill state={busy ? 'working' : state?.status === 'idle' ? 'idle' : 'waiting'} className="hidden sm:block" />
+          <span className="hidden sm:block"><StatePill state={shown} /></span>
           {state?.pane && <Segmented size="sm" label="View" value="chat" onChange={(view) => { if (view === 'terminal') nav(`${paneHref(host, state.pane!)}?view=terminal`) }} options={[
             { v: 'chat', name: 'Chat', label: <><MessageSquare className="size-3.5" /><span className="hidden lg:inline">Chat</span></> },
             { v: 'terminal', name: 'Terminal', label: <><SquareTerminal className="size-3.5" /><span className="hidden lg:inline">Terminal</span></> },

@@ -567,6 +567,16 @@ describe('the viewer', () => {
 })
 
 describe('the shell', () => {
+  test.each([
+    ['/m/mac/p/7', false],
+    ['/m/mac/devin/saved-chat', false],
+    ['/m/mac/devin', true],
+  ])('phone navigation follows the conversation layout at %s', async (path, showTabs) => {
+    viewport(390, 844)
+    await render(<MemoryRouter initialEntries={[path]}><Routes><Route element={<AppShell />}><Route path="*" element={<div />} /></Route></Routes></MemoryRouter>)
+    expect(screen.getAllByRole('navigation').some((n) => n.className.includes('grid-cols-5'))).toBe(showTabs)
+  })
+
   test('the phone tab bar has five places, Pages second, with the count of changed pages', async () => {
     viewport(390, 844)
     api.pages.mockResolvedValue({ pages: [PLAN, HANDY] } as never)

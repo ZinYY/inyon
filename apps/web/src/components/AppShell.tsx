@@ -260,7 +260,7 @@ export function AppShell() {
   const [newOpen, setNewOpen] = useState(false)
   const [search, setSearch] = useState(false)
   const loc = useLocation()
-  const inSession = /\/p\//.test(loc.pathname)
+  const inSession = /\/p\//.test(loc.pathname) || /^\/m\/[^/]+\/devin\/[^/]+\/?$/.test(loc.pathname)
   // a page open on a phone takes the whole screen
   const inPage = /^\/pages\/[^/]+\/[^/]+/.test(loc.pathname)
   usePagesFeed()
