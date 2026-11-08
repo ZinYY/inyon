@@ -364,10 +364,8 @@ def send_message(data):
                     if exists:
                         raise Refused('A tmux session with this name already exists. Inspect it before retrying.')
                 args = [executable('devin'), '--resume', sid]
-                # The native resume preserves its saved model. Restore additional roots too.
-                dirs = json.loads(info.get('workspaces') or '[]')
-                if isinstance(dirs, list):
-                    args.extend(d for d in dirs if isinstance(d, str) and d != info['cwd'])
+                # Resume restores the native session. Positional PATH arguments
+                # open Desktop windows in this CLI; never use them for roots.
                 shell = '/bin/zsh' if Path('/bin/zsh').exists() else '/bin/bash'
                 command = shlex.join(args) + '; exec ' + shlex.quote(shell) + ' -l'
                 target = ['new-window', '-t', '=' + name + ':'] if exists else ['new-session', '-s', name.replace('#', '##'), '-x', '140', '-y', '45']
