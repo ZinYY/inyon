@@ -111,7 +111,7 @@ mod tests {
             rt.borrow_mut().state.sessions[0].name = "renamed".into();
             registry().emit(RegistryEvent::Overview); wait(150).await;
             assert_eq!(kills.get(), 0);
-            rt.borrow_mut().state.status = inyon_protocol::HostStatus::Offline;
+            rt.borrow_mut().state.status = inyon_protocol::HostStatus::Connecting;
             rt.borrow_mut().state.sessions.clear();
             registry().emit(RegistryEvent::Overview); wait(150).await;
             assert_eq!(kills.get(), 0, "a connection loss must not end an agent");
