@@ -19,6 +19,18 @@ const heading = (name: RegExp) => screen.getByRole('button', { name })
 beforeEach(() => localStorage.clear())
 
 describe('the sidebar session tree', () => {
+  test('MacBook and Mac mini expose saved Devin conversations without a running CLI', async () => {
+    await tree([host('mac', { agents: ['devin'], panes: [] }), host('mac-mini', { agents: ['devin'], panes: [] })])
+    expect(screen.getAllByRole('link', { name: /Devin conversations/ }).map((l) => l.getAttribute('href'))).toEqual(['/m/mac/devin', '/m/mac-mini/devin'])
+  })
+
+  test('Devin history remains searchable beside regular terminal sessions', async () => {
+    const many = Array.from({ length: TREE_SEARCH_FROM + 1 }, (_, i) => `Task ${i}`)
+    await tree([machine('box', many), host('mac-mini', { agents: ['devin'], panes: [] })])
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Filter sessions' }), { target: { value: 'Devin' } })
+    expect(screen.getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/m/mac-mini/devin'])
+  })
+
   test('groups by machine, then tmux session, with each pane’s window', async () => {
     await tree([machine('box', ['Fix the login test', 'zsh']), machine('laptop', ['Write the docs'], { machineKind: 'laptop' })])
     expect(heading(/ box /).getAttribute('aria-expanded')).toBe('true')

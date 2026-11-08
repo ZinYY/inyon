@@ -86,7 +86,7 @@ export function Home() {
     const rest = new Set(sorted.sessions.map(paneKey))
     const groups = groupPanes(hosts, { keep: (r) => rest.has(paneKey(r)) })
     // App history remains reachable even when there is no active tmux CLI.
-    if (filter === 'all') for (const host of hosts) {
+    for (const host of hosts) {
       if (host.agents.includes('devin') && !groups.some((g) => g.key === host.config.id) && (!q || `${host.config.name} Devin`.toLowerCase().includes(q.toLowerCase()))) {
         groups.push({ key: host.config.id, host, sessions: [], panes: 0, waiting: 0 })
       }

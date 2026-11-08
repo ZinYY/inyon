@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { ChevronRight, SquareTerminal } from 'lucide-react'
 import { isBusy, type HostState } from '@inyon/protocol'
 import { paneHref, paneTitle, terminalName, type PaneRef } from '../lib/overview.ts'
-import { groupPanes, loadFolded, saveFolded, tmuxTarget } from '../lib/groups.ts'
+import { groupPanes, loadFolded, matchesQuery, saveFolded, tmuxTarget } from '../lib/groups.ts'
 import { AgentLogo } from '../lib/skin.tsx'
 import { StateDot, shownState } from './ui/status.tsx'
 import { MachineIcon, machineKindOf } from './ui/MachineIcon.tsx'
@@ -29,9 +29,14 @@ export function SessionTree({ hosts }: { hosts: HostState[] }) {
   const [folded, setFolded] = useState(loadFolded)
   // the companion has its own place under Overview
   const all = useMemo(() => groupPanes(hosts, { keep: notCompanion }), [hosts])
-  const groups = useMemo(() => (q ? groupPanes(hosts, { query: q, keep: notCompanion }) : all), [hosts, q, all])
+  const libraries = useMemo(() => hosts.filter((h) => h.agents.includes('devin') && matchesQuery(`${h.config.name} Devin conversations saved App CLI history`, q)), [hosts, q])
+  const groups = useMemo(() => {
+    const groups = [...(q ? groupPanes(hosts, { query: q, keep: notCompanion }) : all)]
+    for (const host of libraries) if (!groups.some((g) => g.key === host.config.id)) groups.push({ key: host.config.id, host, sessions: [], panes: 0, waiting: 0 })
+    return groups.sort((a, b) => hosts.indexOf(a.host) - hosts.indexOf(b.host))
+  }, [hosts, q, all, libraries])
   const total = all.reduce((n, g) => n + g.panes, 0)
-  if (!total) return null
+  if (!total && !hosts.some((h) => h.agents.includes('devin'))) return null
   const oneHost = hosts.length <= 1
   const open = (key: string) => !!q || !folded.has(key)
   const toggle = (key: string) =>
@@ -51,6 +56,12 @@ export function SessionTree({ hosts }: { hosts: HostState[] }) {
       </div>
       {total > TREE_SEARCH_FROM && <FilterInput value={q} onChange={setQ} placeholder="Filter sessions" className="mb-2" />}
       {groups.map((g) => {
+        const libraryHref = `/m/${encodeURIComponent(g.key)}/devin`
+        const library = libraries.includes(g.host) && <Link key={`${g.key}:devin`} to={libraryHref} title={`${g.host.config.name} · Devin conversations`}
+          className={clsx('relative flex h-8 items-center gap-2 rounded-full pr-3 text-[13px] transition-colors', oneHost ? 'pl-2' : 'pl-7',
+            loc.pathname === libraryHref || loc.pathname.startsWith(`${libraryHref}/`) ? 'bg-elev font-medium text-fg shadow-card ring-1 ring-line' : 'text-fg-2 hover:bg-hover/70 hover:text-fg')}>
+          <AgentLogo kind="devin" size={16} /><span className="min-w-0 flex-1 truncate">Devin conversations</span>
+        </Link>
         const sessions = g.sessions.map((s) => (
           <Group
             key={s.key}
@@ -67,7 +78,7 @@ export function SessionTree({ hosts }: { hosts: HostState[] }) {
             ))}
           </Group>
         ))
-        if (oneHost) return sessions
+        if (oneHost) return [library, ...sessions]
         return (
           <Group
             key={g.key}
@@ -84,6 +95,7 @@ export function SessionTree({ hosts }: { hosts: HostState[] }) {
             count={g.panes}
             waiting={g.waiting}
           >
+            {library}
             {sessions}
           </Group>
         )

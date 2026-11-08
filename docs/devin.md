@@ -1,8 +1,11 @@
 # Devin conversations
 
 On a connected Unix machine, open **Overview → machine → Devin conversations**
-or **Machines → machine → Devin conversations**. The Overview entry remains
-available when no CLI is running.
+or **Machines → machine → Devin conversations**. The desktop sidebar also has
+**Devin conversations** under each machine. Both entries remain available when
+no CLI is running; Overview's Working/Idle filters do not hide saved history.
+Every connected machine with Devin installed gets its own library and handoff,
+including multiple Macs in the same Hub.
 Python 3, tmux and Devin CLI must be installed on that machine.
 Existing Devin terminal links and their Chat tab also open the saved conversation,
 identified by its native writer lock rather than its title or working directory.

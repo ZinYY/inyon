@@ -30,6 +30,13 @@ test('Overview keeps the Devin library under its machine even without a tmux CLI
   expect(screen.getAllByText('My MacBook').length).toBeGreaterThan(0)
 })
 
+test('Overview keeps both Mac Devin libraries while filtering running sessions', async () => {
+  useStore.setState({ hosts: [host('mac', { agents: ['devin'], panes: [] }), host('mac-mini', { agents: ['devin'], panes: [] }), host('box', { panes: [1, 2, 3, 4].map((n) => agentPane(`%${n}`, 'codex')) })] })
+  await home()
+  await userEvent.click(screen.getByRole('radio', { name: 'Working' }))
+  expect(screen.getAllByRole('link', { name: /Devin conversations/ }).map((l) => l.getAttribute('href'))).toEqual(['/m/mac/devin', '/m/mac-mini/devin'])
+})
+
 describe('agent sessions', () => {
   test('returning from a session restores the Overview position, including after data reloads', async () => {
     function Session() {
