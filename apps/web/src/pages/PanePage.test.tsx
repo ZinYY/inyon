@@ -6,6 +6,7 @@ import { LEAVE_MS } from '../components/ui/AnimatedList.tsx'
 import { useStore } from '../lib/store.ts'
 import { agentPane, host } from '../test/fixtures.ts'
 import { renderSettled as render } from '../test/render.tsx'
+import { api } from '../test/fakes.ts'
 
 const viewport = (width: number, height: number) => act(() => {
   ;(window as any).happyDOM.setViewport({ width, height })
@@ -18,6 +19,7 @@ const page = () =>
     <MemoryRouter initialEntries={['/m/box/p/1']}>
       <Routes>
         <Route path="/m/:host/p/:pane" element={<PanePage />} />
+        <Route path="/m/:host/devin/:session" element={<div>Resolved Devin conversation</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -64,6 +66,15 @@ test('a terminal-first agent opens on its terminal, and its chat tab is still th
   await waitFor(() => expect(screen.getByRole('radio', { name: 'Terminal' }).getAttribute('aria-checked')).toBe('true'))
   expect(screen.getByRole('radio', { name: 'Chat' }).getAttribute('aria-checked')).toBe('false')
   expect(screen.queryByText('Pi runs in the terminal')).toBeNull()
+})
+
+test('a Devin pane opens its native conversation instead of the unsupported Chat notice', async () => {
+  api.devinResolve.mockResolvedValue({ session: 'saved-devin-session' })
+  useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'devin')] })], hostsLoaded: true, connected: true })
+  await page()
+  await waitFor(() => expect(screen.getByText('Resolved Devin conversation')).toBeTruthy())
+  expect(api.devinResolve).toHaveBeenCalledWith('box', '%1')
+  expect(screen.queryByText('Devin CLI runs in the terminal')).toBeNull()
 })
 
 // A fork returns its pane ID before the next machine snapshot contains that pane.

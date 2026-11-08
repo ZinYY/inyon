@@ -2,6 +2,8 @@
 
 On a connected Unix machine, open **Machines → machine → Devin conversations**.
 Python 3, tmux and Devin CLI must be installed on that machine.
+Existing Devin terminal links and their Chat tab also open the saved conversation,
+identified by its native writer lock rather than its title or working directory.
 
 The list reads the native Devin session database, including Desktop App sessions,
 without creating or resuming an agent. History follows the selected message

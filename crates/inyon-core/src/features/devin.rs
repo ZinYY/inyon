@@ -87,6 +87,16 @@ pub async fn list(id: &str) -> HubResult<Value> {
     Ok(v)
 }
 
+pub async fn resolve(id: &str, pane: &str) -> HubResult<Value> {
+    if !pane.strip_prefix('%').is_some_and(|s| !s.is_empty() && s.len() <= 20 && s.bytes().all(|c| c.is_ascii_digit())) {
+        return Err(http(400, "Invalid Devin pane"));
+    }
+    let r = machine(id)?.exec(&command("resolve", Some(pane)), ExecOptions::timeout(20_000)).await?;
+    let v: Value = serde_json::from_str(r.stdout.trim()).map_err(|_| http(502, "Could not identify this Devin conversation"))?;
+    if let Some(error) = v["error"].as_str() { return Err(http(409, error)); }
+    Ok(v)
+}
+
 pub async fn read(id: &str, sid: &str, since: u64) -> HubResult<Value> {
     if !valid_id(sid) { return Err(http(400, "Invalid Devin session ID")); }
     let host = machine(id)?;

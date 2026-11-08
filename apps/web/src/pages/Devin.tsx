@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Send, SquareTerminal } from 'lucide-react'
 import { api } from '../lib/api.ts'
 import { DEVIN_BUSY, mergeDevin, type DevinMessage, type DevinSession, type DevinUpdate } from '../lib/devin.ts'
@@ -8,6 +8,20 @@ import { toast, useStore } from '../lib/store.ts'
 import { Button, Empty, Waiting } from '../components/ui/primitives.tsx'
 import { CopyButton, Markdown } from '../components/chat/Markdown.tsx'
 import { messagePreview } from '../components/chat/Messages.tsx'
+
+export function DevinPaneChat({ host, pane }: { host: string; pane: string }) {
+  const [session, setSession] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let active = true
+    setSession(''); setError('')
+    api.devinResolve(host, pane).then((r) => { if (active) setSession(r.session) }).catch((e) => { if (active) setError(e.message) })
+    return () => { active = false }
+  }, [host, pane])
+  if (session) return <Navigate replace to={`/m/${encodeURIComponent(host)}/devin/${encodeURIComponent(session)}`} />
+  if (error) return <Empty title="Choose a Devin conversation"><p>{error}</p><Link className="text-accent-text" to={`/m/${encodeURIComponent(host)}/devin`}>Devin conversations</Link></Empty>
+  return <Waiting shape="lines" label="Opening the Devin conversation" />
+}
 
 export function DevinPage() {
   const params = useParams()

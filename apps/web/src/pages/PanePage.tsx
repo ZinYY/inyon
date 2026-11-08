@@ -25,6 +25,7 @@ import { ActivitySheet, ControlsSheet } from '../components/session/MobileSheets
 // split out: markdown/highlighting and xterm are the heaviest parts of the app
 const ChatView = lazy(() => import('../components/chat/ChatView.tsx').then((m) => ({ default: m.ChatView })))
 const TerminalView = lazy(() => import('../components/terminal/TerminalView.tsx').then((m) => ({ default: m.TerminalView })))
+const DevinPaneChat = lazy(() => import('./Devin.tsx').then((m) => ({ default: m.DevinPaneChat })))
 
 // the chat column's shape, whether the chat or the terminal is what opens
 const Loading = ({ machine }: { machine?: string }) => (
@@ -61,7 +62,7 @@ export function PanePage() {
   }, [host, pane])
   const { ref, info, agent } = s
   // a terminal-first agent opens on its terminal: its chat tab only points there
-  const home = agent && agentDef(agent).chat ? 'chat' : 'terminal'
+  const home = agent && (agent === 'devin' || agentDef(agent).chat) ? 'chat' : 'terminal'
   const view = (search.get('view') as 'chat' | 'terminal' | null) ?? home
   const wide = useWide()
   const [tab, setTab] = useState<PanelTab>('changes')
@@ -141,7 +142,7 @@ export function PanePage() {
               ) : view === 'chat' ? (
                 // each view rises in over the one it replaces; another session's chat comes in the same way
                 <div key={`chat:${host}${pane}`} className="animate-page flex min-h-0 flex-1 flex-col">
-                  <ChatView host={host} pane={pane} agent={agent} onTerminal={() => setView('terminal')} controls={agent ? <ComposerControls s={s} /> : undefined} ultracode={s.ultracode} />
+                  {agent === 'devin' ? <DevinPaneChat host={host} pane={pane} /> : <ChatView host={host} pane={pane} agent={agent} onTerminal={() => setView('terminal')} controls={agent ? <ComposerControls s={s} /> : undefined} ultracode={s.ultracode} />}
                 </div>
               ) : (
                 <div key="terminal" className="animate-page flex min-h-0 flex-1 flex-col">

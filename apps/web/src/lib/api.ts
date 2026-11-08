@@ -339,6 +339,7 @@ export interface CompanionStatus {
 
 export const api = {
   devinSessions: (id: string) => request<{ sessions: DevinSession[] }>('GET', `${h(id)}/devin`, undefined, 20_000),
+  devinResolve: (id: string, pane: string) => request<{ session: string }>('GET', `${h(id)}/devin/panes/${encodeURIComponent(pane)}`, undefined, 25_000),
   devinRead: (id: string, session: string, since: number) => request<DevinUpdate>('GET', `${h(id)}/devin/${encodeURIComponent(session)}${qs({ since: String(since) })}`, undefined, 15_000),
   devinSend: (id: string, session: string, text: string, requestId: string) => request<{ status: string; tmux: string; pane: string }>('POST', `${h(id)}/devin/${encodeURIComponent(session)}/send`, { text, requestId }, 70_000),
   /** `version` and `commit` say what the hub runs, once signed in */

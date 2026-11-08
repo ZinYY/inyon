@@ -264,9 +264,11 @@ def managed_pane(sid, record=None):
     pane, name = r.get('pane'), r.get('tmux')
     if not pane or not name:
         return None
-    result = tmux('display-message', '-p', '-t', pane, '#{session_name}\t#{pane_id}\t#{pane_pid}', check=False)
-    parts = result.stdout.decode().strip().split('\t')
-    if result.returncode == 0 and len(parts) == 3 and parts[:2] == [name, pane] and parts[2] == str(r.get('panePid')):
+    # A pane may also be linked into an Inyon terminal-view session. A bare
+    # display-message target can choose that alias; check membership explicitly.
+    result = tmux('list-panes', '-a', '-F', '#{session_name}\t#{pane_id}\t#{pane_pid}', check=False)
+    rows = [line.split('\t') for line in result.stdout.decode().splitlines()]
+    if result.returncode == 0 and [name, pane, str(r.get('panePid'))] in rows:
         return pane
     return None
 
@@ -325,6 +327,26 @@ def owner_pane(pid):
     return {'tmux': name, 'pane': pane, 'panePid': int(parent)}
 
 
+def resolve_pane(pane):
+    if not re.fullmatch(r'%[0-9]+', pane):
+        raise Refused('Invalid Devin pane.')
+    found = []
+    with connect() as db:
+        for path in (DATA / 'session_locks').glob('*.lock'):
+            if not valid_id(path.stem):
+                continue
+            try:
+                owner = lock_owner(path.stem)
+                located = owner_pane(owner)
+                if located and located['pane'] == pane:
+                    found.append(session_info(db, path.stem)['id'])
+            except Refused:
+                continue
+    if len(found) != 1:
+        raise Refused('Choose the saved Devin conversation. This terminal does not have one unambiguous active conversation.')
+    return {'session': found[0]}
+
+
 def send_message(data):
     sid, text, rid = data.get('id'), data.get('text'), data.get('requestId')
     if not valid_id(sid) or not valid_id(rid) or not isinstance(text, str) or not text.strip():
@@ -357,6 +379,8 @@ def send_message(data):
                 r.update(id=sid, **existing)
                 write_record(sid, r)
             pane = managed_pane(sid, r)
+            if existing and not pane:
+                raise Refused('The Devin terminal changed during discovery. Retry after its terminal has settled.')
             retired_pane = pane if pane and not descendant(owner or 0, int(r['panePid'])) else None
             if retired_pane:
                 pane = None
@@ -480,6 +504,8 @@ def main(args):
             emit({'sessions': [dict(zip(('id', 'title', 'cwd', 'model', 'updated'), row)) for row in db.execute('SELECT id,title,working_directory,model,last_activity_at FROM sessions WHERE hidden=0 ORDER BY last_activity_at DESC LIMIT 200')]})
     elif args[0] == 'send':
         emit(send_message(json.load(sys.stdin)))
+    elif args[0] == 'resolve':
+        emit(resolve_pane(args[1]))
     elif args[0] == 'watch' and valid_id(args[1]):
         watch(args[1])
     else:

@@ -345,6 +345,9 @@ pub fn overview(catalog: u32) -> Resp {
 
 pub fn add(routes: &mut Routes) {
     use Method as M;
+    guarded(routes, "/api/hosts/:id/devin/panes/:pane", vec![(M::GET, h(|r| async move {
+        Ok(json_of(&inyon_core::features::devin::resolve(&id(&r), &r.param("pane")).await?))
+    }))]);
     guarded(routes, "/api/hosts/:id/devin", vec![(M::GET, h(|r| async move {
         Ok(json_of(&inyon_core::features::devin::list(&id(&r)).await?))
     }))]);

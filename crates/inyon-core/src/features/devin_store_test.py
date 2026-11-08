@@ -158,6 +158,26 @@ class DevinStoreTests(unittest.TestCase):
             self.assertEqual(devin.owner_pane(120), {'tmux': 'manual-session', 'pane': '%8', 'panePid': 100})
             self.assertIsNone(devin.owner_pane(999))
 
+    def test_linked_terminal_windows_do_not_hide_the_managed_pane(self):
+        from subprocess import CompletedProcess
+        panes = CompletedProcess([], 0, b'inyon-view-demo\t%8\t100\nmanual-session\t%8\t100\n', b'')
+        record = {'tmux': 'manual-session', 'pane': '%8', 'panePid': 100}
+        with patch.object(devin, 'tmux', return_value=panes):
+            self.assertEqual(devin.managed_pane('test-session', record), '%8')
+            self.assertIsNone(devin.managed_pane('test-session', {**record, 'panePid': 999}))
+
+    def test_terminal_chat_resolves_native_identity_and_rejects_ambiguity(self):
+        self.finished()
+        (self.data / 'session_locks/test-session.lock').write_text('123')
+        with patch.object(devin, 'lock_owner', return_value=123), patch.object(devin, 'owner_pane', return_value={'pane': '%8'}):
+            self.assertEqual(devin.resolve_pane('%8'), {'session': 'test-session'})
+            with self.assertRaises(devin.Refused):
+                devin.resolve_pane('%9')
+            self.finished('other-session')
+            (self.data / 'session_locks/other-session.lock').write_text('123')
+            with self.assertRaises(devin.Refused):
+                devin.resolve_pane('%8')
+
 
 if __name__ == '__main__':
     unittest.main()
