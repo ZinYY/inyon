@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { ComposerSurface, ComposerTextArea, ComposerSendButton, useComposerHeight } from './ChatChrome.tsx'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { appendTo, onCompose } from '../../lib/compose.ts'
 import clsx from 'clsx'
 import { ArrowUp, CalendarClock, Camera, Clock3, FileText, Folder, Hourglass, Paperclip, RotateCw, Square, SquareTerminal, X, Zap } from 'lucide-react'
@@ -217,16 +218,7 @@ export function Composer({
     DRAFTS.set(key, text)
   }, [key, text])
 
-  useLayoutEffect(() => {
-    const el = ta.current
-    if (!el) return
-    const max = window.innerHeight * 0.4
-    el.style.height = '0px'
-    const height = el.scrollHeight
-    el.style.height = `${Math.min(height, max)}px`
-    // Reuse the measurement: reading after the height write forces a second layout of long input.
-    el.style.overflowY = height > max + 1 ? 'auto' : 'hidden'
-  }, [text])
+  useComposerHeight(ta, text)
 
   // ---------- suggestions ----------
 
@@ -576,14 +568,7 @@ export function Composer({
         </div>
       )}
 
-      <div
-        className={clsx(
-          'rounded-3xl border bg-elev shadow-card transition-colors',
-          dragging ? 'border-accent' : 'border-line focus-within:border-line-strong',
-          disabled && 'opacity-60',
-          ultracode && 'ultracode-box',
-        )}
-      >
+      <ComposerSurface dragging={dragging} disabled={disabled} ultracode={ultracode}>
         {ultracode && <span className="ultracode-label" aria-hidden>ultracode</span>}
         {files.length > 0 && (
           <div className="no-scrollbar flex gap-2 overflow-x-auto px-2.5 pt-2.5 pb-0.5">
@@ -646,7 +631,8 @@ export function Composer({
             <span className="truncate">Shell command · runs in this session’s folder</span>
           </div>
         )}
-        <textarea
+        <ComposerTextArea
+          shellMode={shellMode}
           ref={ta}
           rows={1}
           value={text}
@@ -702,7 +688,6 @@ export function Composer({
           }}
           placeholder={canSteer && steer ? `Steer ${agentName} now…` : working ? `Queue a message for ${agentName}…` : `Message ${agentName}…`}
           aria-label={`Message ${agentName}`}
-          className={clsx('block max-h-[40vh] w-full resize-none bg-transparent px-4 pb-1 text-[15.5px] leading-[1.5] text-fg placeholder:text-fg-3', shellMode ? 'pt-1' : 'pt-3')}
         />
         {/* a container: next to the side panel the box is narrower than the screen, and its labels fold to icons by its own width */}
         <div className="@container flex items-center gap-0.5 px-1.5 pb-1.5">
@@ -737,7 +722,7 @@ export function Composer({
             </button>
           )}
           {/* one button for Send and Stop: its colour fades between the two and the icon swaps with a fade */}
-          <button
+          <ComposerSendButton active={canSend} stop={showStop}
             type="button"
             {...contextMenu(() => [
               !showStop && !shellMode && { key: 'send', label: canSteer && steer ? 'Steer now' : working ? 'Queue follow-up' : 'Send', icon: <ArrowUp className="size-4" />, disabled: !canSend, onSelect: () => void send() },
@@ -749,19 +734,15 @@ export function Composer({
             onClick={() => (showStop ? stop() : send())}
             onMouseDown={(e) => e.preventDefault()}
             disabled={showStop ? stopping : !canSend}
-            className={clsx(
-              'press flex size-9 shrink-0 items-center justify-center rounded-full',
-              showStop ? 'bg-fg text-bg hover:opacity-85 disabled:opacity-50' : canSend ? 'bg-accent text-accent-fg hover:opacity-90' : 'bg-sunken text-fg-3',
-            )}
             aria-label={showStop ? 'Stop' : shellMode ? 'Run command' : canSteer && steer ? 'Steer now' : working ? 'Queue follow-up' : 'Send'}
             title={showStop ? 'Stop (Esc in the terminal)' : shellMode ? 'Run shell command' : canSteer && steer ? 'Steer Codex now' : working ? 'Queue a follow-up' : 'Send'}
           >
             <span key={showStop ? 'stop' : 'send'} className="animate-fade-in flex">
               {showStop ? <Square className="size-3 fill-current" /> : <ArrowUp className="size-[17px]" strokeWidth={2.4} />}
             </span>
-          </button>
+          </ComposerSendButton>
         </div>
-      </div>
+      </ComposerSurface>
       <SendLaterSheet host={host} pane={pane} text={text} open={later} onClose={() => setLater(false)} onSent={handedOver} />
       <input ref={fileInput} type="file" multiple hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
       <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />

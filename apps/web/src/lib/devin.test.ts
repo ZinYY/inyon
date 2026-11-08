@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { mergeDevin, type DevinUpdate, type DevinMessage } from './devin.ts'
+import { devinRow, mergeDevin, type DevinUpdate, type DevinMessage } from './devin.ts'
 
 test('incremental replies preserve large unchanged messages and drop obsolete branch entries', () => {
   const user: DevinMessage = { id: 'u', role: 'user', text: 'long text '.repeat(10000), tools: [] }
@@ -11,4 +11,13 @@ test('incremental replies preserve large unchanged messages and drop obsolete br
   expect(next.get('new')).toBe(reply)
   expect(next.has('old')).toBe(false)
   expect(mergeDevin(next, { ...update, reset: true }).has('u')).toBe(false)
+})
+
+test('saved Devin messages preserve full content in the shared chat renderer', () => {
+  const text = '中文 multiline\n'.repeat(10000)
+  const user = devinRow({ id: 'u', role: 'user', text, tools: [] })
+  expect(user.type === 'user' && user.item.text).toBe(text)
+  const reply = devinRow({ id: 'a', role: 'assistant', text, thinking: 'reasoning', tools: [{ name: 'Read', input: { path: '/tmp/example' } }] })
+  expect(reply.type === 'assistant' && reply.parts.map((p) => p.type)).toEqual(['thinking', 'text', 'tools'])
+  expect(reply.type === 'assistant' && reply.parts.find((p) => p.type === 'text')?.text).toBe(text)
 })

@@ -1,13 +1,18 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Send, SquareTerminal } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, ArrowDown, ChevronLeft, History, MessageSquare, SquareTerminal } from 'lucide-react'
 import { api } from '../lib/api.ts'
-import { DEVIN_BUSY, mergeDevin, type DevinMessage, type DevinSession, type DevinUpdate } from '../lib/devin.ts'
+import { DEVIN_BUSY, devinRow, mergeDevin, type DevinMessage, type DevinSession, type DevinUpdate } from '../lib/devin.ts'
 import { paneHref } from '../lib/overview.ts'
+import { modelName, shortPath } from '../lib/format.ts'
+import { AgentLogo, SkinScope, useReplyFont } from '../lib/skin.tsx'
 import { toast, useStore } from '../lib/store.ts'
-import { Button, Empty, Waiting } from '../components/ui/primitives.tsx'
-import { CopyButton, Markdown } from '../components/chat/Markdown.tsx'
-import { messagePreview } from '../components/chat/Messages.tsx'
+import { Button, Empty, IconButton, Segmented, Waiting } from '../components/ui/primitives.tsx'
+import { StatePill } from '../components/ui/status.tsx'
+import { ReplyFont } from '../components/chat/Markdown.tsx'
+import { AssistantTurn, ChatAgent, UserMessage, WorkingIndicator } from '../components/chat/Messages.tsx'
+import { ChatHost } from '../components/chat/agent.ts'
+import { ComposerDock, ConversationColumn, PlainComposer, SessionHeaderBar, SessionHeading } from '../components/chat/ChatChrome.tsx'
 
 export function DevinPaneChat({ host, pane }: { host: string; pane: string }) {
   const [session, setSession] = useState('')
@@ -64,22 +69,17 @@ function DevinList({ host }: { host: string }) {
 }
 
 const SavedMessage = memo(function SavedMessage({ message }: { message: DevinMessage }) {
-  const [expanded, setExpanded] = useState(false)
-  const preview = useMemo(() => messagePreview(message.text), [message.text])
-  const long = preview.length < message.text.length
-  const text = expanded ? message.text : preview
-  return <article className={`min-w-0 space-y-2 [overflow-wrap:anywhere] [content-visibility:auto] [contain-intrinsic-size:auto_160px] ${message.role === 'user' ? 'ml-auto max-w-[90%] rounded-2xl bg-bubble px-4 py-3' : ''}`}>
-    <div className="flex items-center gap-2 text-xs text-fg-3"><span>{message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool result' : 'Devin'}</span><CopyButton text={message.text} /></div>
-    {message.role === 'tool' ? <details><summary className="cursor-pointer text-sm text-fg-2">Tool output</summary><pre className="max-h-80 overflow-auto whitespace-pre-wrap text-xs">{text}</pre></details>
-      : message.role === 'user' ? <div className="whitespace-pre-wrap">{text}{long && !expanded && '…'}</div>
-      : <Markdown text={text + (long && !expanded ? '\n\n…' : '')} sans />}
-    {long && <button className="text-sm text-accent-text" onClick={() => setExpanded(!expanded)}>{expanded ? 'Show less' : 'Show more'}</button>}
-    {message.thinking && <details><summary className="cursor-pointer text-sm text-fg-2">Thinking</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">{message.thinking.slice(0, 12000)}</pre></details>}
-    {message.tools.map((tool, i) => <details key={i} className="rounded-lg border border-line p-2 text-sm"><summary className="cursor-pointer">{tool.name}</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(tool.input, null, 2).slice(0, 12000)}</pre></details>)}
-  </article>
+  const row = useMemo(() => devinRow(message), [message])
+  return <div className="[content-visibility:auto] [contain-intrinsic-size:auto_160px]">
+    {row.type === 'user' ? <UserMessage row={row} /> : <AssistantTurn row={row} live={false} foldText />}
+  </div>
 })
 
 function DevinChat({ host, sid }: { host: string; sid: string }) {
+  const nav = useNavigate()
+  const font = useReplyFont('codex')
+  const machine = useStore((s) => s.hosts.find((h) => h.config.id === host))
+  const [atBottom, setAtBottom] = useState(true)
   const [update, setUpdate] = useState<DevinUpdate | null>(null)
   const [messages, setMessages] = useState(new Map<string, DevinMessage>())
   const [error, setError] = useState('')
@@ -132,30 +132,46 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
       toast({ title: 'Message not confirmed', body: (e as Error).message, tone: 'error' })
     } finally { setSending(false) }
   }
-  return <div className="flex min-h-0 flex-1 flex-col">
-    <header className="pt-safe flex shrink-0 items-center gap-3 border-b border-line px-4 py-3">
-      <Link aria-label="Devin conversations" to={`/m/${encodeURIComponent(host)}/devin`}><ArrowLeft size={18} /></Link>
-      <div className="min-w-0 flex-1"><h1 className="truncate font-semibold">{update?.session?.title || sid}</h1><p className="truncate text-xs text-fg-3">{update?.session?.model} · {sid}</p></div>
-      {state?.pane && <Link className="inline-flex items-center gap-1 text-sm" to={`${paneHref(host, state.pane)}?view=terminal`}><SquareTerminal size={16} /> Terminal</Link>}
-    </header>
-    <div className="shrink-0 border-b border-line px-4 py-2 text-xs text-fg-2" role="status">
-      {state?.source === 'cli' ? `CLI in tmux: ${state.tmux}` : 'Reading Devin App history'}
-      {' · '}{sending ? 'Sending…' : state?.status === 'idle' ? 'Ready' : 'Waiting for Devin to finish'}
-    </div>
-    {error && <p role="alert" className="shrink-0 px-4 py-2 text-sm text-danger">{error}</p>}
-    <div ref={scroll} className="min-h-0 flex-1 overflow-auto overscroll-contain" onScroll={() => { const e = scroll.current; if (e) follows.current = e.scrollHeight - e.scrollTop - e.clientHeight < 100 }}>
-      <div className="mx-auto max-w-[800px] space-y-6 px-4 py-5 sm:px-6">
-        {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
-        {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; setLimit(limit + 80) }}>Load earlier messages</Button>}
-        {rows.map((m) => <SavedMessage key={m.id} message={m} />)}
-        {state?.live && <section className="rounded-xl border border-line bg-elev p-3"><p className="mb-2 text-xs font-medium text-fg-2">Live terminal preview</p><pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words text-xs">{state.live}</pre></section>}
+  const busy = sending || state?.status === 'busy'
+  const source = state?.source === 'cli' ? `CLI in tmux: ${state.tmux}` : 'App history'
+  return <SkinScope agent="codex" className="flex min-h-0 flex-1 flex-col bg-bg text-fg">
+    <ChatAgent.Provider value="devin"><ChatHost.Provider value={host}><ReplyFont.Provider value={font}>
+      <header className="pt-safe z-10 shrink-0 border-b border-line bg-bg">
+        <SessionHeaderBar>
+          <Link to={`/m/${encodeURIComponent(host)}/devin`} aria-label="Back" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-fg-2 hover:bg-hover relative after:absolute after:-inset-1 md:hidden"><ChevronLeft className="size-5" /></Link>
+          <AgentLogo kind="devin" size={26} active={busy} className="max-sm:hidden" />
+          <SessionHeading title={<span className="truncate" title={sid}>{update?.session?.title || sid}</span>}
+            subtitle={['Devin', machine?.config.name || host, source, shortPath(update?.session?.cwd, 28)].filter(Boolean).join(' · ')} />
+          <StatePill state={busy ? 'working' : state?.status === 'idle' ? 'idle' : 'waiting'} className="hidden sm:block" />
+          {state?.pane && <Segmented size="sm" label="View" value="chat" onChange={(view) => { if (view === 'terminal') nav(`${paneHref(host, state.pane!)}?view=terminal`) }} options={[
+            { v: 'chat', name: 'Chat', label: <><MessageSquare className="size-3.5" /><span className="hidden lg:inline">Chat</span></> },
+            { v: 'terminal', name: 'Terminal', label: <><SquareTerminal className="size-3.5" /><span className="hidden lg:inline">Terminal</span></> },
+          ]} />}
+          <IconButton label="Devin conversations" onClick={() => nav(`/m/${encodeURIComponent(host)}/devin`)}><History className="size-[17px]" /></IconButton>
+        </SessionHeaderBar>
+      </header>
+      <div className="sr-only" role="status">{source} · {sending ? 'Sending…' : state?.status === 'idle' ? 'Ready' : 'Waiting for Devin to finish'}</div>
+      <div ref={scroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]" onScroll={() => {
+        const e = scroll.current
+        if (e) { follows.current = e.scrollHeight - e.scrollTop - e.clientHeight < 100; setAtBottom(follows.current) }
+      }}>
+        <ConversationColumn>
+          {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
+          {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; setLimit(limit + 80) }}>Load earlier messages</Button>}
+          <div className="space-y-5">{rows.map((m) => <SavedMessage key={m.id} message={m} />)}</div>
+          {state?.status === 'busy' && <div className="mt-5 space-y-2"><WorkingIndicator activity="Working…" />
+            {state.live && <details className="ml-9 text-[13px] text-fg-3"><summary className="cursor-pointer py-1.5">Live terminal preview</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-l border-line-strong pl-3 text-[12px]">{state.live}</pre></details>}
+          </div>}
+        </ConversationColumn>
       </div>
-    </div>
-    <form className="shrink-0 border-t border-line p-3 pb-safe" onSubmit={(e) => { e.preventDefault(); void send() }}>
-      <div className="mx-auto flex max-w-[800px] items-end gap-2">
-        <textarea aria-label="Message Devin" placeholder="Message Devin…" className="max-h-48 min-h-24 min-w-0 flex-1 resize-y rounded-xl border border-line bg-elev p-3" value={text} onChange={(e) => setText(e.target.value)} disabled={sending} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }} />
-        <Button type="submit" variant="primary" loading={sending} disabled={!text.trim()}><Send size={16} /> Send</Button>
+      <div className="relative flex min-h-0 flex-col">
+        {!atBottom && <button type="button" aria-label="Jump to latest" className="absolute -top-12 right-4 z-10 flex size-9 items-center justify-center rounded-full border border-line bg-elev text-fg-2 shadow-float hover:text-fg sm:right-6" onClick={() => { follows.current = true; if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight }}><ArrowDown className="size-4" /></button>}
+        <ComposerDock>
+          {error && <p role="alert" className="mb-2 text-center text-[12px] text-danger">{error}</p>}
+          <PlainComposer value={text} onChange={setText} onSend={() => { void send() }} disabled={sending} label="Message Devin"
+            controls={<span className="inline-flex h-8 min-w-0 items-center truncate px-2.5 font-mono text-[12px] text-fg-2">{modelName(update?.session?.model)}{sending && ' · Sending…'}</span>} />
+        </ComposerDock>
       </div>
-    </form>
-  </div>
+    </ReplyFont.Provider></ChatHost.Provider></ChatAgent.Provider>
+  </SkinScope>
 }

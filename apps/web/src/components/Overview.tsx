@@ -187,6 +187,14 @@ export const SessionCard = memo(function SessionCard({ r, showHost = true }: { r
   )
 }, samePane)
 
+export function DevinLibraryCard({ host }: { host: HostState }) {
+  return <Link to={`/m/${encodeURIComponent(host.config.id)}/devin`} className="group flex flex-col gap-3 rounded-3xl border border-line bg-elev p-4 shadow-card transition-colors hover:border-line-strong sm:gap-4 sm:p-5">
+    <div className="flex items-center gap-2.5"><AgentLogo kind="devin" size={26} /><span className="min-w-0 flex-1 text-[12px] text-fg-3">Devin</span><ArrowRight className="size-4 text-fg-3" /></div>
+    <div><div className="text-[17px] font-semibold tracking-[-0.03em]">Devin conversations</div><div className="mt-1 truncate font-mono text-[12px] text-fg-3">{host.config.name}</div></div>
+    <p className="text-[13.5px] text-fg-2">Saved App and CLI chats</p>
+  </Link>
+}
+
 type Windows = { fiveHour?: RateWindow; sevenDay?: RateWindow; updatedAt: number }
 
 /**

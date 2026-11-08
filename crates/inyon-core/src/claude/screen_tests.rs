@@ -49,6 +49,20 @@ fn codex_custom_status_lines_without_a_directory_keep_the_composer_visible() {
 }
 
 #[test]
+fn numbered_codex_drafts_are_not_choice_menus() {
+    for text in ["1. 这个入口现在overview里没有，加一下，加到Macbook的overview里面", "1. First\n  2. Second", "12. Another ordinary draft"] {
+        for hint in ["  ? for shortcuts", "  tab to queue message", "  ← for agents · ? for shortcuts"] {
+            let lines = format!("› {text}\n\n  00000000-0000-0000-0000-000000000001 · GPT-6-Astra high\n{hint}").lines().map(str::to_owned).collect::<Vec<_>>();
+            for state in [parse_screen(&lines, Some(114), AgentKind::Codex), parse_psmux_screen(&lines, Some(114), AgentKind::Codex)] {
+                assert_eq!(state.input_visible, Some(true));
+                assert!(state.draft.as_deref().unwrap().starts_with(text.lines().next().unwrap()));
+                assert!(state.prompt.is_none());
+            }
+        }
+    }
+}
+
+#[test]
 fn codex_id_footer_preserves_input_working_and_model_on_all_platforms_and_narrow_screens() {
     let id = "00000000-0000-0000-0000-000000000001";
     let capture = |footer: String| vec!["• Working (5s • esc to interrupt)".into(), "".into(), "› A draft".into(), "".into(), footer, "  tab to queue message".into()];

@@ -1,3 +1,4 @@
+import { ConversationColumn, ComposerDock } from './ChatChrome.tsx'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { ArrowDown, History, Play, SquareTerminal } from 'lucide-react'
@@ -360,7 +361,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
       <ReplyFont.Provider value={font}>
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]">
-            <div className="mx-auto w-full max-w-[760px] px-4 pt-5 pb-6 sm:px-6">
+            <ConversationColumn>
               {/* a terminal-first agent has no chat for the hub to load, so nothing waits on one */}
               {!chatCapable && !running ? (
                 <>
@@ -461,7 +462,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                   )}
                 </>
               )}
-            </div>
+            </ConversationColumn>
           </div>
 
           <div className="relative flex min-h-0 flex-col">
@@ -486,7 +487,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
               <ArrowDown className="size-4" />
             </button>
             {running && chatCapable && (
-              <div className="pb-safe-2 mx-auto flex min-h-0 w-full max-w-[760px] flex-col px-3 pt-1 sm:px-6 sm:pb-4">
+              <ComposerDock>
                 {!hubUp ? (
                   <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3" role="status">Reconnecting…{!isPhone() && <HelpLink id="self" />}</div>
                 ) : machineDown && reconnecting ? (
@@ -499,7 +500,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                     disabled={!connected || identifying || switching}
                     prompt={{ body: [textQuestion.question], options: [], multi: false, input: { label: 'Your answer', multiline: true } }}
                     onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching} controls={controls} ultracode={ultracode} />}
-              </div>
+              </ComposerDock>
             )}
           </div>
         </div>

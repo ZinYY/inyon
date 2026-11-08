@@ -1,3 +1,4 @@
+import { SessionHeaderBar, SessionHeading } from '../chat/ChatChrome.tsx'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
@@ -109,22 +110,19 @@ export function SessionHeader({
 
   return (
     <header className="pt-safe z-10 shrink-0 border-b border-line bg-bg">
-      <div className="flex h-[60px] items-center gap-1.5 px-2 sm:px-5">
+      <SessionHeaderBar>
         <Link to="/" aria-label="Back" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-fg-2 hover:bg-hover relative after:absolute after:-inset-1 md:hidden">
           <ChevronLeft className="size-5" />
         </Link>
         {/* phones name the agent in the subtitle; the title gets the room */}
         <AgentLogo kind={agent} size={26} active={s.screen ? s.screen.working || !!s.screen.background : !!ref?.pane.agent && isBusy(ref.pane.agent)} className="max-sm:hidden" />
-        <div className="min-w-0 flex-1 pl-1">
-          <h1 className="flex items-center gap-1.5 text-[16px] font-semibold leading-tight tracking-[-0.03em]">
+        <SessionHeading title={<>
             {ref?.pane.agent && <StateDot state={shownState(ref.pane.agent, ref.host)} className="sm:hidden" />}
             <button type="button" onClick={() => ref && setRenaming(true)} title="Rename" className="group/title flex min-w-0 items-center gap-1.5 text-left">
               <span className="truncate">{title}</span>
               <Pencil className="size-3 shrink-0 text-fg-3 opacity-0 transition-opacity group-hover/title:opacity-100 max-md:hidden" />
             </button>
-          </h1>
-          <p className="mt-0.5 truncate font-mono text-[12px] text-fg-3">{subtitle}</p>
-        </div>
+          </>} subtitle={subtitle} />
         {ref?.pane.agent && (
           <span className="hidden sm:block">
             <StatePill state={shownState(ref.pane.agent, ref.host)} title={ref.pane.agent.background} />
@@ -224,7 +222,7 @@ export function SessionHeader({
             )}
           />
         )}
-      </div>
+      </SessionHeaderBar>
       {ref && (
         <RenameSheet
           key={String(renaming)}

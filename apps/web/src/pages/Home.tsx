@@ -5,7 +5,7 @@ import { ChevronRight, Pin, Plug, Plus, Search, WifiOff } from 'lucide-react'
 import { useStore } from '../lib/store.ts'
 import { agentPanes, allPanes, type PaneRef } from '../lib/overview.ts'
 import { nextWake, sortPanes } from '../lib/organize.ts'
-import { ActivityFeed, LimitsCard, MachinesTable, SessionCard } from '../components/Overview.tsx'
+import { ActivityFeed, DevinLibraryCard, LimitsCard, MachinesTable, SessionCard } from '../components/Overview.tsx'
 import { Logo } from '../components/AppShell.tsx'
 import { Button, Empty, Segmented, SectionLabel } from '../components/ui/primitives.tsx'
 import { api } from '../lib/api.ts'
@@ -84,8 +84,15 @@ export function Home() {
   )
   const groups = useMemo(() => {
     const rest = new Set(sorted.sessions.map(paneKey))
-    return groupPanes(hosts, { keep: (r) => rest.has(paneKey(r)) })
-  }, [hosts, sorted])
+    const groups = groupPanes(hosts, { keep: (r) => rest.has(paneKey(r)) })
+    // App history remains reachable even when there is no active tmux CLI.
+    if (filter === 'all') for (const host of hosts) {
+      if (host.agents.includes('devin') && !groups.some((g) => g.key === host.config.id) && (!q || `${host.config.name} Devin`.toLowerCase().includes(q.toLowerCase()))) {
+        groups.push({ key: host.config.id, host, sessions: [], panes: 0, waiting: 0 })
+      }
+    }
+    return groups.sort((a, b) => hosts.indexOf(a.host) - hosts.indexOf(b.host))
+  }, [hosts, sorted, filter, q])
   const shownAny = groups.length + sorted.pinned.length + sorted.folded.length > 0
   const parkedOpen = !!q || homeFolded.has(PARKED_OPEN)
   // Show finds a session that needs you even in the folded parked and snoozed: it opens them
@@ -297,7 +304,10 @@ export function Home() {
                                 <AnimatedList
                                   enter=""
                                   className="grid grid-cols-1 gap-3 pt-2 pb-3 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] sm:gap-4"
-                                  items={g.sessions.flatMap((sg) => sg.panes).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={false} /> }))}
+                                  items={[
+                                    ...(g.host.agents.includes('devin') ? [{ key: `${g.key}:devin-library`, node: <DevinLibraryCard host={g.host} /> }] : []),
+                                    ...g.sessions.flatMap((sg) => sg.panes).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} showHost={false} /> })),
+                                  ]}
                                 />
                               </div>
                             </div>
@@ -306,7 +316,10 @@ export function Home() {
                       })}
                     </div>
                   ) : (
-                    <AnimatedList enter="" className={GRID} items={groups.flatMap((g) => g.sessions.flatMap((sg) => sg.panes)).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} /> }))} />
+                    <AnimatedList enter="" className={GRID} items={groups.flatMap((g) => [
+                      ...(g.host.agents.includes('devin') ? [{ key: `${g.key}:devin-library`, node: <DevinLibraryCard host={g.host} /> }] : []),
+                      ...g.sessions.flatMap((sg) => sg.panes).map((r) => ({ key: paneKey(r), node: <SessionCard r={r} /> })),
+                    ])} />
                   )
                 )}
                 {sorted.folded.length > 0 && (

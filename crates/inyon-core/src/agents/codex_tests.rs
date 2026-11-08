@@ -913,6 +913,14 @@ fn native_footer_identity_survives_wrapped_and_multiline_drafts() {
 }
 
 #[test]
+fn numbered_drafts_keep_the_live_footer_thread_identity() {
+    let id = "00000000-0000-0000-0000-000000000001".to_owned();
+    let lines = vec!["› 1. 这个入口现在overview里没有，加一下，加到Macbook的overview里面".into(), "".into(),
+        format!("  {id} · GPT-6-Astra high · Full Access"), "  ← for agents · ? for shortcuts".into()];
+    assert_eq!(codex_footer_thread(&lines, std::slice::from_ref(&id)), Some(id));
+}
+
+#[test]
 fn draft_ids_never_override_the_actual_codex_footer() {
     let old = "00000000-0000-0000-0000-000000000001".to_owned();
     let current = "00000000-0000-0000-0000-000000000002".to_owned();

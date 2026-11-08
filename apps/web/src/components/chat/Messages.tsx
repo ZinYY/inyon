@@ -18,6 +18,7 @@ import { SpecialTool, ToolGroup, TurnSettled, useArrived } from './Tools.tsx'
 import { ChatAgent, ChatHost } from './agent.ts'
 import { linkedPages, usePages } from '../../lib/pages.ts'
 import { PageRows } from '../pages/shared.tsx'
+import { AgentLogo } from '../../lib/skin.tsx'
 
 export { ChatAgent }
 /** Rewinds the conversation to just before a message, when the agent can (Codex). */
@@ -200,10 +201,18 @@ function Thinking({ text }: { text: string }) {
   )
 }
 
-function PartView({ part, live }: { part: Part; live: boolean }) {
+function FoldedReply({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const preview = useMemo(() => messagePreview(text), [text])
+  const long = preview.length < text.length
+  return <><Markdown text={expanded ? text : preview + (long ? '\n\n…' : '')} className="my-2" />
+    {long && <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="mt-2 block text-[13px] font-medium text-fg-2 hover:text-fg">{expanded ? 'Show less' : 'Show more'}</button>}</>
+}
+
+function PartView({ part, live, foldText }: { part: Part; live: boolean; foldText?: boolean }) {
   switch (part.type) {
     case 'text':
-      return <Markdown text={part.text} className="my-2" />
+      return foldText ? <FoldedReply text={part.text} /> : <Markdown text={part.text} className="my-2" />
     case 'thinking':
       return <Thinking text={part.text} />
     case 'tools':
@@ -234,6 +243,7 @@ export function AgentMark({ active }: { active?: boolean }) {
   if (kind === 'antigravity') return <AntigravityMark active={active} className="size-[18px]" />
   if (kind === 'codex') return <CodexMark active={active} className="size-[19px]" />
   // a still frame of a text spinner reads as stray dots; these agents show their tile instead
+  if (kind === 'devin') return <AgentLogo kind="devin" size={19} active={active} />
   if (kind === 'gemini' || kind === 'copilot' || kind === 'opencode') return <TileMark kind={kind} active={active} className="size-[19px] rounded-[5px]" />
   return <AgentSpinner kind={kind} active={active} className="text-[19px]" />
 }
@@ -252,7 +262,7 @@ function PageCards({ text }: { text: string }) {
   return <PageRows pages={pages} className="my-3" />
 }
 
-export const AssistantTurn = memo(function AssistantTurn({ row, live }: { row: Extract<Row, { type: 'assistant' }>; live: boolean }) {
+export const AssistantTurn = memo(function AssistantTurn({ row, live, foldText }: { row: Extract<Row, { type: 'assistant' }>; live: boolean; foldText?: boolean }) {
   const text = row.parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text).join('\n\n')
   const menu = contextMenu((e) => {
     const code = (e.target as Element).closest?.('pre')?.textContent
@@ -272,7 +282,7 @@ export const AssistantTurn = memo(function AssistantTurn({ row, live }: { row: E
       <div {...menu} className="min-w-0 flex-1">
         <TurnSettled.Provider value={isSettled}>
           {row.parts.map((p) => (
-            <PartView key={p.key} part={p} live={live && row.open} />
+            <PartView key={p.key} part={p} live={live && row.open} foldText={foldText} />
           ))}
         </TurnSettled.Provider>
         {!row.open && text.includes('/pages/') && <PageCards text={text} />}

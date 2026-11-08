@@ -1329,10 +1329,15 @@ pub(crate) fn codex_composer_footer(lines: &[String]) -> Option<(usize, usize)> 
     if lines[footer + 1..end].iter().any(|line| re!(r"^[›»!](?: |$)").is_match(line)) {
         return None; // an older footer above a newer input box is transcript content
     }
+    if lines[footer + 1..end].iter().any(|line| CX_NAV!().is_match(line)) {
+        return None; // menu navigation, rather than the composer's native hint
+    }
     for i in (0..footer).rev() {
         let line = lines[i].jtrim_end();
         if re!(r"^[›»!](?: |$)").is_match(line) {
-            return (!CX_OPTION!().is_match(line)).then_some((i, footer));
+            // Ordinary drafts can start with "1. ". The native footer and its
+            // hint distinguish the composer from a highlighted menu option.
+            return Some((i, footer));
         }
         if !line.is_empty() && !line.starts_with("  ") {
             return None;

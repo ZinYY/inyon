@@ -1,6 +1,8 @@
 # Devin conversations
 
-On a connected Unix machine, open **Machines → machine → Devin conversations**.
+On a connected Unix machine, open **Overview → machine → Devin conversations**
+or **Machines → machine → Devin conversations**. The Overview entry remains
+available when no CLI is running.
 Python 3, tmux and Devin CLI must be installed on that machine.
 Existing Devin terminal links and their Chat tab also open the saved conversation,
 identified by its native writer lock rather than its title or working directory.
@@ -30,7 +32,8 @@ terminal. Exit it manually when returning to the App; Inyon observes release of
 the native lock and returns to reading saved history. Reopen the conversation in
 the App to reload its latest messages. Avoid sending from App and CLI together.
 
-Saved messages update incrementally. While a CLI is generating, a bounded **Live
+The chat shares the existing message, header and composer presentation components
+with Codex; unsupported controls are omitted. Saved messages update incrementally. While a CLI is generating, a bounded **Live
 terminal preview** shows its changing screen; the completed native history is
 the canonical chat. Reading an App-only session shows updates as Devin saves
 them and does not promise token-by-token App streaming. Long messages are folded

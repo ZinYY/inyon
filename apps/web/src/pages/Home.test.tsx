@@ -23,6 +23,13 @@ const home = () =>
 
 beforeEach(() => useStore.setState({ hostsLoaded: true, toasts: [], connected: true }))
 
+test('Overview keeps the Devin library under its machine even without a tmux CLI', async () => {
+  useStore.setState({ hosts: [host('laptop', { config: { id: 'laptop', name: 'My MacBook', kind: 'ssh' }, agents: ['devin'], panes: [] })] })
+  await home()
+  expect(screen.getByRole('link', { name: /Devin conversations/ }).getAttribute('href')).toBe('/m/laptop/devin')
+  expect(screen.getAllByText('My MacBook').length).toBeGreaterThan(0)
+})
+
 describe('agent sessions', () => {
   test('returning from a session restores the Overview position, including after data reloads', async () => {
     function Session() {
