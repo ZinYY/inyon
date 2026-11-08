@@ -1324,17 +1324,18 @@ pub(crate) fn codex_composer_footer(lines: &[String]) -> Option<(usize, usize)> 
     let end = lines.iter().rposition(|l| !l.is_blank())? + 1;
     let footer = (end.saturating_sub(4)..end).rev().find(|&i| {
         let line = lines[i].jtrim_end();
-        CX_ID_FOOTER!().is_match(line) || CX_FOOTER!().is_match(line)
+        !CX_NAV!().is_match(line) && !CX_OPTION!().is_match(line)
+            && (CX_ID_FOOTER!().is_match(line) || CX_FOOTER!().is_match(line))
     })?;
     if lines[footer + 1..end].iter().any(|line| re!(r"^[›»!](?: |$)").is_match(line)) {
         return None; // an older footer above a newer input box is transcript content
     }
-    if lines[footer + 1..end].iter().any(|line| CX_NAV!().is_match(line)) {
-        return None; // menu navigation, rather than the composer's native hint
-    }
     for i in (0..footer).rev() {
         let line = lines[i].jtrim_end();
         if re!(r"^[›»!](?: |$)").is_match(line) {
+            if CX_OPTION!().is_match(line) && lines[footer + 1..end].iter().any(|hint| CX_NAV!().is_match(hint)) {
+                return None; // a menu option with its native navigation hint
+            }
             // Ordinary drafts can start with "1. ". The native footer and its
             // hint distinguish the composer from a highlighted menu option.
             return Some((i, footer));
