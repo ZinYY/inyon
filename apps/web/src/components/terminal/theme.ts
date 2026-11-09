@@ -16,8 +16,22 @@ export const DARK: ITheme = {
   brightBlack: '#6e6c66', brightRed: '#f09a8f', brightGreen: '#bddba6', brightYellow: '#f0cb8d', brightBlue: '#aecbf0', brightMagenta: '#d7bdf0', brightCyan: '#9ed8d8', brightWhite: '#f4f3ee',
 }
 
-/** The system's monospace font, then the symbols it may lack (symbols.css) as the last resort. */
-export const TERMINAL_FONT = "'JetBrains Mono Variable', ui-monospace, Menlo, monospace, 'Inyon Symbols'"
+/** The first face covers private-use icons only; all ordinary text keeps its existing font. */
+export const TERMINAL_FONT = "'Inyon Nerd Symbols', 'JetBrains Mono Variable', ui-monospace, Menlo, monospace, 'Inyon Symbols'"
+
+/** A glyph cached before its face arrives stays a box until the terminal redraws.
+ * Wait for both icon faces; one failed download must not hide the other success.
+ */
+export async function terminalFontsReady(fonts: Pick<FontFaceSet, 'load'> | undefined = typeof document === 'undefined' ? undefined : document.fonts): Promise<boolean> {
+  if (!fonts?.load) return false
+  const loaded = await Promise.all([
+    ["16px 'Inyon Symbols'", '⏵'],
+    ["16px 'Inyon Nerd Symbols'", '\uf179'],
+  ].map(async ([face, sample]) => {
+    try { return (await fonts.load(face!, sample)).length > 0 } catch { return false }
+  }))
+  return loaded.some(Boolean)
+}
 
 /**
  * Text at least this far from its background. Agents pick colours for the terminal they expect:

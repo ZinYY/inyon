@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Terminal, type ITheme } from '@xterm/xterm'
-import { DARK, LIGHT, MIN_CONTRAST, TERMINAL_FONT } from './theme.ts'
+import { DARK, LIGHT, MIN_CONTRAST, TERMINAL_FONT, terminalFontsReady } from './theme.ts'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
@@ -23,12 +23,6 @@ import { touchScroll } from './touchScroll.ts'
 import { attachWebgl } from './webgl.ts'
 import { contextMenu } from '../ui/ContextMenu.tsx'
 import { modifiedInput, type Modifiers } from './modifiers.ts'
-
-/**
- * WebGL draws each glyph once and keeps it: a glyph drawn before the symbols face loaded stays a
- * box. Load it up front, and redraw with it once it's in.
- */
-const symbolsReady = () => (typeof document !== 'undefined' && document.fonts?.load ? document.fonts.load("16px 'Inyon Symbols'", '⏵').then(() => true, () => false) : Promise.resolve(false))
 
 const isDark = () => document.documentElement.dataset.theme === 'dark'
 
@@ -91,7 +85,7 @@ export function TerminalView({ host, pane, agent }: { host: string; pane: string
     // WebGL when the browser has it, the default renderer otherwise (and after a lost context)
     const webgl = attachWebgl(term, undefined, () => refit.current())
     let closed = false
-    void symbolsReady().then((loaded) => {
+    void terminalFontsReady().then((loaded) => {
       if (!loaded || closed) return
       term.clearTextureAtlas()
       term.refresh(0, term.rows - 1)

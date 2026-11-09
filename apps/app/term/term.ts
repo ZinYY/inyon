@@ -9,12 +9,12 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
-import { DARK, LIGHT, MIN_CONTRAST, TERMINAL_FONT } from '../../web/src/components/terminal/theme.ts'
+import { DARK, LIGHT, MIN_CONTRAST, TERMINAL_FONT, terminalFontsReady } from '../../web/src/components/terminal/theme.ts'
 import { attachWebgl } from '../../web/src/components/terminal/webgl.ts'
 import { getRenderer } from '../../web/src/lib/renderer.ts'
 import { touchScroll } from '../../web/src/components/terminal/touchScroll.ts'
 
-/** xterm.css and the symbols face (symbols.woff2, inlined), put in by build.ts */
+/** xterm.css and the symbols faces (symbols.woff2 and nerd-symbols.woff2, inlined by build.ts). */
 declare const TERM_CSS: string
 
 const isDark = () => document.documentElement.dataset.theme === 'dark'
@@ -28,9 +28,6 @@ function themeFor(el: HTMLElement): ITheme {
   const fg = v('--fg') || base.foreground
   return { ...base, background: bg, foreground: fg, cursor: fg, cursorAccent: bg }
 }
-
-/** WebGL keeps each glyph it drew: one drawn before the symbols face loaded stays a box. */
-const symbolsReady = () => (document.fonts?.load ? document.fonts.load("16px 'Inyon Symbols'", '⏵').then(() => true, () => false) : Promise.resolve(false))
 
 let styled = false
 function style() {
@@ -112,7 +109,7 @@ function open(el: HTMLElement, fontSize: number, onData: (d: string) => void, on
     refit()
   })
   el.dataset.renderer = getRenderer()
-  void symbolsReady().then((loaded) => {
+  void terminalFontsReady().then((loaded) => {
     if (!loaded || closed) return
     term.clearTextureAtlas()
     term.refresh(0, term.rows - 1)

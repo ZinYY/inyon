@@ -10,3 +10,15 @@
   src: url(./symbols.woff2) format('woff2');
   unicode-range: U+23E9-23FA;
 }
+
+/* Nerd Fonts v3.5.1, JetBrains Mono Nerd Font Mono: private-use icons only. Keeping
+   this face out of Latin/CJK ranges preserves the terminal's text metrics.
+   Loaded with TerminalView, never by Chat or the surrounding interface. */
+@font-face {
+  font-family: 'Inyon Nerd Symbols';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./nerd-symbols.woff2) format('woff2');
+  unicode-range: U+E000-F8FF,U+F0000-FFFFD,U+100000-10FFFD;
+}
