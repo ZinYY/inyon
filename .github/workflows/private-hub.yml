@@ -27,7 +27,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-      - run: sudo apt-get update -qq && sudo apt-get install -y musl-tools python3
+      - name: Install Linux build dependencies from Ubuntu
+        run: |
+          # Avoid the runner's Azure mirror when its DNS is unavailable.
+          sources="$RUNNER_TEMP/inyon-ubuntu.list"
+          printf '%s\n' \
+            'deb https://archive.ubuntu.com/ubuntu noble main universe' \
+            'deb https://archive.ubuntu.com/ubuntu noble-updates main universe' \
+            'deb https://security.ubuntu.com/ubuntu noble-security main universe' > "$sources"
+          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=3 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update -qq
+          sudo apt-get "${apt_options[@]}" install -y musl-tools python3
       - run: bun install --frozen-lockfile
       # The generator rewrites a stale file, then deliberately fails its first check.
       - run: cargo test -p inyon-protocol --test gen || cargo test -p inyon-protocol --test gen
