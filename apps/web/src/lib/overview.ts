@@ -1,6 +1,22 @@
 import { agentDef, type HostState, type PaneInfo, type SessionInfo, type WindowInfo } from '@inyon/protocol'
 import { paneSlug } from './api.ts'
 
+export type OverviewFilter = 'all' | 'working' | 'idle'
+const FILTER_KEY = 'inyon.overview.filter'
+
+/** Keep the selected view across navigation and reloads, independently per browser. */
+export function loadOverviewFilter(): OverviewFilter {
+  try {
+    const value = localStorage.getItem(FILTER_KEY)
+    if (value === 'working' || value === 'idle') return value
+  } catch {}
+  return 'all'
+}
+
+export function saveOverviewFilter(value: OverviewFilter) {
+  try { localStorage.setItem(FILTER_KEY, value) } catch {}
+}
+
 export interface PaneRef {
   host: HostState
   session: SessionInfo

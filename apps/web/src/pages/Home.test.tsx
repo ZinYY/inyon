@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { Home } from './Home.tsx'
@@ -38,6 +38,41 @@ test('Overview keeps both Mac Devin libraries while filtering running sessions',
 })
 
 describe('agent sessions', () => {
+  test('Working and Idle survive browser Back, the Overview link and a fresh mount', async () => {
+    function Session() {
+      const navigate = useNavigate()
+      return <><button onClick={() => navigate(-1)}>Back</button><Link to="/">Overview</Link></>
+    }
+    const busy = agentPane('%1', 'codex', { title: 'Busy task', agent: { kind: 'codex', pid: 1, state: 'working' } })
+    const idle = agentPane('%2', 'codex', { title: 'Idle task', agent: { kind: 'codex', pid: 2, state: 'idle' } })
+    useStore.setState({ hosts: [host('box', { panes: [busy, idle, asking('%3'), asking('%4')] })] })
+    const { unmount } = await render(<MemoryRouter><Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/m/:host/p/:pane" element={<Session />} />
+    </Routes></MemoryRouter>)
+    await userEvent.click(screen.getByRole('radio', { name: 'Working' }))
+    await waitFor(() => expect(!!screen.queryByRole('link', { name: 'Idle task' })).toBe(false))
+    await userEvent.click(screen.getByRole('link', { name: 'Busy task' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('radio', { name: 'Working' }).getAttribute('aria-checked')).toBe('true')
+    expect(!!screen.queryByRole('link', { name: 'Idle task' })).toBe(false)
+    await userEvent.click(screen.getByRole('radio', { name: 'Idle' }))
+    await userEvent.click(screen.getByRole('link', { name: 'Idle task' }))
+    await userEvent.click(screen.getByRole('link', { name: 'Overview' }))
+    expect(screen.getByRole('radio', { name: 'Idle' }).getAttribute('aria-checked')).toBe('true')
+    expect(!!screen.queryByRole('link', { name: 'Busy task' })).toBe(false)
+    unmount()
+    const fresh = await home()
+    expect(screen.getByRole('radio', { name: 'Idle' }).getAttribute('aria-checked')).toBe('true')
+    // When sessions disappear, the active filter must remain visible and removable.
+    act(() => useStore.setState({ hosts: [host('box', { panes: [busy] })] }))
+    await userEvent.click(screen.getByRole('radio', { name: 'All' }))
+    expect(screen.getByRole('link', { name: 'Busy task' })).toBeTruthy()
+    fresh.unmount()
+    await home()
+    expect(screen.getByRole('link', { name: 'Busy task' })).toBeTruthy()
+  })
+
   test('returning from a session restores the Overview position, including after data reloads', async () => {
     function Session() {
       const navigate = useNavigate()

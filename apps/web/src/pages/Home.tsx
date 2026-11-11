@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Pin, Plug, Plus, Search, WifiOff } from 'lucide-react'
 import { useStore } from '../lib/store.ts'
-import { agentPanes, allPanes, type PaneRef } from '../lib/overview.ts'
+import { agentPanes, allPanes, loadOverviewFilter, saveOverviewFilter, type OverviewFilter, type PaneRef } from '../lib/overview.ts'
 import { nextWake, sortPanes } from '../lib/organize.ts'
 import { ActivityFeed, DevinLibraryCard, LimitsCard, MachinesTable, SessionCard } from '../components/Overview.tsx'
 import { Logo } from '../components/AppShell.tsx'
@@ -42,7 +42,11 @@ export function Home() {
   const hosts = useStore((s) => s.hosts)
   const loaded = useStore((s) => s.hostsLoaded)
   const connected = useStore((s) => s.connected)
-  const [filter, setFilter] = useState<'all' | 'working' | 'idle'>('all')
+  const [filter, setFilter] = useState(loadOverviewFilter)
+  const chooseFilter = (value: OverviewFilter) => {
+    saveOverviewFilter(value)
+    setFilter(value)
+  }
   const [adding, setAdding] = useState(false)
   const [reloading, setReloading] = useState(false)
   const reload = () => {
@@ -254,11 +258,11 @@ export function Home() {
               <section>
                 <SectionLabel
                   right={
-                    panes.length > 3 && (
+                    (panes.length > 3 || filter !== 'all') && (
                       <Segmented
                         size="sm"
                         value={filter}
-                        onChange={setFilter}
+                        onChange={chooseFilter}
                         options={[
                           { v: 'all', label: 'All' },
                           { v: 'working', label: 'Working' },
