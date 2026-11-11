@@ -7,6 +7,7 @@ pub mod codex;
 pub mod codex_input;
 pub mod codex_limits;
 pub mod codex_live;
+pub mod codex_goal;
 pub mod codex_models;
 pub mod copilot;
 pub mod copilot_controls;

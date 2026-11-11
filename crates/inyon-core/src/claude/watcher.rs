@@ -242,6 +242,9 @@ struct State {
     display_session: Option<(String, u64, u64)>,
     display_raw: Option<String>,
     live_tail: Option<StreamHandle>,
+    goal_tail: Option<StreamHandle>,
+    /// Authoritative current goal, separate from historical rollout events.
+    native_goal: Option<Option<inyon_protocol::ChatGoal>>,
     live_timer: Option<Timer>,
     live_expiry: Option<Timer>,
     /// how long the screen's copy of a reply waits for its record once the turn is over
@@ -372,6 +375,8 @@ impl ChatWatcher {
                 display_session: None,
                 display_raw: None,
                 live_tail: None,
+                goal_tail: None,
+                native_goal: None,
                 live_timer: None,
                 live_expiry: None,
                 screen_live_expiry: None,
@@ -1550,7 +1555,7 @@ impl ChatWatcher {
                 version: m.version.clone(),
                 mode: st.screen.mode.clone().or_else(|| agent.and_then(|a| a.mode.clone())).or_else(|| m.mode.clone()),
                 ultracode: st.screen.ultracode.or(agent.and_then(|a| a.ultracode)),
-                goal: if st.goal_unsure { None } else { m.goal.clone() },
+                goal: st.native_goal.clone().unwrap_or_else(|| if st.goal_unsure { None } else { m.goal.clone() }),
                 rc: m.rc.clone().or_else(|| st.remote.clone()),
                 share: m.share.clone(),
                 queue,
@@ -2477,6 +2482,27 @@ impl ChatWatcher {
             return;
         }
         let Ok(host) = self.host() else { return };
+        if let Some(command) = crate::agents::codex_goal::watch_command(path, &id) {
+            let (me, thread) = (self.me.clone(), id.clone());
+            let mine: Rc<RefCell<Option<StreamHandle>>> = Rc::default();
+            let m2 = mine.clone();
+            if let Ok(t) = host.stream(&command, move |line| {
+                let Some(w) = me.upgrade() else { return };
+                let current = {
+                    let st = w.st.borrow();
+                    !st.stopped && gen == st.generation && matches!((&st.goal_tail, &*m2.borrow()), (Some(a), Some(b)) if a.same(b))
+                };
+                if current {
+                    if let Some(goal) = crate::agents::codex_goal::snapshot(&line, &thread) {
+                        w.st.borrow_mut().native_goal = Some(goal);
+                        w.publish_info();
+                    }
+                }
+            }, true) {
+                *mine.borrow_mut() = Some(t.clone());
+                self.st.borrow_mut().goal_tail = Some(t);
+            }
+        }
         let me = self.me.clone();
         let mine: Rc<RefCell<Option<StreamHandle>>> = Rc::default();
         let m2 = mine.clone();
@@ -2615,6 +2641,8 @@ impl ChatWatcher {
     }
 
     fn stop_live(&self) {
+        if let Some(t) = self.st.borrow_mut().goal_tail.take() { t.kill(); }
+        self.st.borrow_mut().native_goal = None;
         let (t, had, stopped) = {
             let mut st = self.st.borrow_mut();
             rt::clear(&mut st.live_retry_timer);

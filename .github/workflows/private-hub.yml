@@ -43,6 +43,7 @@ jobs:
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_input_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/features -p devin_store_test.py
       - run: python3 -m unittest discover -s scripts -p claude_auto_title_test.py
+      - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_goal_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: python3 scripts/install-claude-sdk.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p claude_fork_test.py
@@ -73,6 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python -m unittest discover -s crates/inyon-core/src/agents -p codex_input_test.py
+      - run: python -m unittest discover -s crates/inyon-core/src/agents -p codex_goal_test.py
       - run: python -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: python scripts/install-claude-sdk.py
       - run: python -m unittest discover -s crates/inyon-core/src/claude -p claude_fork_test.py
@@ -102,6 +104,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_goal_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
       - run: python3 scripts/install-claude-sdk.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p claude_fork_test.py
@@ -143,4 +146,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Preserve Codex goals across batched tool results and malformed output. Show native goal states including paused, resumed, blocked and budget or usage limits, and clear only on explicit native removal.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Read authoritative Codex goal status with a lightweight read-only watcher, including automatic budget and usage limits absent from transcripts. Preserve lifecycle state across history reloads.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

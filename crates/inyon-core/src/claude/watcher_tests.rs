@@ -40,6 +40,43 @@ impl Phone {
 const KEY: &str = "draft-test:%9";
 
 #[test]
+fn codex_native_goal_overrides_history_and_rejects_old_reader_updates() {
+    run(|| async {
+        let fake = Fake::install(|_, _, _| ok("0 1"));
+        let id = "11111111-1111-4111-8111-111111111111";
+        let path = format!("/home/test/.codex/sessions/rollout-2026-01-01T00-00-00-{id}.jsonl");
+        machine("native-goal", "local", json!([{ "id":"%9", "agent": {
+            "kind":"codex", "pid":7, "state":"idle", "sessionId":id, "transcriptPath":path
+        }}])).borrow_mut().hold_polls();
+        let w = ChatWatcher::new("native-goal", "%9", None, false);
+        wait(30).await;
+        let command = crate::agents::codex_goal::watch_command(&path, id).unwrap();
+        let stream = fake.streams.borrow().iter().find(|s| s.cmd == command).unwrap().clone();
+        let message = |thread: &str, status: &str| serde_json::to_string(&json!({"threadId":thread,"goal":{"condition":"Verify status","status":status,"met":status=="complete","ts":"2026-01-01T00:00:00Z"}})).unwrap();
+        for status in ["active", "paused", "blocked", "usage_limited", "budget_limited", "complete"] {
+            stream.line(&message(id, status));
+            assert_eq!(w.info().goal.as_ref().unwrap().status.as_deref(), Some(status));
+            w.st.borrow_mut().meta.goal = crate::agents::codex_goal::snapshot(&message(id, "active"), id).unwrap();
+            w.publish_info();
+            assert_eq!(w.info().goal.as_ref().unwrap().status.as_deref(), Some(status), "older rollout metadata cannot replace the native state");
+        }
+        for invalid in ["{}".to_string(), message("other-thread", "active"), format!(r#"{{"threadId":"{id}","goal":{{}}}}"#)] {
+            stream.line(&invalid);
+            assert_eq!(w.info().goal.as_ref().unwrap().status.as_deref(), Some("complete"));
+        }
+        stream.line(&format!(r#"{{"threadId":"{id}","goal":null}}"#));
+        assert!(w.info().goal.is_none());
+        let generation = w.st.borrow().generation;
+        w.start_live(&path, generation);
+        assert!(stream.killed.get());
+        stream.line(&message(id, "active"));
+        assert!(w.st.borrow().native_goal.is_none());
+        w.stop();
+        assert!(w.st.borrow().goal_tail.is_none());
+    });
+}
+
+#[test]
 fn recovered_windows_prompt_precedes_its_answer_in_history_and_live_normalization() {
     let branch = serde_json::from_value(json!({"prefixes":{"answer":{
         "type":"user", "uuid":"missing-user", "message":{"role":"user","content":"Question\n\nAttached files:\n/tmp/example.pdf"}
