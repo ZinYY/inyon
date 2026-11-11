@@ -27,14 +27,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-      - name: Install Linux build dependencies from Ubuntu
+      - name: Install Linux build dependencies
         run: |
-          # Avoid the runner's Azure mirror when its DNS is unavailable.
+          # Use a mirror of Ubuntu's signed archive when the runner cannot resolve Ubuntu's hosts.
           sources="$RUNNER_TEMP/inyon-ubuntu.list"
           printf '%s\n' \
-            'deb https://archive.ubuntu.com/ubuntu noble main universe' \
-            'deb https://archive.ubuntu.com/ubuntu noble-updates main universe' \
-            'deb https://security.ubuntu.com/ubuntu noble-security main universe' > "$sources"
+            'deb https://mirrors.edge.kernel.org/ubuntu noble main universe' \
+            'deb https://mirrors.edge.kernel.org/ubuntu noble-updates main universe' \
+            'deb https://mirrors.edge.kernel.org/ubuntu noble-security main universe' > "$sources"
           apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=3 -o Acquire::https::Timeout=30)
           sudo apt-get "${apt_options[@]}" update -qq
           sudo apt-get "${apt_options[@]}" install -y musl-tools python3
