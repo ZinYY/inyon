@@ -139,7 +139,16 @@ jobs:
         with:
           name: windows-node
           path: out
-      - run: sudo apt-get update -qq && sudo apt-get install -y minisign
+      - name: Install release signing tool
+        run: |
+          sources="$RUNNER_TEMP/inyon-ubuntu.list"
+          printf '%s\n' \
+            'deb https://mirrors.edge.kernel.org/ubuntu noble main universe' \
+            'deb https://mirrors.edge.kernel.org/ubuntu noble-updates main universe' \
+            'deb https://mirrors.edge.kernel.org/ubuntu noble-security main universe' > "$sources"
+          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=3 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update -qq
+          sudo apt-get "${apt_options[@]}" install -y minisign
       - name: Sign and publish
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
