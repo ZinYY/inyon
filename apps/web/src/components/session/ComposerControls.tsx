@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
-import { AlertCircle, ChevronDown, Clock3, Gauge, Plug, Shield, Target } from 'lucide-react'
+import { AlertCircle, ChevronDown, Clock3, Gauge, Plug, Shield, Target, Zap } from 'lucide-react'
 import { agentDef, type AgentKind, type AgentDef, type ChosenControls } from '@inyon/protocol'
 import type { SessionModel } from './useSession.ts'
 import { currentModelId } from './useSession.ts'
@@ -10,6 +10,10 @@ import { Button, Field, Menu, Sheet, inputClass, type MenuItem } from '../ui/pri
 import { ProvidersSheet } from '../ProvidersSheet.tsx'
 
 export const EFFORT_LABEL: Record<string, string> = { default: 'Default', none: 'None', minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'X-high', max: 'Max', ultra: 'Ultra' }
+
+export function FastBadge() {
+  return <span title="Fast mode on" aria-label="Fast mode on" className="inline-flex shrink-0 items-center gap-0.5 text-xs text-accent"><Zap className="size-3" aria-hidden="true" />Fast</span>
+}
 
 function Chip({ children, onClick, title, tone, open, innerRef }: { children: React.ReactNode; onClick?: () => void; title?: string; tone?: 'goal'; open?: boolean; innerRef?: React.Ref<HTMLButtonElement> }) {
   return (
@@ -116,6 +120,7 @@ export function ComposerControls({ s }: { s: SessionModel }) {
             <Chip innerRef={ref} onClick={toggle} open={open} title={wModel?.title ?? 'Model'}>
               {wModel?.mark}
               <span className="truncate">{wModel && !chosen?.error ? (pickedModel?.label.split(' · ').pop() ?? chosen?.model) : modelLabel}</span>
+              {agent === 'codex' && status?.fast && <FastBadge />}
               <ChevronDown className="size-3 shrink-0 opacity-60" />
             </Chip>
           )}

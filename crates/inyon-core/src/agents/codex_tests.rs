@@ -912,6 +912,25 @@ fn an_empty_service_tier_says_nothing_about_speed() {
     assert_eq!(status(""), None);
     assert_eq!(status("default"), Some(false));
     assert_eq!(status(FAST_TIERS[0]), Some(true));
+    assert_eq!(status("priority"), Some(true));
+}
+
+#[test]
+fn latest_codex_settings_survive_older_tail_records_and_fast_can_turn_off() {
+    let setting = |time: &str, tier: &str, effort: &str| stringify(&json!({"timestamp":time,"type":"event_msg","payload":{"type":"thread_settings_applied","thread_settings":{"service_tier":tier,"model":"gpt-6-astra","reasoning_effort":effort}}}));
+    let recent = setting("2026-11-11T12:00:00Z", "priority", "xhigh");
+    let old = setting("2026-11-11T11:00:00Z", "default", "low");
+    let context = stringify(&json!({"timestamp":"2026-11-11T11:01:00Z","type":"turn_context","payload":{"model":"gpt-6-sol","effort":"high"}}));
+    let usage = stringify(&json!({"timestamp":"2026-11-11T12:00:01Z","type":"event_msg","payload":{"type":"token_count","info":{"model_context_window":1000}}}));
+    let output = format!("0\n{context}\n{recent}\n{old}\n{context}\n{usage}");
+    let st = codex_status(&output).0.unwrap();
+    assert_eq!((st.model_id.as_deref(), st.effort.as_deref(), st.fast), (Some("gpt-6-astra"), Some("xhigh"), Some(true)));
+    let off = setting("2026-11-11T12:01:00Z", "default", "high");
+    let st = codex_status(&format!("{output}\n{off}")).0.unwrap();
+    assert_eq!((st.effort.as_deref(), st.fast), (Some("high"), Some(false)));
+    let st = codex_status(&format!("0\n{recent}")).0.unwrap();
+    assert_eq!((st.model_id.as_deref(), st.fast), (Some("gpt-6-astra"), Some(true)), "settings are known even before the first usage event");
+    assert!(st.context_used.is_none());
 }
 
 /// review: a thread name that isn't a string is kept as it is in the TS and never equals a title

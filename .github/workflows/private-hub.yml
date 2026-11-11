@@ -146,4 +146,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Read authoritative Codex goal status with a lightweight read-only watcher, including automatic budget and usage limits absent from transcripts. Preserve lifecycle state across history reloads.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Read authoritative Codex goal status, including automatic budget and usage limits absent from transcripts. Show a lightning Fast badge beside the selected Codex model and preserve current speed, model and reasoning settings in long conversations.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

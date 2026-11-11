@@ -8,7 +8,7 @@ import { openMenu, Segmented, Sheet, Toggle } from '../ui/primitives.tsx'
 import { UsagePanel } from './Usage.tsx'
 import { ActivityTab, ChangesTab, PagesTab, PreviewTab, useSessionPages } from './Panels.tsx'
 import { FilesTab } from './Workspace.tsx'
-import { GoalSheet, modeMatches } from './ComposerControls.tsx'
+import { FastBadge, GoalSheet, modeMatches } from './ComposerControls.tsx'
 import { currentModelId, type SessionModel } from './useSession.ts'
 import { confirmAction } from '../Confirm.tsx'
 import { ProvidersSheet } from '../ProvidersSheet.tsx'
@@ -51,7 +51,7 @@ export function ControlsSheet({ s, open, onClose }: { s: SessionModel; open: boo
                     onClick={() => actions.setModel(m.id)}
                     className={clsx('rounded-2xl border px-3 py-2.5 text-left', m.id === modelId ? 'border-accent bg-accent-soft' : 'border-line hover:bg-hover')}
                   >
-                    <div className="text-[14px] font-semibold">{m.label}</div>
+                    <div className="flex items-center gap-1.5 text-[14px] font-semibold">{m.label}{m.id === modelId && agent === 'codex' && status?.fast && <FastBadge />}</div>
                     {m.note && <div className="text-[12px] text-fg-3">{m.note}</div>}
                   </button>
                 ))}

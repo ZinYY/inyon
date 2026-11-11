@@ -211,7 +211,7 @@ const FAST_TIERS: [&str; 2] = ["fast", "priority"];
 /// The command `codexStatus` runs on a rollout file.
 pub fn codex_status_command(path: &str) -> String {
     format!(
-        r#"stat -c %Y "${{CODEX_HOME:-$HOME/.codex}}/auth.json" 2>/dev/null || stat -f %m "${{CODEX_HOME:-$HOME/.codex}}/auth.json" 2>/dev/null || echo 0; grep -E '"type":"turn_context"|"thread_settings_applied"' {p} 2>/dev/null | tail -n 1; tail -c 400000 {p} 2>/dev/null | grep -E '"token_count"|"turn_context"|"thread_settings_applied"|"type":"compacted"|"type":"(context_)?compaction"' | tail -n 12"#,
+        r#"stat -c %Y "${{CODEX_HOME:-$HOME/.codex}}/auth.json" 2>/dev/null || stat -f %m "${{CODEX_HOME:-$HOME/.codex}}/auth.json" 2>/dev/null || echo 0; grep -E '"type":"turn_context"|"thread_settings_applied"' {p} 2>/dev/null | awk '/"type":"turn_context"/ {{ context=$0; next }} {{ settings=$0 }} END {{ print context; print settings }}'; tail -c 400000 {p} 2>/dev/null | grep -E '"token_count"|"turn_context"|"thread_settings_applied"|"type":"compacted"|"type":"(context_)?compaction"' | tail -n 12"#,
         p = shq(path)
     )
 }
@@ -237,6 +237,7 @@ pub fn codex_status(stdout: &str) -> (Option<AgentStatus>, Option<String>) {
     let mut status: Option<AgentStatus> = None;
     let mut permission: Option<String> = None;
     let mut tier: Option<String> = None;
+    let (mut model_at, mut effort_at, mut permission_at, mut tier_at) = (0.0, 0.0, 0.0, 0.0);
     for line in lines {
         let Some(v) = crate::js::json::parse(line) else { continue };
         if v.is_null() {
@@ -247,16 +248,27 @@ pub fn codex_status(stdout: &str) -> (Option<AgentStatus>, Option<String>) {
         let ts = if parsed.is_nan() || parsed == 0.0 { now_ms() as f64 } else { parsed };
         let ptype = e.at("payload").at("type").str();
         if e.at("type").str() == Some("turn_context") || ptype == Some("thread_settings_applied") {
-            permission = e.at("payload").and_then(codex_permission).or(permission);
-        }
-        if ptype == Some("thread_settings_applied") {
-            if let Some(t) = e.at("payload").at("thread_settings").at("service_tier").str() {
-                tier = Some(t.to_owned());
+            if ts >= permission_at {
+                permission = e.at("payload").and_then(codex_permission).or(permission);
+                permission_at = ts;
+            }
+            let settings = if ptype == Some("thread_settings_applied") { e.at("payload").at("thread_settings") } else { e.at("payload") };
+            if let Some(model) = settings.at("model").nonempty().filter(|_| ts >= model_at) {
+                ctx.model = Some(model.to_owned());
+                model_at = ts;
+            }
+            if ts >= effort_at && (settings.at("effort").is_some() || settings.at("reasoning_effort").is_some() || settings.at("collaboration_mode").at("settings").at("reasoning_effort").is_some()) {
+                ctx.effort = Some(codex_effort(settings));
+                effort_at = ts;
             }
         }
-        if e.at("type").str() == Some("turn_context") {
-            ctx = CodexContext { model: string_of(e.at("payload").at("model")), effort: Some(codex_effort(e.at("payload"))) };
-        } else if ptype == Some("token_count") {
+        if ptype == Some("thread_settings_applied") && ts >= tier_at {
+            if let Some(t) = e.at("payload").at("thread_settings").at("service_tier").str() {
+                tier = Some(t.to_owned());
+                tier_at = ts;
+            }
+        }
+        if ptype == Some("token_count") {
             status = Some(status_from_codex(e.at("payload").unwrap_or(&Value::Null), &ctx, ts));
         } else if let Some(st) = status.as_mut().filter(|_| e.at("type").str() == Some("compacted") || ptype.is_some_and(|t| t.ends_with("compaction"))) {
             st.context_pct = None;
@@ -264,7 +276,11 @@ pub fn codex_status(stdout: &str) -> (Option<AgentStatus>, Option<String>) {
             mark_stale(st, None, Some(StaleContext::Compacted));
         }
     }
+    if status.is_none() && (ctx.model.is_some() || tier.as_deref().is_some_and(|t| !t.is_empty())) {
+        status = Some(status_from_codex(&Value::Null, &ctx, model_at.max(effort_at).max(tier_at)));
+    }
     if let Some(st) = status.as_mut() {
+        st.model = ctx.model.clone().or(st.model.take());
         st.model_id = ctx.model.clone().or(st.model_id.take());
         st.effort = ctx.effort.clone().or(st.effort.take());
         // `if (tier)`: an empty tier says nothing about speed

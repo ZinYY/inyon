@@ -16,6 +16,18 @@ const session = (goal?: ChatInfo['goal']) =>
 const active = { condition: 'tests pass', met: false, ts: '' }
 const box = () => screen.getByPlaceholderText('All tests pass and the PR is open') as HTMLTextAreaElement
 
+test('Codex visibly follows fast on, off and unknown without changing the session', async () => {
+  const codex = (fast?: boolean) => ({ ...session(), agent: 'codex', def: AGENTS.codex, status: { updatedAt: 1, modelId: 'gpt-6-astra', fast } }) as SessionModel
+  const { rerender } = await render(<ComposerControls s={codex(true)} />)
+  expect(screen.getByLabelText('Fast mode on')).toBeTruthy()
+  rerender(<ComposerControls s={codex(false)} />)
+  expect(screen.queryByLabelText('Fast mode on')).toBeNull()
+  rerender(<ComposerControls s={codex()} />)
+  expect(screen.queryByLabelText('Fast mode on')).toBeNull()
+  rerender(<ComposerControls s={codex(true)} />)
+  expect(screen.getByLabelText('Fast mode on')).toBeTruthy()
+})
+
 describe('GoalSheet keeps what you type while live data flows', () => {
   test('paused and limited goals remain present and refresh to active on resume', async () => {
     const user = userEvent.setup()
