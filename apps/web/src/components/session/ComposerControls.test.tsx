@@ -17,6 +17,20 @@ const active = { condition: 'tests pass', met: false, ts: '' }
 const box = () => screen.getByPlaceholderText('All tests pass and the PR is open') as HTMLTextAreaElement
 
 describe('GoalSheet keeps what you type while live data flows', () => {
+  test('paused and limited goals remain present and refresh to active on resume', async () => {
+    const user = userEvent.setup()
+    const { rerender } = await render(<ComposerControls s={session({ ...active, status: 'paused' })} />)
+    await user.click(screen.getByTitle('Goal: Paused: tests pass'))
+    expect(screen.getByText('Goal: Paused')).toBeTruthy()
+    expect(screen.queryByText('Active goal')).toBeNull()
+    for (const [status, label] of [['blocked', 'Blocked'], ['budget_limited', 'Budget limit reached'], ['usage_limited', 'Usage limit reached'], ['active', 'Active']]) {
+      rerender(<ComposerControls s={session({ ...active, status })} />)
+      expect(screen.getByText(`Goal: ${label}`)).toBeTruthy()
+      expect(screen.getByTitle(`Goal: ${label}: tests pass`)).toBeTruthy()
+      expect(screen.queryByText('Goal: Paused')).toBeNull()
+    }
+  })
+
   test('typing survives refreshes, even one that changes the goal under it', async () => {
     const user = userEvent.setup()
     const { rerender } = await render(<ComposerControls s={session(active)} />)

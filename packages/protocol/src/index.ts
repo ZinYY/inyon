@@ -275,7 +275,7 @@ export type ChatItem =
   | { kind: 'command'; seq: number; uuid: string; ts: string; name: string; args: string; output?: string }
   | { kind: 'notice'; seq: number; uuid: string; ts: string; level: 'info' | 'warn' | 'error'; subtype: string; text: string }
   | { kind: 'turn_end'; seq: number; uuid: string; ts: string; durationMs: number }
-  | { kind: 'goal'; seq: number; uuid: string; ts: string; condition: string; met: boolean; reason?: string; cleared?: boolean }
+  | { kind: 'goal'; seq: number; uuid: string; ts: string; condition: string; met: boolean; reason?: string; cleared?: boolean; status?: string }
 
 export interface BackgroundTask {
   id: string
@@ -400,7 +400,7 @@ export interface ChatInfo {
   running: boolean
   mappedBy?: 'hook' | 'cwd' | 'resume' | 'process'
   error?: string
-  goal?: { condition: string; met: boolean; reason?: string; ts: string }
+  goal?: { condition: string; met: boolean; reason?: string; status?: string; ts: string }
   rc?: { url: string; ts: string }
   /** the conversation's public link, while it's shared (OpenCode's /share) */
   share?: string

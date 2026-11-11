@@ -13,6 +13,7 @@ import { currentModelId, type SessionModel } from './useSession.ts'
 import { confirmAction } from '../Confirm.tsx'
 import { ProvidersSheet } from '../ProvidersSheet.tsx'
 import { paneHref } from '../../lib/overview.ts'
+import { goalSummary } from '../../lib/goal.ts'
 
 const EFFORT_SHORT: Record<string, string> = { default: 'Default', none: 'None', minimal: 'Min', low: 'Low', medium: 'Med', high: 'High', xhigh: 'X-high', max: 'Max', ultra: 'Ultra' }
 
@@ -97,7 +98,7 @@ export function ControlsSheet({ s, open, onClose }: { s: SessionModel; open: boo
                 <Target className="size-4 text-fg-3" />
                 <button type="button" onClick={() => setGoalOpen(true)} className="min-w-0 flex-1 text-left">
                   <div className="text-[14px] font-medium">Goal</div>
-                  <div className="truncate text-[12px] text-fg-3">{goalOn ? info!.goal!.condition : info?.goal?.met ? 'Last goal met' : 'Keep working until a condition is met'}</div>
+                  <div className="truncate text-[12px] text-fg-3">{goalOn ? goalSummary(info!.goal!) : info?.goal?.met ? 'Last goal met' : 'Keep working until a condition is met'}</div>
                 </button>
                 <Toggle on={goalOn} onChange={(v) => (v ? setGoalOpen(true) : actions.clearGoal())} label="Goal" />
               </div>

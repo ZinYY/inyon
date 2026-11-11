@@ -284,7 +284,7 @@ impl Base {
         ChatItem::TurnEnd { seq: 0, uuid: self.uuid.clone(), ts: self.ts.clone(), duration_ms: Num(duration_ms) }
     }
     pub fn goal(&self, condition: impl Into<String>, met: bool, reason: Option<String>, cleared: Option<bool>) -> ChatItem {
-        ChatItem::Goal { seq: 0, uuid: self.uuid.clone(), ts: self.ts.clone(), condition: condition.into(), met, reason, cleared }
+        ChatItem::Goal { seq: 0, uuid: self.uuid.clone(), ts: self.ts.clone(), condition: condition.into(), met, reason, cleared, status: None }
     }
 }
 
@@ -761,7 +761,7 @@ fn attachment_items(e: Option<&Value>, base: &Base, meta: &mut TranscriptMeta) -
                     _ => vec![],
                 };
             }
-            let goal = ChatGoal { condition: a.at("condition").string_or_empty(), met, reason: string_of(a.at("reason")), ts: base.ts.clone() };
+            let goal = ChatGoal { condition: a.at("condition").string_or_empty(), met, reason: string_of(a.at("reason")), status: None, ts: base.ts.clone() };
             let changed = prev.as_ref().is_none_or(|p| p.condition != goal.condition || p.met != goal.met);
             meta.goal = Some(goal.clone());
             if changed {

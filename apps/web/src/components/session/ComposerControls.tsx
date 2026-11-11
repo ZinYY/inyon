@@ -5,6 +5,7 @@ import { agentDef, type AgentKind, type AgentDef, type ChosenControls } from '@i
 import type { SessionModel } from './useSession.ts'
 import { currentModelId } from './useSession.ts'
 import { modelName } from '../../lib/format.ts'
+import { goalStatus, goalSummary } from '../../lib/goal.ts'
 import { Button, Field, Menu, Sheet, inputClass, type MenuItem } from '../ui/primitives.tsx'
 import { ProvidersSheet } from '../ProvidersSheet.tsx'
 
@@ -163,9 +164,9 @@ export function ComposerControls({ s }: { s: SessionModel }) {
         />
       )}
       {def.set.goal && (
-        <Chip tone={goalOn ? 'goal' : undefined} onClick={() => setGoalOpen(true)} title={goalOn ? `Goal: ${goal!.condition}` : 'Set a goal'}>
+        <Chip tone={goalOn ? 'goal' : undefined} onClick={() => setGoalOpen(true)} title={goalOn ? `Goal: ${goalSummary(goal!)}` : 'Set a goal'}>
           <Target className="size-3.5 shrink-0" />
-          {goalOn ? <span className="max-w-[140px] truncate">{goal!.condition}</span> : <span className="hidden @[460px]:inline">Goal</span>}
+          {goalOn ? <span className="max-w-[140px] truncate">{goalSummary(goal!)}</span> : <span className="hidden @[460px]:inline">Goal</span>}
         </Chip>
       )}
       <GoalSheet key={String(goalOpen)} s={s} open={goalOpen} onClose={() => setGoalOpen(false)} />
@@ -205,7 +206,7 @@ export function GoalSheet({ s, open, onClose }: { s: SessionModel; open: boolean
       <p className="mb-4 text-[13.5px] leading-relaxed text-fg-2">The agent checks this condition before it stops, and keeps going until it's met.</p>
       {goal && (
         <div className={clsx('mb-4 rounded-2xl border px-4 py-3 text-[13px]', goal.met ? 'border-line-strong bg-sunken' : 'border-line bg-sunken')}>
-          <div className="font-medium">{goal.met ? 'Last goal was met' : 'Active goal'}</div>
+          <div className="font-medium">{goal.met ? 'Last goal was met' : goal.status ? `Goal: ${goalStatus(goal.status)}` : 'Active goal'}</div>
           <div className="mt-0.5 line-clamp-3 text-fg-2">{goal.condition}</div>
           {goal.met && goal.reason && <div className="mt-1 line-clamp-2 text-[12px] text-fg-3">{goal.reason}</div>}
         </div>

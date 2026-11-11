@@ -872,13 +872,21 @@ fn NoticeRow(item: ChatItem) -> Element {
 
 #[component]
 fn GoalRow(item: ChatItem) -> Element {
-    let ChatItem::Goal { condition, met, reason, cleared, .. } = item else { return rsx! {} };
+    let ChatItem::Goal { condition, met, reason, cleared, status, .. } = item else { return rsx! {} };
     let title = if met {
         "Goal met"
     } else if cleared == Some(true) {
         "Goal cleared"
     } else {
-        "Goal set"
+        match status.as_deref() {
+            Some("active") => "Goal: Active",
+            Some("paused") => "Goal: Paused",
+            Some("blocked") => "Goal: Blocked",
+            Some("budget_limited") => "Goal: Budget limit reached",
+            Some("usage_limited") => "Goal: Usage limit reached",
+            Some(other) => other,
+            None => "Goal set",
+        }
     };
     rsx! {
         div { class: if met { "goal goal-met" } else { "goal" },

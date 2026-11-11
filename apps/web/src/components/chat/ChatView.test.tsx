@@ -21,6 +21,18 @@ const goalRow = (i: ChatItem) => {
 }
 
 describe('GoalRow', () => {
+  test('native lifecycle states stay distinct from completion and clearing', () => {
+    const { rerender } = render(goalRow(item.goal('test', { status: 'active' })))
+    for (const [status, label] of [['paused', 'Paused'], ['active', 'Active'], ['blocked', 'Blocked'], ['budget_limited', 'Budget limit reached'], ['usage_limited', 'Usage limit reached'], ['future_state', 'Future state']]) {
+      rerender(goalRow(item.goal('test', { status })))
+      expect(screen.getByText(`Goal: ${label}`)).toBeTruthy()
+      expect(screen.queryByText('Goal cleared')).toBeNull()
+      expect(screen.queryByText('Goal met')).toBeNull()
+    }
+    rerender(goalRow(item.goal('test', { status: 'complete', met: true })))
+    expect(screen.getByText('Goal met')).toBeTruthy()
+  })
+
   test('set, met and cleared', () => {
     const { rerender } = render(goalRow(item.goal('all tests pass')))
     expect(screen.getByText('Goal set')).toBeTruthy()

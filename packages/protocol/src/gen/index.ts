@@ -428,7 +428,7 @@ taskId?: string, };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
-export type ChatItem = { "kind": "user", seq: number, uuid: string, ts: string, text: string, images: number, queued?: boolean, shell?: boolean, } | { "kind": "assistant", seq: number, uuid: string, ts: string, msgId: string, model?: string, block: AssistantBlock, } | { "kind": "tool_result", seq: number, uuid: string, ts: string, toolUseId: string, isError: boolean, text: string, truncated?: boolean, meta?: ToolResultMeta, } | { "kind": "command", seq: number, uuid: string, ts: string, name: string, args: string, output?: string, } | { "kind": "notice", seq: number, uuid: string, ts: string, level: NoticeLevel, subtype: string, text: string, } | { "kind": "turn_end", seq: number, uuid: string, ts: string, durationMs: number, } | { "kind": "goal", seq: number, uuid: string, ts: string, condition: string, met: boolean, reason?: string, cleared?: boolean, };
+export type ChatItem = { "kind": "user", seq: number, uuid: string, ts: string, text: string, images: number, queued?: boolean, shell?: boolean, } | { "kind": "assistant", seq: number, uuid: string, ts: string, msgId: string, model?: string, block: AssistantBlock, } | { "kind": "tool_result", seq: number, uuid: string, ts: string, toolUseId: string, isError: boolean, text: string, truncated?: boolean, meta?: ToolResultMeta, } | { "kind": "command", seq: number, uuid: string, ts: string, name: string, args: string, output?: string, } | { "kind": "notice", seq: number, uuid: string, ts: string, level: NoticeLevel, subtype: string, text: string, } | { "kind": "turn_end", seq: number, uuid: string, ts: string, durationMs: number, } | { "kind": "goal", seq: number, uuid: string, ts: string, condition: string, met: boolean, reason?: string, cleared?: boolean, status?: string, };
 
 export type TaskType = "shell" | "monitor" | "workflow" | "other";
 
@@ -511,7 +511,7 @@ export type LiveKind = "text" | "thinking" | "plan" | "output";
  */
 export type LiveItem = { id: string, kind: LiveKind, text: string, turnId?: string, };
 
-export type ChatGoal = { condition: string, met: boolean, reason?: string, ts: string, };
+export type ChatGoal = { condition: string, met: boolean, reason?: string, status?: string, ts: string, };
 
 /**
  * Remote Control's link while it's on.

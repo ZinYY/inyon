@@ -14,7 +14,7 @@ export const item = {
   end: (durationMs = 1000): ChatItem => ({ kind: 'turn_end', ...base(), durationMs }),
   command: (name: string, args = '', output?: string, ts?: string): ChatItem => ({ kind: 'command', ...base(ts), name, args, output }),
   notice: (subtype: string, text = subtype, level: 'info' | 'warn' | 'error' = 'info'): ChatItem => ({ kind: 'notice', ...base(), subtype, text, level }),
-  goal: (condition: string, more: { met?: boolean; reason?: string; cleared?: boolean } = {}): ChatItem => ({ kind: 'goal', ...base(), condition, met: false, ...more }),
+  goal: (condition: string, more: { met?: boolean; reason?: string; cleared?: boolean; status?: string } = {}): ChatItem => ({ kind: 'goal', ...base(), condition, met: false, ...more }),
 }
 
 export function pane(id: string, more: Partial<PaneInfo> = {}): PaneInfo {

@@ -443,7 +443,7 @@ pub enum ChatItem {
     Command { seq: i64, uuid: String, ts: String, name: String, args: String, output: Option<String> },
     Notice { seq: i64, uuid: String, ts: String, level: NoticeLevel, subtype: String, text: String },
     TurnEnd { seq: i64, uuid: String, ts: String, duration_ms: Num },
-    Goal { seq: i64, uuid: String, ts: String, condition: String, met: bool, reason: Option<String>, cleared: Option<bool> },
+    Goal { seq: i64, uuid: String, ts: String, condition: String, met: bool, reason: Option<String>, cleared: Option<bool>, status: Option<String> },
 }
 
 impl ChatItem {
@@ -658,6 +658,7 @@ pub struct ChatGoal {
     pub condition: String,
     pub met: bool,
     pub reason: Option<String>,
+    pub status: Option<String>,
     pub ts: String,
 }
 

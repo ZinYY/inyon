@@ -9,6 +9,7 @@ import { agentDef, type AgentKind, type LiveItem } from '@inyon/protocol'
 import type { Part, Row } from '../../lib/chat.ts'
 import type { PendingMessage } from '../../lib/store.ts'
 import { clock, duration } from '../../lib/format.ts'
+import { goalStatus } from '../../lib/goal.ts'
 import { AgentSpinner } from '../ui/status.tsx'
 import { AntigravityMark, CodexMark, TileMark } from '../ui/AgentMarks.tsx'
 import { CopyButton, Markdown } from './Markdown.tsx'
@@ -331,7 +332,7 @@ export function GoalRow({ row }: { row: Extract<Row, { type: 'goal' }> }) {
     <div className={clsx('flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-[13.5px]', item.met ? 'border-line bg-sunken' : 'border-dashed border-line-strong')}>
       <Target className={clsx('mt-0.5 size-4 shrink-0', item.met ? 'text-fg' : 'text-fg-3')} />
       <div className="min-w-0">
-        <div className="font-medium">{item.met ? 'Goal met' : item.cleared ? 'Goal cleared' : 'Goal set'}</div>
+        <div className="font-medium">{item.met ? 'Goal met' : item.cleared ? 'Goal cleared' : item.status ? `Goal: ${goalStatus(item.status)}` : 'Goal set'}</div>
         <div className="mt-0.5 line-clamp-3 text-fg-2">{item.condition}</div>
         {item.met && item.reason && <div className="mt-1 line-clamp-3 text-[12.5px] text-fg-3">{item.reason}</div>}
       </div>

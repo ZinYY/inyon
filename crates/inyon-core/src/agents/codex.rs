@@ -657,21 +657,18 @@ fn file_change(item: Option<&Value>, meta: &mut TranscriptMeta) {
 
 /// A goal set, met or cleared ("/goal …", or Codex marking it complete) → a goal row and ChatInfo.goal.
 fn codex_goal(g: Option<&Value>, meta: &mut TranscriptMeta, base: &Base) -> Vec<ChatItem> {
-    if !g.is_object() || !g.at("objective").truthy() {
-        if meta.goal.as_ref().is_none_or(|goal| goal.met) {
-            return vec![];
-        }
-        meta.goal = None;
-        return vec![base.notice(NoticeLevel::Info, "goal", "Goal cleared")];
+    // Missing, truncated or unfamiliar data is not an explicit clear.
+    if matches!(g, Some(Value::Null)) {
+        return if meta.goal.take().is_some_and(|goal| !goal.met) { vec![base.notice(NoticeLevel::Info, "goal", "Goal cleared")] } else { vec![] };
     }
-    let condition = g.at("objective").to_js_string();
-    let met = g.at("status").str() == Some("complete");
-    if meta.goal.as_ref().is_some_and(|goal| goal.condition == condition && goal.met == met) {
+    let Some(condition) = g.at("objective").nonempty().map(str::to_owned) else { return vec![] };
+    let Some(status) = g.at("status").nonempty().map(str::to_owned) else { return vec![] };
+    let met = status == "complete";
+    if meta.goal.as_ref().is_some_and(|goal| goal.condition == condition && goal.met == met && goal.status.as_ref() == Some(&status)) {
         return vec![];
     }
-    let reason = (g.at("status").str() == Some("paused")).then(|| "Paused".to_owned());
-    meta.goal = Some(ChatGoal { condition: condition.clone(), met, reason, ts: base.ts.clone() });
-    vec![base.goal(condition, met, None, None)]
+    meta.goal = Some(ChatGoal { condition: condition.clone(), met, reason: None, status: Some(status.clone()), ts: base.ts.clone() });
+    vec![ChatItem::Goal { seq: 0, uuid: base.uuid.clone(), ts: base.ts.clone(), condition, met, reason: None, cleared: None, status: Some(status) }]
 }
 
 /// The sub-agent's name as the TUI shows it: its path under the root agent.
@@ -787,7 +784,26 @@ fn question_reply(text: &str, base: &Base) -> Option<Vec<ChatItem>> {
 }
 
 /// Tools Codex uses for its own bookkeeping while it waits: nothing to show for them.
-const SILENT_TOOLS: [&str; 4] = ["sleep", "wait", "get_goal", "update_goal"];
+const GOAL_TOOLS: [&str; 3] = ["get_goal", "update_goal", "create_goal"];
+const SILENT_TOOLS: [&str; 5] = ["sleep", "wait", "get_goal", "update_goal", "create_goal"];
+
+/// Keep top-level output boundaries: exec can print several adjacent JSON values.
+/// A parse error leaves the remaining text intact and never means `goal: null`.
+fn goal_output(text: &str) -> (Vec<Value>, String) {
+    let mut values = serde_json::Deserializer::from_str(text).into_iter::<Value>();
+    let (mut goals, mut rest, mut at) = (vec![], String::new(), 0);
+    while let Some(Ok(value)) = values.next() {
+        let end = values.byte_offset();
+        if let Some(goal) = value.get("goal") {
+            goals.push(goal.clone());
+        } else {
+            rest.push_str(&text[at..end]);
+        }
+        at = end;
+    }
+    rest.push_str(&text[at..]);
+    (goals, rest)
+}
 
 /// Tool arguments as they can be shown: an encrypted message says so instead of showing noise.
 fn scrub(args: Option<&Value>) -> Value {
@@ -804,19 +820,40 @@ fn scrub(args: Option<&Value>) -> Value {
 
 /// A script's output (or a later read of its cell) → the tool result, with the diffs Codex reported since the call.
 fn script_result(call_id: &str, raw: Option<&Value>, meta: &mut TranscriptMeta, base: &Base) -> Vec<ChatItem> {
-    let out = script_output(raw);
+    let mut out = script_output(raw);
+    let mut items = vec![];
+    let mut handled_goal = false;
+    // Only goal tools can update state; ordinary command output may also contain a `goal` key.
+    let has_goal = meta.tools.get(call_id).is_some_and(|call| {
+        GOAL_TOOLS.contains(&call.name.as_str()) || Some(&call.input).at("steps").arr().is_some_and(|steps| {
+            steps.iter().any(|step| Some(step).at("tool").str().is_some_and(|name| GOAL_TOOLS.contains(&name)))
+        })
+    });
+    if has_goal {
+        let parts = raw.arr().map(|parts| parts.iter().filter_map(|part| part.get("text").and_then(Value::as_str)).collect::<Vec<_>>()).unwrap_or_else(|| vec![out.text.as_str()]);
+        let mut kept = String::new();
+        for part in parts {
+            let (goals, rest) = goal_output(part);
+            kept.push_str(&rest);
+            for goal in goals {
+                handled_goal = true;
+                items.extend(codex_goal(Some(&goal), meta, &base.with_uuid(format!("{}:goal:{}", base.uuid, items.len()))));
+            }
+        }
+        out.text = script_output(Some(&s(kept))).text;
+    }
     if let Some(running) = out.running {
         meta.codex.cells.insert(running, call_id.to_owned());
-        return vec![];
+        return items;
     }
-    if out.text.starts_with("{\"goal\":") {
-        let parsed = parse_json(Some(&Value::String(out.text.clone())));
-        return codex_goal(parsed.as_ref().and_then(|p| p.get("goal")), meta, base);
+    if handled_goal && out.text.is_blank() && !out.failed {
+        return items;
     }
     let patch = std::mem::take(&mut meta.codex.hunks);
     let text = clip(&out.text);
     let result = if patch.is_empty() { stdout_meta(text.clone()) } else { ToolResultMeta { patch: Some(patch), ..result_meta() } };
-    vec![base.tool_result(call_id, out.failed, text, None, Some(result))]
+    items.push(base.tool_result(call_id, out.failed, text, None, Some(result)));
+    items
 }
 
 /// One Codex rollout line → chat items (the same shapes Claude transcripts produce).
@@ -974,8 +1011,12 @@ pub fn normalize_codex(e: &Value, meta: &mut TranscriptMeta) -> Vec<ChatItem> {
             let call_id = string_of(p.at("call_id"));
             if p.at("name").str() == Some("exec") {
                 let input = p.at("input").string_or_empty();
-                // the goal bookkeeping shows as goal rows instead (from its output)
-                if re!(r"^(?:text\()?\s*(?:await\s+)?tools\.(update_goal|get_goal)\(").is_match(input.jtrim()) {
+                // Hide only pure goal bookkeeping, not commands batched after it.
+                let steps = script_steps(&input);
+                if !steps.is_empty() && steps.iter().all(|step| GOAL_TOOLS.contains(&step.tool.as_str())) {
+                    if let Some(id) = &call_id {
+                        meta.tools.insert(id.clone(), crate::claude::transcript::ToolCall { name: steps[0].tool.clone(), input: Value::Object(Map::new()) });
+                    }
                     return vec![];
                 }
                 let (name, input) = codex_script(&input);
@@ -1049,6 +1090,10 @@ fn function_call(p: Option<&Value>, meta: &mut TranscriptMeta, base: &Base, uuid
 fn function_call_output(p: Option<&Value>, meta: &mut TranscriptMeta, base: &Base) -> Vec<ChatItem> {
     let call_id = p.at("call_id").string_or_empty();
     let call = meta.tools.get(&call_id).cloned();
+    if call.as_ref().is_some_and(|c| GOAL_TOOLS.contains(&c.name.as_str())) {
+        let out = parse_json(p.at("output"));
+        return codex_goal(out.as_ref().and_then(|value| value.get("goal")), meta, base);
+    }
     if call.as_ref().is_some_and(|c| c.name == "wait") {
         // the cell's output, read back later: it answers the script, if this wait was for one
         return match meta.codex.waits.remove(&call_id) {

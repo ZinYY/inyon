@@ -202,7 +202,7 @@ impl AntigravityDoc {
                 // "/goal …" keeps agy working until it writes the GOAL_COMPLETE marker
                 if let Some(g) = re!(r"^\/goal\s+([\s\S]+)$").captures(&text) {
                     let condition = g[1].jtrim().to_owned();
-                    meta.goal = Some(ChatGoal { condition: condition.clone(), met: false, reason: None, ts: base.ts.clone() });
+                    meta.goal = Some(ChatGoal { condition: condition.clone(), met: false, reason: None, status: None, ts: base.ts.clone() });
                     out.push(base.goal(condition, false, None, None));
                 } else if !text.is_empty() {
                     out.push(base.user(text, 0));

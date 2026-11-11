@@ -115,6 +115,119 @@ mod codex_terminal_title {
 mod codex_goals {
     use super::*;
 
+    fn set(meta: &mut TranscriptMeta) {
+        normalize_codex(&rec("event_msg", json!({ "type": "thread_goal_updated", "goal": { "objective": "Verify goal parsing", "status": "active" } })), meta);
+    }
+
+    fn script(meta: &mut TranscriptMeta, input: &str) -> Vec<ChatItem> {
+        ev(meta, json!({ "type": "custom_tool_call", "name": "exec", "call_id": "goal-script", "input": input }))
+    }
+
+    fn output(meta: &mut TranscriptMeta, raw: Value) -> Vec<ChatItem> {
+        ev(meta, json!({ "type": "custom_tool_call_output", "call_id": "goal-script", "output": raw }))
+    }
+
+    #[test]
+    fn mixed_goal_and_command_results_preserve_the_goal_and_the_commands() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        let call = script(&mut meta, "text(await tools.get_goal({})); text(await tools.exec_command({cmd:\"echo marker\"}));");
+        assert_eq!(call.len(), 1, "a goal read must not hide the rest of the script");
+        let result = output(&mut meta, json!([
+            { "type": "input_text", "text": "Script completed\nWall time 0.1 seconds\nOutput:\n" },
+            { "type": "input_text", "text": "{\"goal\":{\"objective\":\"Verify goal parsing\",\"status\":\"active\"},\"remainingTokens\":null}" },
+            { "type": "input_text", "text": "{\"exit_code\":0,\"output\":\"marker\"}" },
+            { "type": "input_text", "text": "second command output" }
+        ]));
+        assert_match(&meta.goal, json!({ "condition": "Verify goal parsing", "met": false }));
+        assert_eq!(result.len(), 1);
+        assert_match(&result, json!([{ "kind": "tool_result", "text": "{\"exit_code\":0,\"output\":\"marker\"}second command output" }]));
+    }
+
+    #[test]
+    fn goal_updates_are_read_independently_of_other_output_blocks() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        script(&mut meta, "text(await tools.exec_command({cmd:\"echo marker\"})); text(await tools.update_goal({status:\"complete\"}));");
+        let result = output(&mut meta, json!([
+            { "type": "input_text", "text": "Script completed\nWall time 0.1 seconds\nOutput:\nmarker\n" },
+            { "type": "input_text", "text": "{\"remainingTokens\":null, \"goal\":{\"objective\":\"Verify goal parsing\",\"status\":\"complete\"}}" }
+        ]));
+        assert_match(&meta.goal, json!({ "met": true }));
+        assert_match(&result, json!([{ "kind": "goal", "met": true }, { "kind": "tool_result", "text": "marker" }]));
+    }
+
+    #[test]
+    fn concatenated_json_string_outputs_keep_command_results_after_a_goal() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        script(&mut meta, "text(await tools.get_goal({})); text(await tools.exec_command({cmd:\"echo marker\"}));");
+        let result = output(&mut meta, json!("Script completed\nWall time 0.1 seconds\nOutput:\n {\"goal\":{\"objective\":\"Verify goal parsing\",\"status\":\"active\"}}{\"output\":\"marker\"}"));
+        assert_match(&meta.goal, json!({ "met": false }));
+        assert_match(&result, json!([{ "kind": "tool_result", "text": "{\"output\":\"marker\"}" }]));
+    }
+
+    #[test]
+    fn missing_malformed_and_unrelated_goal_data_cannot_clear_a_goal() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        for payload in [json!({ "type": "thread_goal_updated" }), json!({ "type": "thread_goal_updated", "goal": {} }), json!({ "type": "thread_goal_updated", "goal": { "status": "active" } })] {
+            assert!(normalize_codex(&rec("event_msg", payload), &mut meta).is_empty());
+            assert!(meta.goal.is_some());
+        }
+        script(&mut meta, "text(await tools.get_goal({}));");
+        for text in ["{\"goal\":", "{\"goal\":{}}", "{\"error\":\"unavailable\"}"] {
+            output(&mut meta, json!([{ "type": "input_text", "text": text }]));
+            assert!(meta.goal.is_some());
+        }
+        script(&mut meta, "text(await tools.exec_command({cmd:\"cat data.json\"}));");
+        let result = output(&mut meta, json!([{ "type": "input_text", "text": "{\"goal\":null}" }]));
+        assert!(meta.goal.is_some());
+        assert_match(&result, json!([{ "kind": "tool_result", "text": "{\"goal\":null}" }]));
+    }
+
+    #[test]
+    fn only_explicit_null_clears_and_missing_goal_does_not_repeat_the_notice() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        let clear = rec("event_msg", json!({ "type": "thread_goal_updated", "goal": null }));
+        assert_match(&normalize_codex(&clear, &mut meta), json!([{ "kind": "notice", "text": "Goal cleared" }]));
+        assert!(meta.goal.is_none());
+        assert!(normalize_codex(&clear, &mut meta).is_empty());
+    }
+
+    #[test]
+    fn status_transitions_survive_pause_resume_and_limits_without_becoming_clears() {
+        let mut meta = new_meta();
+        set(&mut meta);
+        for status in ["paused", "active", "blocked", "active", "budget_limited", "active", "usage_limited", "active", "future_state", "complete"] {
+            let event = rec("event_msg", json!({ "type": "thread_goal_updated", "goal": { "objective": "Verify goal parsing", "status": status } }));
+            let result = normalize_codex(&event, &mut meta);
+            assert_match(&result, json!([{ "kind": "goal", "status": status, "met": status == "complete" }]));
+            assert_match(&meta.goal, json!({ "status": status, "met": status == "complete" }));
+            assert!(normalize_codex(&event, &mut meta).is_empty(), "unchanged bookkeeping must not add duplicate rows");
+        }
+        assert!(normalize_codex(&rec("event_msg", json!({ "type": "thread_goal_updated", "goal": null })), &mut meta).is_empty());
+        assert!(meta.goal.is_none());
+    }
+
+    #[test]
+    fn direct_goal_tools_update_state_and_pure_bookkeeping_stays_hidden() {
+        let mut meta = new_meta();
+        for (name, goal, met) in [
+            ("create_goal", json!({ "objective": "Verify goal parsing", "status": "active" }), false),
+            ("update_goal", json!({ "objective": "Verify goal parsing", "status": "complete" }), true),
+        ] {
+            assert!(ev(&mut meta, json!({ "type": "function_call", "name": name, "call_id": "direct-goal", "arguments": "{}" })).is_empty());
+            let result = ev(&mut meta, json!({ "type": "function_call_output", "call_id": "direct-goal", "output": stringify(&json!({ "goal": goal })) }));
+            assert_match(&result, json!([{ "kind": "goal", "met": met }]));
+            assert_eq!(meta.goal.as_ref().unwrap().met, met);
+        }
+        assert!(script(&mut meta, "const state = await tools.get_goal({}); text(state);").is_empty());
+        assert!(output(&mut meta, json!([{ "type": "input_text", "text": "{\"goal\":null}" }])).is_empty());
+        assert!(meta.goal.is_none(), "clearing a completed goal removes it too");
+    }
+
     /// set from the goal event, met from update_goal output; the bookkeeping call is hidden
     #[test]
     fn set_from_the_goal_event_met_from_update_goal_output_the_bookkeeping_call_is_hidden() {
