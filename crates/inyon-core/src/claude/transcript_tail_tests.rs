@@ -43,6 +43,33 @@ mod with_sh {
     }
 
     #[test]
+    fn codex_summary_preserves_goal_tool_states_before_the_visible_history() {
+        let d = dir();
+        let file = d.path("goals.jsonl");
+        let mut text = String::new();
+        for (i, status) in ["active", "paused", "active", "blocked", "budget_limited", "usage_limited", "complete"].into_iter().enumerate() {
+            let id = format!("goal-{i}");
+            for payload in [
+                json!({ "type": "custom_tool_call", "name": "exec", "call_id": id, "input": "text(await tools.get_goal({})); text(await tools.exec_command({cmd:\"echo marker\"}));" }),
+                json!({ "type": "custom_tool_call_output", "call_id": id, "output": [
+                    { "type": "input_text", "text": serde_json::to_string(&json!({ "goal": { "objective": "kept goal", "status": status } })).unwrap() },
+                    { "type": "input_text", "text": "{\"output\":\"marker\"}" }
+                ] }),
+            ] {
+                text += &format!("{}\n", json!({ "type": "response_item", "timestamp": "t", "payload": payload }));
+            }
+        }
+        std::fs::write(&file, text + &user(1, "ordinary conversation stays behind", false)).unwrap();
+        let rows = lines(&codex_meta_command(file.to_str().unwrap(), size(&file), false, 0));
+        assert_eq!(rows.len(), 14);
+        let mut meta = new_meta();
+        for (pair, expected) in rows.chunks(2).zip(["active", "paused", "active", "blocked", "budget_limited", "usage_limited", "complete"]) {
+            for row in pair { crate::agents::codex::normalize_codex(&serde_json::from_str(row).unwrap(), &mut meta); }
+            assert_eq!(meta.goal.as_ref().unwrap().status.as_deref(), Some(expected));
+        }
+    }
+
+    #[test]
     fn confirmed_settings_are_kept_when_reading_only_old_conversation_metadata() {
         let d = dir();
         let file = d.path("settings.jsonl");

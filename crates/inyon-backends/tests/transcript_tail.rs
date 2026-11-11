@@ -501,6 +501,10 @@ fn a_long_codex_thread_opens_on_its_last_stretch_too_with_its_summary_and_pages_
         };
         let mut text = rec("session_meta", json!({ "id": "thread", "cwd": "/home/me/play", "cli_version": "0.163.0" }));
         text += &rec("event_msg", json!({ "type": "thread_goal_updated", "goal": { "objective": "early goal", "status": "active" } }));
+        text += &rec("response_item", json!({ "type": "custom_tool_call", "name": "exec", "call_id": "pause-goal", "input": "text(await tools.update_goal({status:\"paused\"}));" }));
+        text += &rec("response_item", json!({ "type": "custom_tool_call_output", "call_id": "pause-goal", "output": [
+            { "type": "input_text", "text": "{\"goal\":{\"objective\":\"early goal\",\"status\":\"paused\"}}" }
+        ] }));
         text += &rec(
             "event_msg",
             json!({ "type": "item_completed", "item": { "type": "FileChange", "id": "fc-early", "status": "completed", "changes": { "/home/me/play/a.txt": { "type": "add", "content": "one\ntwo\n" } } } }),
@@ -528,6 +532,7 @@ fn a_long_codex_thread_opens_on_its_last_stretch_too_with_its_summary_and_pages_
         assert_eq!(nums(&reset["items"]).last(), Some(&599));
         assert_eq!(reset["hasMore"], true);
         until!(400, got.latest()["goal"]["condition"] == "early goal");
+        assert_eq!(got.latest()["goal"]["status"], "paused");
         assert_eq!(got.latest()["stats"]["turns"], 600);
         assert_eq!(got.latest()["stats"]["linesAdded"], 2);
         assert!(w.items().len() < 1200);
@@ -537,6 +542,7 @@ fn a_long_codex_thread_opens_on_its_last_stretch_too_with_its_summary_and_pages_
         assert_eq!(nums(&all), (0..600).collect::<Vec<_>>());
         let seqs: Vec<i64> = all.as_array().unwrap().iter().map(|i| i["seq"].as_i64().unwrap()).collect();
         assert!(seqs.windows(2).all(|p| p[1] > p[0]));
+        assert_eq!(got.latest()["goal"]["status"], "paused", "loading earlier active records must not undo the current pause");
         watchers().stop(&w.key);
     });
 }

@@ -130,6 +130,10 @@ fn codex_meta_lines() -> String {
         r#""task_complete""#,
         r#""turn_aborted""#,
         r#""thread_goal_updated""#,
+        // Goal tools do not always emit thread_goal_updated. Keep their calls too,
+        // so the normalizer can distinguish native results from ordinary JSON output.
+        r#""type":"(custom_tool_call|function_call)".*(get_goal|update_goal|create_goal)"#,
+        r#""type":"(custom_tool_call_output|function_call_output)".*(\\"goal\\"|"goal")[[:space:]]*:"#,
         r#""type":"compacted""#,
         r#"compaction""#,
         r#""type":"FileChange""#,
