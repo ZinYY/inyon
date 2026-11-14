@@ -1,7 +1,7 @@
 //! Codex's ephemeral /btw threads have no rollout and reject history/resume APIs.
 //! Keep the visible native conversation separately; never mix it with the parent.
 use inyon_protocol::{AssistantBlock, ChatItem};
-use super::screen::{codex_composer_footer, unstyle};
+use super::screen::{codex_composer_footer, sgr_codes, unstyle};
 use super::screen_reply::bare;
 use crate::re;
 
@@ -19,6 +19,32 @@ fn same_reply(a: &str, b: &str) -> bool {
         // A terminal repaint can briefly omit rows in the middle of a reply.
         // Its substantial unchanged opening still identifies the same block.
         || (a.chars().take(64).count() == 64 && b.chars().take(64).count() == 64 && a.chars().take(64).eq(b.chars().take(64)))
+}
+
+fn leading_background(raw: &str) -> Option<bool> {
+    let mut rest = raw;
+    let mut bg = None;
+    loop {
+        rest = rest.trim_start_matches(' ');
+        let Some(c) = re!(r"^\x1b\[([\d;:]*)m").captures(rest) else { break; };
+        let codes = sgr_codes(&c[1]);
+        let mut i = 0;
+        while i < codes.len() {
+            let code = codes[i] as u32;
+            match code {
+                0 | 49 => bg = Some(false),
+                40..=47 | 100..=107 => bg = Some(true),
+                38 | 48 | 58 => {
+                    if code == 48 { bg = Some(true); }
+                    i += if codes.get(i+1) == Some(&2.0) { 4 } else if codes.get(i+1) == Some(&5.0) { 2 } else { 0 };
+                },
+                _ => {},
+            }
+            i += 1;
+        }
+        rest = &rest[c[0].len()..];
+    }
+    bg
 }
 
 /// The top of a viewport can start halfway through an already captured reply.
@@ -58,7 +84,8 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
             blocks.push((true, t.to_owned()));
             // A sticky prompt may remain at row zero above a clipped assistant
             // reply, with no bullet between them. It is not a multiline prompt.
-            user_complete = known_user(t) || (row == 0 && captured.get(1).is_some_and(|l| l.starts_with("\x1b[49m")));
+            user_complete = known_user(t) || (row == 0 && leading_background(&captured[0]) == Some(true)
+                && captured.get(1).is_some_and(|l| leading_background(l) == Some(false)));
         } else if let Some(t) = line.strip_prefix("• ") {
             blocks.push((false, t.to_owned()));
         } else if let Some((user, t)) = blocks.last_mut() {
@@ -86,7 +113,8 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     let old: Vec<_> = out.iter().map(|item| { let (role, s) = text(item); (role, bare(s)) }).collect();
     let new: Vec<_> = blocks.iter().map(|(role, s)| (*role, bare(s))).collect();
     let compatible = |a: &(bool, String), b: &(bool, String)| {
-        a.0 == b.0 && (a.1 == b.1 || (!a.0 && same_reply(&a.1, &b.1)))
+        a.0 == b.0 && (a.1 == b.1 || (!a.0 && same_reply(&a.1, &b.1))
+            || (a.0 && a.1.len().min(b.1.len()) >= 12 && (a.1.starts_with(&b.1) || b.1.starts_with(&a.1))))
     };
     let indices = (0..out.len()).filter_map(|start| {
         if new.first().is_none_or(|b| !compatible(&old[start], b)) { return None; }
@@ -97,7 +125,10 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
             // Once another turn starts, Codex can hide the previous turn's tool
             // and commentary rows. Skip those rows, never a different user turn.
             while cursor < old.len() && !compatible(&old[cursor], b) {
-                if old[cursor].0 { return None; }
+                // PSmux can return a torn redraw. A known opening anchors this
+                // capture to history even when its later rows cannot be matched.
+                // Keep that matched prefix; never append the whole screen again.
+                if old[cursor].0 { return Some((matched, start, indices)); }
                 cursor += 1;
             }
             if cursor < old.len() { matched += 1; }
@@ -108,7 +139,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     }).max_by_key(|(matched, start, _)| (*matched, *start)).map(|(_, _, indices)| indices)
         .unwrap_or_else(|| (out.len()..out.len()+blocks.len()).collect());
     for (i, (user, value)) in blocks.into_iter().enumerate() {
-        let index = indices[i];
+        let Some(&index) = indices.get(i) else { break; };
         if let Some(old) = out.get(index) {
             // A narrower viewport must not truncate a reply already seen in full.
             let before = bare(text(old).1);
@@ -177,6 +208,30 @@ mod tests {
     }
 
     #[test]
+    fn a_torn_later_question_never_reappends_an_already_anchored_viewport() {
+        let full = screen(&["› Where should I go for a quiet afternoon?", "• Try the beach.", "› Could you make that easier with less walking?", "• Take a short stroll, then sit by the water."]);
+        let items = merge(&[], &full, "side").unwrap();
+        for tail in ["Could you make that ea", "Could you make thXX"] {
+            let torn = screen(&["› Where should I go for a quiet afternoon?", "• Try the beach.", &format!("› {tail}"), "", "•"]);
+            assert!(merge(&items, &torn, "side").is_none());
+        }
+        assert!(merge(&items, &full, "side").is_none());
+        assert_eq!(items.len(), 4);
+    }
+
+    #[test]
+    fn a_partial_new_prompt_grows_in_place_without_losing_repeated_turns() {
+        let first = screen(&["› Could you suggest a quiet beach?", "• Try the north end."]);
+        let items = merge(&[], &first, "side").unwrap();
+        let partial = screen(&["› Could you suggest a quiet beach?", "• Try the north end.", "› Could you suggest another"]);
+        let items = merge(&items, &partial, "side").unwrap();
+        let full = screen(&["› Could you suggest a quiet beach?", "• Try the north end.", "› Could you suggest another place for coffee?", "• Visit the cafe nearby."]);
+        let items = merge(&items, &full, "side").unwrap();
+        assert_eq!(items.len(), 4);
+        assert_eq!(text(&items[2]).1, "Could you suggest another place for coffee?");
+    }
+
+    #[test]
     fn older_viewports_and_three_turns_keep_their_original_positions() {
         let first = screen(&["› Where should I walk?", "• Follow the coast."]);
         let second = screen(&["› Where should I walk?", "• Follow the coast.", "› What about rain?", "• Visit the museum."]);
@@ -213,6 +268,9 @@ mod tests {
         assert!(merge(&next, &clipped, "side").is_none());
         let styled = screen(&["\x1b[48;2;68;68;68m› Where should I walk?", "\x1b[49m  stop for coffee.", "› What about rain?", "• Visit the museum."]);
         let fresh = merge(&[], &styled, "side").unwrap();
+        assert_eq!(text(&fresh[0]).1, "Where should I walk?");
+        let windows = screen(&["\x1b[0;38;2;238;238;238;48;2;68;68;68m› Where should I walk?\x1b[0m", "\x1b[0m  stop for coffee.\x1b[0m", "› What about rain?", "• Visit the museum."]);
+        let fresh = merge(&[], &windows, "side").unwrap();
         assert_eq!(text(&fresh[0]).1, "Where should I walk?");
     }
 
