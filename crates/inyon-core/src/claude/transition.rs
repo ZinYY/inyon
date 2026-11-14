@@ -39,7 +39,15 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
     let mut reloaded = false;
     while now_ms() < deadline {
         registry().refresh_one(host, 6000).await;
-        let found = registry().find_pane(host, pane).ok_or_else(|| http(404, "Pane not found"))?;
+        // A fork returns its native pane ID before the next host probe necessarily
+        // lists it (especially with PSmux's separate servers). Discovery is part of
+        // the transition, not a reason to fail or repeat the fork command.
+        let Some(found) = registry().find_pane(host, pane) else {
+            stable = 0;
+            previous = None;
+            sleep(500).await;
+            continue;
+        };
         let agent = found.pane.agent.as_ref();
         let identity = agent.map(|a| (a.kind, a.pid, a.session_id.clone()));
         let matches = if options.stopped { agent.is_none() } else { agent.is_some_and(|a| {
@@ -85,6 +93,21 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_new_pane_can_appear_after_refresh_starts() {
+        crate::test_support::rt::run(|| async {
+            let fake = crate::test_support::fake::Fake::install(|_, _, _| crate::test_support::fake::ok(""));
+            let rt = crate::test_support::machine("discover", "local", serde_json::json!([{ "id": "%9" }]));
+            rt.borrow_mut().hold_polls();
+            let pane = rt.borrow_mut().state.sessions[0].windows[0].panes.pop().unwrap();
+            crate::platform::rt::set_timeout(1500, move || {
+                rt.borrow_mut().state.sessions[0].windows[0].panes.push(pane);
+            });
+            let result = refresh("discover", "%9", RefreshOptions { stopped: true, ..Default::default() }).await.unwrap();
+            assert!(matches!(result.reset, ServerMsg::ChatReset { .. }));
+            assert!(!fake.cmds().iter().any(|cmd| cmd.contains("send-keys") || cmd.contains("new-window")));
+        });
+    }
     #[test]
     fn redraw_and_working_frames_do_not_unlock() {
         let mut s: ScreenState = serde_json::from_value(serde_json::json!({"working":false,"width":100})).unwrap();
