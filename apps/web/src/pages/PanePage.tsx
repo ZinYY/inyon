@@ -115,7 +115,6 @@ export function PanePage() {
     <ChatActionsContext.Provider value={actions}>
       <SkinScope agent={agent} className="relative flex min-h-0 flex-1 flex-col bg-bg text-fg">
         <div className="flex min-h-0 flex-1 flex-col">
-          <div inert={s.locked && view === 'chat'}>
           <SessionHeader
             s={s}
             view={view}
@@ -127,7 +126,6 @@ export function PanePage() {
               else setSheet(which)
             }}
           />
-          </div>
           {/* an agent that stays in its terminal asks you to sign in there itself */}
           {agent && agent !== 'claude' && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
             <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">

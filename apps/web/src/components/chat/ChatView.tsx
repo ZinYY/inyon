@@ -45,6 +45,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const clearing = !!operation
   const hubUp = useStore((s) => s.connected)
   const machine = useStore((s) => s.hosts.find((h) => h.config.id === host))
+  const hostsStale = useStore((s) => s.hostsStale)
   const machineDown = !!machine && machine.status !== 'online'
   const connected = hubUp && !machineDown
   useLayoutEffect(() => {
@@ -87,7 +88,9 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const screen = chat?.screen
   const chatCapable = agent ? agentDef(agent).chat : true
   // a terminal-first agent's chat info says nothing until the hub looks: its pane says whether it runs
-  const paneAgent = machine?.sessions.flatMap((s) => s.windows).flatMap((w) => w.panes).find((p) => p.id === pane)?.agent
+  const livePane = machine?.sessions.flatMap((s) => s.windows).flatMap((w) => w.panes).find((p) => p.id === pane)
+  const paneAgent = livePane?.agent
+  const shell = connected && !hostsStale && machine?.status === 'online' && !!livePane && !paneAgent
   const identifying = connected && !!paneAgent && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !paneAgent.sessionId
   const switching = connected && !!paneAgent?.sessionId && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !!chat?.loaded && chat.info?.sessionId !== paneAgent.sessionId
   useEffect(() => {
@@ -103,7 +106,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     let timer = setTimeout(refresh, delay)
     return () => clearTimeout(timer)
   }, [host, pane, switching, clearing, paneAgent?.sessionId])
-  const running = chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent
+  const running = !shell && (chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent)
   const sideConversation = chat?.info?.transcriptPath?.startsWith('codex-side:') === true
   const working = !!screen?.working
   const prompt = screen?.prompt
@@ -112,7 +115,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const shownPrompt = prompt ?? (connected ? undefined : lastAsk(host, pane))
   const textQuestion = useMemo(() => agent === 'codex' ? pendingTextQuestion(chat?.items ?? []) : undefined, [agent, chat?.items])
   const reconnecting = useReconnecting(machine?.status)
-  const waiting = clearing || !connected || identifying || switching || !chat?.loaded || currentChat?.catchingUp !== undefined || loadingMore
+  const waiting = clearing || !connected || identifying || switching || !shell && (!chat?.loaded || currentChat?.catchingUp !== undefined || loadingMore)
   const waitingLabel = !hubUp ? 'Reconnecting…' : machineDown ? reconnecting ? `Reconnecting to ${machine!.config.name}…` : `${machine!.config.name} is offline`
     : identifying ? 'Waiting to identify this conversation' : switching ? 'Switching conversation…'
     : loadingMore ? 'Loading earlier messages' : currentChat?.catchingUp !== undefined ? `Loading the conversation · ${Math.round(currentChat.catchingUp * 100)}%` : 'Loading the conversation'

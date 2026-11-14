@@ -25,6 +25,7 @@ pub mod transition;
 mod side;
 mod side_table;
 mod side_source;
+mod side_tools;
 pub mod titles;
 pub mod watcher;
 

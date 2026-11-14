@@ -2512,7 +2512,7 @@ impl ChatWatcher {
                 while st.side_sources.len() > 32 || st.side_sources.iter().map(String::len).sum::<usize>() > 1024*1024 {
                     st.side_sources.remove(0);
                 }
-                let next = super::side_source::enrich(&st.side_native, &st.side_sources);
+                let next = super::side_tools::render(super::side_source::enrich(&st.side_native, &st.side_sources));
                 (next != st.items).then_some(next)
             };
             if let Some(items) = next { w.publish_snapshot(items); }
@@ -2908,7 +2908,7 @@ impl ChatWatcher {
             if crate::agents::codex::codex_side_thread(lines).as_deref() == Some(id) {
                 let next = super::side::merge(&self.st.borrow().side_native, lines, id);
                 if let Some(items) = next {
-                    let rendered = super::side_source::enrich(&items, &self.st.borrow().side_sources);
+                    let rendered = super::side_tools::render(super::side_source::enrich(&items, &self.st.borrow().side_sources));
                     self.st.borrow_mut().side_native = items;
                     self.publish_snapshot(rendered);
                 }

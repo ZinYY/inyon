@@ -27,6 +27,15 @@ fn a_probe_timeout_does_not_hide_a_node_that_is_still_answering() {
 }
 
 #[test]
+fn node_inventory_recovers_promptly_with_bounded_serial_retries() {
+    for interval in [4000, 20000] {
+        assert_eq!((1..=5).map(|n| failed_probe_delay(true, n, interval)).collect::<Vec<_>>(), vec![1000, 2000, 4000, 5000, 5000]);
+    }
+    assert_eq!(failed_probe_delay(false, 1, 4000), 8000);
+    assert_eq!(failed_probe_delay(false, 9, 4000), 20000);
+}
+
+#[test]
 fn renames_and_metadata_do_not_make_live_status_look_stalled() {
     use crate::test_support::{sh, TempDir};
     let dir = TempDir::new("inyon-reporting-");

@@ -252,15 +252,23 @@ async fn run(s: Settings) -> String {
         }
         // a hub that takes the connection and drops it at once isn't tried every second
         attempt = crate::next_attempt(attempt, up);
-        let delay = crate::backoff(attempt.saturating_sub(1), Duration::from_secs(1), Duration::from_secs(30));
-        log(&format!("disconnected ({code}); retrying in {}s", (delay.as_millis() + 500) / 1000));
+        let delay = retry_delay(attempt);
+        log(&format!("disconnected ({code}); retrying in {}ms", delay.as_millis()));
         tokio::time::sleep(delay).await;
     }
 }
 
+fn retry_delay(attempt: u32) -> Duration {
+    crate::backoff(attempt.saturating_sub(1), Duration::from_secs(1), Duration::from_secs(5)).max(Duration::from_millis(250))
+}
+
 /// One connection, from opening to closing: the close code, and how long it was open (None: it never opened).
 async fn session(ws_url: &str, host: &str, bearer: &str, addrs: Option<Vec<std::net::SocketAddr>>, warning: Option<&str>) -> (u16, Option<Duration>) {
-    let socket = match crate::ws::connect_to(ws_url, &[("authorization", bearer)], addrs).await {
+    session_with_limits(ws_url, host, bearer, addrs, warning, Duration::from_secs(8), Duration::from_secs(5)).await
+}
+
+async fn session_with_limits(ws_url: &str, host: &str, bearer: &str, addrs: Option<Vec<std::net::SocketAddr>>, warning: Option<&str>, handshake: Duration, heartbeat: Duration) -> (u16, Option<Duration>) {
+    let socket = match crate::ws::connect_to_with_timeout(ws_url, &[("authorization", bearer)], addrs, handshake).await {
         Ok(s) => s,
         Err((code, _)) => return (code, None),
     };
@@ -290,7 +298,21 @@ async fn session(ws_url: &str, host: &str, bearer: &str, addrs: Option<Vec<std::
         let _ = write.close().await;
     });
     let mut code = 1006;
-    while let Some(next) = read.next().await {
+    let mut heard = tokio::time::Instant::now();
+    let mut ping = tokio::time::interval(heartbeat);
+    ping.tick().await;
+    loop {
+        let next = tokio::select! {
+            _ = tokio::time::sleep_until(heard + heartbeat * 4) => break,
+            _ = ping.tick() => {
+                if heard.elapsed() >= heartbeat {
+                    let _ = tx.send(Message::Ping(Vec::new().into()));
+                }
+                continue;
+            },
+            next = read.next() => match next { Some(next) => next, None => break },
+        };
+        if next.is_ok() { heard = tokio::time::Instant::now(); }
         match next {
             Ok(Message::Text(t)) => {
                 if let Ok(m) = serde_json::from_str::<Value>(t.as_str()) {
@@ -323,8 +345,8 @@ async fn session(ws_url: &str, host: &str, bearer: &str, addrs: Option<Vec<std::
 async fn removed_there(target: &str, bearer: &str, addrs: Option<Vec<std::net::SocketAddr>>) -> bool {
     let headers = vec![("authorization".to_string(), bearer.to_string())];
     let r = match addrs {
-        Some(addrs) => crate::http::fetch_to(target.to_string(), headers, Duration::from_secs(30), addrs).await,
-        None => crate::http::fetch("GET", target.to_string(), headers, None, Duration::from_secs(30)).await,
+        Some(addrs) => crate::http::fetch_to(target.to_string(), headers, Duration::from_secs(3), addrs).await,
+        None => crate::http::fetch("GET", target.to_string(), headers, None, Duration::from_secs(3)).await,
     };
     r.is_ok_and(|r| r.status == 410)
 }
@@ -421,6 +443,68 @@ pub fn write_private(file: &std::path::Path, data: &[u8]) -> std::io::Result<()>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reconnect_delay_is_prompt_but_never_a_busy_loop() {
+        for n in 0..100 {
+            let delay = retry_delay(n);
+            assert!((Duration::from_millis(250)..=Duration::from_secs(5)).contains(&delay));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_stalled_handshake_and_a_silent_open_socket_both_release_the_connection() {
+        for upgraded in [false, true] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await.unwrap();
+                if upgraded {
+                    let _socket = tokio_tungstenite::accept_async(tcp).await.unwrap();
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                } else {
+                    let _tcp = tcp;
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            });
+            let start = tokio::time::Instant::now();
+            let (code, up) = session_with_limits(&format!("ws://{addr}/node"), "test", "Bearer test", None, None,
+                Duration::from_millis(80), Duration::from_millis(40)).await;
+            assert_eq!(code, 1006);
+            assert_eq!(up.is_some(), upgraded);
+            assert!(start.elapsed() < Duration::from_secs(1));
+            server.abort();
+        }
+    }
+
+    #[tokio::test]
+    async fn a_quiet_healthy_hub_answers_heartbeats_without_replaying_operations() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await.unwrap();
+            let mut ws = tokio_tungstenite::accept_async(tcp).await.unwrap();
+            let mut pings = 0;
+            let mut messages = 0;
+            while let Some(Ok(m)) = ws.next().await {
+                match m {
+                    Message::Text(t) => { assert_eq!(serde_json::from_str::<Value>(&t).unwrap()["type"], "hello"); messages += 1; },
+                    Message::Ping(_) => {
+                        pings += 1;
+                        ws.flush().await.unwrap();
+                        if pings == 6 { ws.close(None).await.unwrap(); break; }
+                    },
+                    _ => {},
+                }
+            }
+            (pings, messages)
+        });
+        let (code, up) = session_with_limits(&format!("ws://{addr}/node"), "test", "Bearer test", None, None,
+            Duration::from_secs(1), Duration::from_millis(30)).await;
+        assert_ne!(code, 1006);
+        assert!(up.unwrap() >= Duration::from_millis(150));
+        assert_eq!(server.await.unwrap(), (6, 1));
+    }
 
     #[test]
     fn a_ws_address_is_plain_and_a_wss_one_is_tls_like_http_and_https() {

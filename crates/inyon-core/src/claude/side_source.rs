@@ -98,6 +98,7 @@ pub(super) fn enrich(items: &[ChatItem], sources: &[String]) -> Vec<ChatItem> {
         let turn = &items[start..end];
         let candidates: Vec<_> = turn.iter().map(|item| {
             let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = item else { return None };
+            if super::side_tools::parse(text).is_some() { return None; }
             let found: Vec<_> = sources.iter().enumerate().filter(|(_, s)| matches(text, s)).map(|(i, _)| i).collect();
             (found.len() == 1).then(|| found[0])
         }).collect();
@@ -105,6 +106,7 @@ pub(super) fn enrich(items: &[ChatItem], sources: &[String]) -> Vec<ChatItem> {
         for (item, candidate) in turn.iter().zip(&candidates) {
             let mut item = item.clone();
             if let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = &mut item {
+                if super::side_tools::parse(text).is_some() { out.push(item); continue; }
                 let matching = (*candidate).or_else(|| {
                     // A raw-formula fragment can precede its drawn replacement.
                     // Remove it only after a complete reply in this same user turn

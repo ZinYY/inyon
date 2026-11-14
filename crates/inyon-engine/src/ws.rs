@@ -72,6 +72,10 @@ pub async fn connect(url: &str, headers: &[(&str, &str)]) -> Result<Socket, (u16
 /// name kept for the Host header and the certificate. A hub whose certificate is pinned is held to
 /// it (crate::hub_tls); everything else to the usual roots.
 pub async fn connect_to(url: &str, headers: &[(&str, &str)], addrs: Option<Vec<std::net::SocketAddr>>) -> Result<Socket, (u16, String)> {
+    connect_to_with_timeout(url, headers, addrs, std::time::Duration::from_secs(30)).await
+}
+
+pub async fn connect_to_with_timeout(url: &str, headers: &[(&str, &str)], addrs: Option<Vec<std::net::SocketAddr>>, timeout: std::time::Duration) -> Result<Socket, (u16, String)> {
     let mut req = url.into_client_request().map_err(|e| (1006, e.to_string()))?;
     for (k, v) in headers {
         let name = tokio_tungstenite::tungstenite::http::HeaderName::from_bytes(k.as_bytes()).map_err(|e| (1006, e.to_string()))?;
@@ -93,7 +97,7 @@ pub async fn connect_to(url: &str, headers: &[(&str, &str)], addrs: Option<Vec<s
             }
         }
     };
-    match tokio::time::timeout(std::time::Duration::from_secs(30), connect).await {
+    match tokio::time::timeout(timeout, connect).await {
         Ok(Ok((ws, _))) => Ok(ws),
         Ok(Err(e)) => Err((1006, e)),
         Err(_) => Err((1006, "timed out".into())),

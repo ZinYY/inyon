@@ -95,6 +95,13 @@ fn poll_ms() -> u64 {
     POLL.with(Cell::get)
 }
 
+fn failed_probe_delay(node: bool, failures: u32, interval: u64) -> u64 {
+    // Node probes are serialized. Recover their cached inventory promptly after
+    // a brief tunnel stall, even while nobody has the overview open.
+    if node { 5000.min(1000 * 2u64.pow(failures.saturating_sub(1).min(3))) }
+    else { MAX_BACKOFF_MS.max(interval).min(interval * 2u64.pow(failures.min(4))) }
+}
+
 /// A hook identifies a conversation only when its ID and transcript agree.
 /// Paths and titles on their own are never proof of the current session.
 fn claude_hook_identity(data: &Value) -> Option<(String, String)> {
@@ -965,7 +972,7 @@ impl Registry {
                     console::error(&format!("probe {} delayed while node is responding: {error}", config.id));
                     self.emit(RegistryEvent::Overview);
                 }
-                next = poll_ms();
+                next = 1000;
             }
             Err(error) => {
                 let failures = {
@@ -973,7 +980,7 @@ impl Registry {
                     r.failures += 1;
                     r.failures
                 };
-                next = MAX_BACKOFF_MS.max(poll_ms()).min(poll_ms() * 2u64.pow(failures.min(4)));
+                next = failed_probe_delay(reached_through_inyon(&config), failures, poll_ms());
                 let before = rt.borrow().state.clone();
                 let replaced = self.mark_down(&rt, HostStatus::Error, &error);
                 if before.status != HostStatus::Error || before.error.as_deref() != Some(error.as_str()) || replaced {

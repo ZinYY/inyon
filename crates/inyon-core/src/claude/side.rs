@@ -88,6 +88,15 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
                 && captured.get(1).is_some_and(|l| leading_background(l) == Some(false)));
         } else if let Some(t) = line.strip_prefix("• ") {
             blocks.push((false, t.to_owned()));
+        } else if line.starts_with("  └") && (blocks.last().is_none_or(|(user, _)| *user)) {
+            // A sticky prompt sits above a clipped tool whose heading is no
+            // longer visible. These dimmed rows are output, not user input.
+            let dim = captured.get(row).is_some_and(|raw| re!(r"\x1b\[(?:\d+;)*2m").is_match(raw));
+            if dim || user_complete {
+                blocks.push((false, format!("Tool output\n{}", line.trim_start())));
+            } else if let Some((_, t)) = blocks.last_mut() {
+                t.push('\n'); t.push_str(line.strip_prefix("  ").unwrap_or(line));
+            }
         } else if let Some((user, t)) = blocks.last_mut() {
             if *user && user_complete {
                 continuation.push_str(line.strip_prefix("  ").unwrap_or(line)); continuation.push('\n');
@@ -100,7 +109,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
         }
     }
     for (user, t) in &mut blocks {
-        *t = if *user { t.trim().to_owned() } else { super::side_table::restore(t.trim()) };
+        *t = if *user || super::side_tools::parse(t.trim()).is_some() { t.trim().to_owned() } else { super::side_table::restore(t.trim()) };
     }
     // A streamed list can briefly contain only its bullet and an opening
     // Markdown delimiter. It has no text anchor yet; publishing it would leave
@@ -112,7 +121,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     let mut out = previous.to_vec();
     for item in &mut out {
         if let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = item {
-            *text = super::side_table::restore(text);
+            if super::side_tools::parse(text).is_none() { *text = super::side_table::restore(text); }
         }
     }
     if !continuation.trim().is_empty() {
@@ -123,10 +132,11 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     // Codex redraws raw Markdown as styled text and rewraps it on completion.
     // Compare content rather than terminal formatting. Match historical windows
     // too: a repeated/older capture must update its original messages, not append.
-    let old: Vec<_> = out.iter().map(|item| { let (role, s) = text(item); (role, bare(s)) }).collect();
-    let new: Vec<_> = blocks.iter().map(|(role, s)| (*role, bare(s))).collect();
-    let compatible = |a: &(bool, String), b: &(bool, String)| {
+    let old: Vec<_> = out.iter().map(|item| { let (role, s) = text(item); (role, if role { bare(s) } else { super::side_tools::identity(s) }, s) }).collect();
+    let new: Vec<_> = blocks.iter().map(|(role, s)| (*role, if *role { bare(s) } else { super::side_tools::identity(s) }, s.as_str())).collect();
+    let compatible = |a: &(bool, String, &str), b: &(bool, String, &str)| {
         a.0 == b.0 && (a.1 == b.1 || (!a.0 && same_reply(&a.1, &b.1))
+            || (!a.0 && super::side_tools::same_clipped(a.2, b.2))
             || (a.0 && a.1.len().min(b.1.len()) >= 12 && (a.1.starts_with(&b.1) || b.1.starts_with(&a.1))))
     };
     let indices = (0..out.len()).filter_map(|start| {
@@ -157,6 +167,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
             // A narrower viewport must not truncate a reply already seen in full.
             let before = bare(text(old).1);
             let now = bare(&value);
+            if super::side_tools::parse(&value).is_some_and(|t| t.orphan) && super::side_tools::parse(text(old).1).is_some_and(|t| !t.orphan) { continue; }
             if before.starts_with(&now) || (!user && same_reply(&before, &now) && before.len() >= now.len()) { continue; }
         }
         let seq = out.get(index).map(ChatItem::seq).unwrap_or_else(|| out.last().map_or(0, |it| it.seq()+1));
@@ -173,6 +184,49 @@ mod tests {
     use super::*;
     fn screen(body: &[&str]) -> Vec<String> {
         body.iter().map(|s| s.to_string()).chain(["› Ask a follow-up question".into(), "  00000000-0000-0000-0000-000000000001 · GPT-6-Astra high".into(), "  Side from main thread · ⌃/ to switch · ⌃c to close".into()]).collect()
+    }
+    #[test]
+    fn sticky_prompt_and_clipped_tools_render_separately_without_duplicates() {
+        let clipped = screen(&["\x1b[1;2m› Could you compare two quiet walks?\x1b[0m",
+            "\x1b[2m  └ route=coast distance=2.5km duration=40min", "    + 21 lines (^t to expand)",
+            "• Ran printf 'coffee options'", "  └ cafe=harbor", "    + 17 lines (^t to expand)",
+            "• Try the coast and the harbor."]);
+        let mut items = merge(&[], &clipped, "side").unwrap();
+        assert_eq!(items.len(), 4);
+        assert_eq!(text(&items[0]).1, "Could you compare two quiet walks?");
+        let complete = screen(&["› Could you compare two quiet walks?",
+            "• Ran printf 'walking options'", "  └ route=coast distance=2.5km duration=40min", "    + 21 lines (^t to expand)",
+            "• Ran printf 'coffee options'", "  └ cafe=harbor", "    + 17 lines (^t to expand)",
+            "• Try the coast and the harbor."]);
+        items = merge(&items, &complete, "side").unwrap();
+        for frame in [&clipped, &complete].into_iter().cycle().take(30) {
+            assert!(merge(&items, frame, "side").is_none());
+        }
+        let rendered = super::super::side_tools::render(super::super::side_source::enrich(&items, &[]));
+        assert_eq!(rendered.len(), 6);
+        assert!(matches!(&rendered[1], ChatItem::Assistant { block: AssistantBlock::ToolUse { name, .. }, .. } if name == "Bash"));
+        assert!(matches!(&rendered[2], ChatItem::ToolResult { truncated: Some(true), .. }));
+        let keys: std::collections::HashSet<_> = rendered.iter().map(ChatItem::seq).collect();
+        assert_eq!(keys.len(), rendered.len());
+    }
+
+    #[test]
+    fn running_tool_completion_and_followups_keep_the_same_card() {
+        let mut items = merge(&[], &screen(&["› What day is it?", "• Running date"]), "side").unwrap();
+        let done = screen(&["› What day is it?", "• Ran date", "  └ Saturday", "• It is Saturday."]);
+        items = merge(&items, &done, "side").unwrap();
+        let next = screen(&["› What day is it?", "• It is Saturday.", "› And the time?", "• Ran date", "  └ 12:00", "• It is noon."]);
+        items = merge(&items, &next, "side").unwrap();
+        for frame in [&done, &next].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+        assert_eq!(items.len(), 6);
+        assert_eq!(super::super::side_tools::render(super::super::side_source::enrich(&items, &[])).iter().filter(|i| matches!(i, ChatItem::ToolResult { .. })).count(), 2);
+    }
+
+    #[test]
+    fn a_user_diagram_stays_in_the_question() {
+        let items = merge(&[], &screen(&["› Can you explain this diagram?", "  └ a branch", "• It is a tree."]), "side").unwrap();
+        assert_eq!(items.len(), 2);
+        assert!(text(&items[0]).1.ends_with("└ a branch"));
     }
     #[test]
     fn streams_then_preserves_reply_and_keeps_followups() {

@@ -10,9 +10,21 @@ import { api, emit } from '../../test/fakes.ts'
 test('reloading chat rebuilds the reader without sending an agent command', async () => {
   const { result } = renderHook(() => useSession('box', '%1'))
   await result.current.actions.reloadChat()
-  expect(api.refreshConversation).toHaveBeenCalledWith('box', '%1', expect.objectContaining({ allowWorking: true, allowPrompt: true }))
+  expect(api.refreshConversation).toHaveBeenCalledWith('box', '%1', expect.objectContaining({ allowStopped: true, allowWorking: true, allowPrompt: true }))
   expect(api.send).not.toHaveBeenCalled()
   expect(api.restart).not.toHaveBeenCalled()
+})
+
+test('an online shell does not inherit the agent identity from a saved chat', async () => {
+  useStore.setState({ connected: true, hostsStale: false, hosts: [host('box', { panes: [agentPane('%1', 'codex', { agent: undefined })] })] })
+  emit({ t: 'chat.info', key: chatKey('box', '%1'), info: chatInfo({ agent: 'codex', sessionId: 'old', running: false, title: 'Old conversation' }) })
+  const { result } = renderHook(() => useSession('box', '%1'))
+  await flush()
+  expect(result.current.agent).toBeUndefined()
+  expect(result.current.info).toBeUndefined()
+  expect(result.current.locked).toBe(false)
+  act(() => useStore.setState({ connected: false }))
+  expect(result.current.agent).toBe('codex')
 })
 
 test('Claude shows confirmed controls before another turn, without carrying them across resume', async () => {

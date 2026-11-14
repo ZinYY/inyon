@@ -111,6 +111,7 @@ export function SessionHeader({
   return (
     <header className="pt-safe z-10 shrink-0 border-b border-line bg-bg">
       <SessionHeaderBar>
+        <div className="contents" inert={s.locked}>
         <Link to="/" aria-label="Back" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-fg-2 hover:bg-hover relative after:absolute after:-inset-1 md:hidden">
           <ChevronLeft className="size-5" />
         </Link>
@@ -159,6 +160,7 @@ export function SessionHeader({
           />
         )}
         {/* the pill slides between the two views; on a small screen each is its icon alone */}
+        </div>
         <Segmented
           size="sm"
           label="View"
@@ -169,6 +171,7 @@ export function SessionHeader({
             { v: 'terminal', name: 'Terminal', label: <><SquareTerminal className="size-3.5" /><span className="hidden lg:inline">Terminal</span></> },
           ]}
         />
+        <div className="contents" inert={s.locked}>
         {agent && (
           <span className="min-[1180px]:hidden">
             <IconButton label="Running tasks, subagents and changes" onClick={() => openSheet('activity')}>
@@ -222,6 +225,7 @@ export function SessionHeader({
             )}
           />
         )}
+        </div>
       </SessionHeaderBar>
       {ref && (
         <RenameSheet

@@ -9,6 +9,7 @@ export interface RefreshOptions {
   session?: string
   differentFrom?: string
   stopped?: boolean
+  allowStopped?: boolean
   closed?: boolean
   allowWorking?: boolean
   allowPrompt?: boolean
@@ -124,7 +125,7 @@ export async function changeConversation(
     if (result && typeof result === 'object' && 'pane' in result && typeof result.pane === 'string') operation.target = result.pane
     return await finish(host, pane, operation)
   } catch (e) {
-    patchChat(key, () => ({ clearing: { ...operation, phase: 'failed', error: (e as Error).message } }))
+    if (current(key, operation)) patchChat(key, () => ({ clearing: { ...operation, phase: 'failed', error: (e as Error).message } }))
     return false
   } finally { unsubscribe() }
 }

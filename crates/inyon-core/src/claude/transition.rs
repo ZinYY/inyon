@@ -15,6 +15,8 @@ pub struct RefreshOptions {
     pub session: Option<String>,
     pub different_from: Option<String>,
     #[serde(default)] pub stopped: bool,
+    /// A manual reload can finish at a shell if the agent has already exited.
+    #[serde(default)] pub allow_stopped: bool,
     #[serde(default)] pub allow_working: bool,
     #[serde(default)] pub allow_prompt: bool,
     /// Reconnect: validate the current reader without discarding its history/cache.
@@ -54,7 +56,7 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
             continue;
         };
         let agent = found.pane.agent.as_ref();
-        let stopped = options.stopped || options.read_only && agent.is_none();
+        let stopped = options.stopped || (options.read_only || options.allow_stopped) && agent.is_none();
         let identity = agent.map(|a| (a.kind, a.pid, a.session_id.clone()));
         let matches = if stopped { agent.is_none() } else { agent.is_some_and(|a| {
             options.agent.is_none_or(|k| k == a.kind)
@@ -112,6 +114,17 @@ mod tests {
             let result = refresh("discover", "%9", RefreshOptions { stopped: true, ..Default::default() }).await.unwrap();
             assert!(matches!(result.reset, ServerMsg::ChatReset { .. }));
             assert!(!fake.cmds().iter().any(|cmd| cmd.contains("send-keys") || cmd.contains("new-window")));
+        });
+    }
+    #[test]
+    fn reloading_an_exited_agent_completes_at_the_shell() {
+        crate::test_support::rt::run(|| async {
+            let fake = crate::test_support::fake::Fake::install(|_, _, _| crate::test_support::fake::ok(""));
+            let rt = crate::test_support::machine("shell", "local", serde_json::json!([{ "id": "%9" }]));
+            rt.borrow_mut().hold_polls();
+            let result = refresh("shell", "%9", RefreshOptions { agent: Some(AgentKind::Codex), allow_stopped: true, ..Default::default() }).await.unwrap();
+            assert!(matches!(result.reset, ServerMsg::ChatReset { info, .. } if !info.running));
+            assert!(!fake.cmds().iter().any(|cmd| cmd.contains("send-keys")));
         });
     }
     #[test]

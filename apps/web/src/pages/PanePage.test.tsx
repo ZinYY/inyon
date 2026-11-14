@@ -50,7 +50,20 @@ test('the chat comes in the way the terminal does, and again for another session
   expect(screen.getByRole('radiogroup', { name: 'View' })).toBeTruthy()
   expect(screen.getByRole('radio', { name: 'Chat' }).getAttribute('aria-checked')).toBe('true')
   expect(screen.getByRole('radio', { name: 'Terminal' })).toBeTruthy()
+  expect(screen.getByRole('radio', { name: 'Terminal' }).closest('[inert]')).toBeNull()
+  for (const more of screen.getAllByRole('button', { name: 'More' })) expect(more.closest('[inert]')).not.toBeNull()
   expect(container.querySelector('.animate-page')).toBe(chat)
+  fireEvent.click(screen.getByRole('radio', { name: 'Terminal' }))
+  await waitFor(() => expect(screen.getByRole('radio', { name: 'Terminal' }).getAttribute('aria-checked')).toBe('true'))
+})
+
+test('opening Chat on a fresh shell offers agents without waiting for a transcript', async () => {
+  useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', 'codex', { agent: undefined })] })], hostsLoaded: true, hostsStale: false, connected: true })
+  await page()
+  fireEvent.click(screen.getByRole('radio', { name: 'Chat' }))
+  await waitFor(() => expect(screen.getByText('No agent is running in this pane')).toBeTruthy())
+  expect(screen.queryByText('Loading the conversation')).toBeNull()
+  expect(screen.getByRole('radio', { name: 'Terminal' }).closest('[inert]')).toBeNull()
 })
 
 test('the companion goes by that name in its header, whatever its conversation is called', async () => {
