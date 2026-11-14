@@ -22,11 +22,16 @@ fn matches(native: &str, source: &str) -> bool {
     // Drawn fractions reorder numerator/denominator rows and remove TeX syntax.
     // Require substantial identical prose at both ends and all numeric values;
     // an ambiguous or formula-only screen stays in its native representation.
+    let (a, b) = (math_content(native), math_content(source));
     re!(r"\\[\[(]|\$").is_match(source)
         && a.chars().count() >= 64 && b.chars().count() >= 64
         && a.chars().take(24).eq(b.chars().take(24))
         && a.chars().rev().take(24).eq(b.chars().rev().take(24))
         && numbers(native) == numbers(source)
+}
+
+fn math_content(text: &str) -> String {
+    bare(&re!(r"\\(?:times|cdot|frac|dfrac|tfrac|text|mathrm|mathbf|mathit|left|right|displaystyle)\b").replace_all(text, ""))
 }
 
 fn preserve_drawn_math(text: &str) -> String {
@@ -38,18 +43,43 @@ fn preserve_drawn_math(text: &str) -> String {
 }
 
 pub(super) fn enrich(items: &[ChatItem], sources: &[String]) -> Vec<ChatItem> {
-    items.iter().cloned().map(|mut item| {
-        if let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = &mut item {
-            let mut found = sources.iter().filter(|s| matches(text, s));
-            if let Some(source) = found.next() {
-                if found.next().is_none() { *text = source.clone(); return item; }
+    let mut out = vec![];
+    let mut start = 0;
+    while start < items.len() {
+        let end = (start+1..items.len()).find(|&i| matches!(items[i], ChatItem::User { .. })).unwrap_or(items.len());
+        let turn = &items[start..end];
+        let candidates: Vec<_> = turn.iter().map(|item| {
+            let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = item else { return None };
+            let found: Vec<_> = sources.iter().enumerate().filter(|(_, s)| matches(text, s)).map(|(i, _)| i).collect();
+            (found.len() == 1).then(|| found[0])
+        }).collect();
+        let mut used = std::collections::HashSet::new();
+        for (item, candidate) in turn.iter().zip(&candidates) {
+            let mut item = item.clone();
+            if let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = &mut item {
+                let matching = (*candidate).or_else(|| {
+                    // A raw-formula fragment can precede its drawn replacement.
+                    // Remove it only after a complete reply in this same user turn
+                    // has uniquely established the source; never fill a new partial
+                    // answer from an older, coincidentally matching source.
+                    let prefix = math_content(text);
+                    if prefix.len() < 24 { return None; }
+                    let found: std::collections::HashSet<_> = candidates.iter().flatten().copied()
+                        .filter(|&i| math_content(&sources[i]).starts_with(&prefix)).collect();
+                    (found.len() == 1).then(|| *found.iter().next().unwrap())
+                });
+                if let Some(i) = matching {
+                    if !used.insert(i) { continue; }
+                    *text = sources[i].clone();
+                } else {
+                    *text = preserve_drawn_math(text);
+                }
             }
-            // When no exact source survived, keep a drawn fraction's spatial
-            // meaning instead of collapsing its rows into a prose paragraph.
-            *text = preserve_drawn_math(text);
+            out.push(item);
         }
-        item
-    }).collect()
+        start = end;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -80,5 +110,26 @@ You would walk **1.25 kilometres**, or **1,250 metres**.";
         let drawing = "      25\nd = 3 ── = 1.25\n      60";
         assert_eq!(preserve_drawn_math(drawing), format!("```terminal-math\n{drawing}\n```"));
         assert_eq!(preserve_drawn_math("A normal paragraph."), "A normal paragraph.");
+    }
+
+    #[test]
+    fn complete_math_source_removes_its_provisional_fragment_only_in_the_same_turn() {
+        let user = |seq| ChatItem::User { seq, uuid: format!("u{seq}"), ts: String::new(), text: "How far can I stroll?".into(), images: 0, queued: None, shell: None };
+        let assistant = |seq, text: &str| ChatItem::Assistant { seq, uuid: format!("a{seq}"), msg_id: format!("a{seq}"), ts: String::new(), model: None, block: AssistantBlock::Text { text: text.into() } };
+        let source = r"Distance is \(d=v \times t\), with time in hours. At 3 km/h:
+
+\[d=3\times\frac{20}{60}=1\]
+
+Either makes an easy stroll before coffee.".to_owned();
+        let partial = assistant(1, "Distance is d = v × t, with time in hours. At 3 km/h:\n\n\\[d=3\\times\\frac");
+        let complete = assistant(2, "Distance is d = v × t, with time in hours. At 3 km/h:\n\n        20\nd = 3 × ── = 1\n        60\n\nEither makes an easy stroll before coffee.");
+        let items = vec![user(0), partial.clone()];
+        assert_eq!(enrich(&items, &[source.clone()]), items, "an old source cannot complete a new partial answer");
+        let items = vec![user(0), partial, complete.clone(), user(3), complete];
+        let result = enrich(&items, &[source.clone()]);
+        assert_eq!(result.len(), 4);
+        for index in [1, 3] {
+            assert!(matches!(&result[index], ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } if text == &source));
+        }
     }
 }
