@@ -135,6 +135,9 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     let old: Vec<_> = out.iter().map(|item| { let (role, s) = text(item); (role, if role { bare(s) } else { super::side_tools::identity(s) }, s) }).collect();
     let new: Vec<_> = blocks.iter().map(|(role, s)| (*role, if *role { bare(s) } else { super::side_tools::identity(s) }, s.as_str())).collect();
     let compatible = |a: &(bool, String, &str), b: &(bool, String, &str)| {
+        if !a.0 && !b.0 {
+            if let Some(same) = super::side_tools::compatible(a.2, b.2) { return same; }
+        }
         a.0 == b.0 && (a.1 == b.1 || (!a.0 && same_reply(&a.1, &b.1))
             || (!a.0 && super::side_tools::same_clipped(a.2, b.2))
             || (a.0 && a.1.len().min(b.1.len()) >= 12 && (a.1.starts_with(&b.1) || b.1.starts_with(&a.1))))
@@ -167,6 +170,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
             // A narrower viewport must not truncate a reply already seen in full.
             let before = bare(text(old).1);
             let now = bare(&value);
+            if super::side_tools::incomplete_after_result(text(old).1, &value) { continue; }
             if super::side_tools::parse(&value).is_some_and(|t| t.orphan) && super::side_tools::parse(text(old).1).is_some_and(|t| !t.orphan) { continue; }
             if before.starts_with(&now) || (!user && same_reply(&before, &now) && before.len() >= now.len()) { continue; }
         }
@@ -184,6 +188,41 @@ mod tests {
     use super::*;
     fn screen(body: &[&str]) -> Vec<String> {
         body.iter().map(|s| s.to_string()).chain(["› Ask a follow-up question".into(), "  00000000-0000-0000-0000-000000000001 · GPT-6-Astra high".into(), "  Side from main thread · ⌃/ to switch · ⌃c to close".into()]).collect()
+    }
+    #[test]
+    fn failed_execution_is_an_error_card_and_replaces_its_running_frame() {
+        let running = screen(&["› How long would the walk take?", "• Running python3 -c 'print(50 / 0)'"]);
+        let mut items = merge(&[], &running, "side").unwrap();
+        let failed = screen(&["› How long would the walk take?", "• Failed (exit 1) python3 -c 'print(50 / 0)'", "  └ ZeroDivisionError: division by zero", "    + 3 lines (^t to expand)", "• I will use a valid walking speed."]);
+        items = merge(&items, &failed, "side").unwrap();
+        assert_eq!(items.len(), 3);
+        for frame in [&running, &failed].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+        let rendered = super::super::side_tools::render(super::super::side_source::enrich(&items, &[]));
+        assert_eq!(rendered.len(), 4);
+        assert!(matches!(&rendered[1], ChatItem::Assistant { block: AssistantBlock::ToolUse { name, input, .. }, .. } if name == "Bash" && input["command"] == "python3 -c 'print(50 / 0)'"));
+        assert!(matches!(&rendered[2], ChatItem::ToolResult { is_error: true, text, truncated: Some(true), .. } if text.contains("ZeroDivisionError")));
+    }
+
+    #[test]
+    fn identical_truncated_command_headers_keep_distinct_outputs_and_positions() {
+        let command = "• Ran python3 -c 'from decimal import Decimal; distance_km = Decimal(5); speed_kmh = Decimal(3); …";
+        let full = screen(&["› Compare three relaxed walks.", command, "  └ coast: 50 minutes, including a short rest", command, "  └ harbor: 70 minutes, including a short rest", command, "  └ garden: 90 minutes, including a short rest", "• The coast is shortest."]);
+        let later = screen(&["› Compare three relaxed walks.", command, "  └ harbor: 70 minutes, including a short rest", command, "  └ garden: 90 minutes, including a short rest", "• The coast is shortest."]);
+        let items = merge(&[], &full, "side").unwrap();
+        for frame in [&later, &full].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+        assert_eq!(items.len(), 5);
+        assert!(text(&items[1]).1.contains("coast: 50"));
+        assert!(text(&items[2]).1.contains("harbor: 70"));
+        assert!(text(&items[3]).1.contains("garden: 90"));
+    }
+
+    #[test]
+    fn clipped_tail_of_tool_output_matches_without_appending_old_calls_after_the_answer() {
+        let full = screen(&["› Compare the walk options.", "• Ran python3 walks.py", "  └ Coast walk details", "    distance=2500m; duration=50min; pace=gentle", "    + 8 lines (^t to expand)", "• Ran python3 coffee.py", "  └ The garden cafe is open after the walk.", "• Take the coast route first."]);
+        let clipped = screen(&["› Compare the walk options.", "\x1b[2m  └ distance=2500m; duration=50min; pace=gentle", "    + 8 lines (^t to expand)", "• Ran python3 coffee.py", "  └ The garden cafe is open after the walk.", "• Take the coast route first."]);
+        let items = merge(&[], &full, "side").unwrap();
+        for frame in [&clipped, &full].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+        assert_eq!(items.len(), 4);
     }
     #[test]
     fn sticky_prompt_and_clipped_tools_render_separately_without_duplicates() {
