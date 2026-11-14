@@ -18,16 +18,49 @@ fn matches(native: &str, source: &str) -> bool {
     let a = bare(native);
     let b = bare(source);
     if a.is_empty() { return false; }
+    let math = re!(r"\\[\[(]|\$").is_match(source);
+    if math && operators(native) != operators(source) { return false; }
     if a == b { return true; }
     // Drawn fractions reorder numerator/denominator rows and remove TeX syntax.
     // Require substantial identical prose at both ends and all numeric values;
     // an ambiguous or formula-only screen stays in its native representation.
     let (a, b) = (math_content(native), math_content(source));
-    re!(r"\\[\[(]|\$").is_match(source)
+    math
         && a.chars().count() >= 64 && b.chars().count() >= 64
-        && a.chars().take(24).eq(b.chars().take(24))
-        && a.chars().rev().take(24).eq(b.chars().rev().take(24))
+        && ((a.chars().take(24).eq(b.chars().take(24)) && a.chars().rev().take(24).eq(b.chars().rev().take(24)))
+            || matching_prose(native, source))
         && numbers(native) == numbers(source)
+}
+
+fn operators(text: &str) -> Vec<char> {
+    let text = text.replace("\\times", "×").replace("\\cdot", "×").replace("\\pm", "±")
+        .replace("\\leq", "≤").replace("\\geq", "≥").replace('−', "-").replace('·', "×");
+    let mut symbols: Vec<_> = text.lines().filter(|line| !line.chars().all(|c| matches!(c, ' ' | '|' | '-' | ':')))
+        .flat_map(|line| line.trim_start().strip_prefix("- ").unwrap_or(line).chars())
+        .filter(|c| matches!(c, '+' | '-' | '=' | '×' | '±' | '<' | '>' | '≤' | '≥')).collect();
+    symbols.sort();
+    symbols
+}
+
+fn matching_prose(native: &str, source: &str) -> bool {
+    let pattern = re!(r"\\\(.*?\\\)|\\\[.*?\\\]|\$\$.*?\$\$|\$[^\n$]*?\$", "s");
+    let mut chunks = vec![];
+    let mut from = 0;
+    for math in pattern.find_iter(source) {
+        chunks.push(bare(&source[from..math.start()]));
+        from = math.end();
+    }
+    if from == 0 { return false; }
+    chunks.push(bare(&source[from..]));
+    chunks.retain(|s| s.chars().count() >= 8);
+    if chunks.iter().map(|s| s.chars().count()).sum::<usize>() < 64 { return false; }
+    let native = bare(native);
+    let mut cursor = 0;
+    for chunk in chunks {
+        let Some(at) = native[cursor..].find(&chunk) else { return false; };
+        cursor += at + chunk.len();
+    }
+    true
 }
 
 fn math_content(text: &str) -> String {
@@ -110,6 +143,15 @@ You would walk **1.25 kilometres**, or **1,250 metres**.";
         let drawing = "      25\nd = 3 ── = 1.25\n      60";
         assert_eq!(preserve_drawn_math(drawing), format!("```terminal-math\n{drawing}\n```"));
         assert_eq!(preserve_drawn_math("A normal paragraph."), "A normal paragraph.");
+    }
+
+    #[test]
+    fn formula_at_the_end_uses_all_surrounding_prose_and_preserves_operators() {
+        let source = "| Duration | Distance at 3 km/h |\n|---|---|\n| 20 minutes | 1 km |\n| 30 minutes | 1.5 km |\n\nThe general formula is \\(d = v \\times t\\), with time in hours.\n\nFor 30 minutes:\n\\[\nd=3\\times\\frac{30}{60}=1.5\\text{ km}\n\\]";
+        let native = "Duration Distance at 3 km/h\n20 minutes 1 km\n30 minutes 1.5 km\n\nThe general formula is d = v × t, with time in hours.\n\nFor 30 minutes:\n        30\nd = 3 × ── = 1.5 km\n        60";
+        assert!(matches(native, source));
+        assert!(!matches(&native.replace('×', "+"), source));
+        assert!(!matches(&native.replace("1.5", "1.7"), source));
     }
 
     #[test]

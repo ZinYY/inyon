@@ -51,6 +51,7 @@ class Sources:
 
 
 def main():
+    sys.stdout.reconfigure(encoding='utf-8')
     pid, started = int(sys.argv[1]), float(sys.argv[2])
     path = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'logs_2.sqlite'
     stop = threading.Event()
