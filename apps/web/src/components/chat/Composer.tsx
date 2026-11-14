@@ -15,6 +15,7 @@ import { openMenu } from '../ui/primitives.tsx'
 import { contextMenu } from '../ui/ContextMenu.tsx'
 import { keyLabel } from '../../lib/keys.ts'
 import { accepted } from '../../lib/pending.ts'
+import { clearConversation, isClearing, isClearCommand } from '../../lib/clearConversation.ts'
 
 /** commands that open a picker in the agent's terminal; the composer's own menus (and OpenCode's providers sheet) do the job */
 const MENU_COMMANDS: Record<string, string> = { '/model': 'model', '/models': 'model', '/effort': 'effort', '/variants': 'effort', '/agents': 'mode', '/agent': 'mode', '/connect': 'providers' }
@@ -153,11 +154,13 @@ export function Composer({
   const sent = useRef<{ text: string; at: number }>(undefined)
   /** user edits: save locally and push to the hub (which mirrors into the terminal) */
   const setText = (v: string | ((p: string) => string)) => {
+    if (isClearing(host, pane)) return
     setTextState((prev) => {
       const next = typeof v === 'function' ? v(prev) : v
       clearTimeout(pushTimer.current)
       const push = (pending.current = () => {
         pending.current = undefined
+        if (isClearing(host, pane)) return
         if (next !== synced.current) {
           synced.current = next
           socket.send({ t: 'draft', host, pane, text: next })
@@ -431,6 +434,7 @@ export function Composer({
   const ready = files.filter((f) => f.status === 'done' && f.path)
 
   const send = async (value = text) => {
+    if (disabled || isClearing(host, pane)) return
     let msg = value.trim()
     if (uploading) return
     // a bare "/model" or "/resume" would open the agent's terminal menu; the app has its own
@@ -441,6 +445,11 @@ export function Composer({
       return
     }
     if (failed) return
+    if (!ready.length && isClearCommand(agent, msg)) {
+      handedOver()
+      await clearConversation(host, pane, msg)
+      return
+    }
     if (ready.length) msg = `${msg}${msg ? '\n\n' : ''}Attached files:\n${ready.map((f) => f.path).join('\n')}`
     if (!msg) return
     const id = Math.random().toString(36).slice(2)
@@ -491,6 +500,7 @@ export function Composer({
   }
   const [later, setLater] = useState(false)
   const hold = async () => {
+    if (disabled || isClearing(host, pane)) return
     const msg = text.trim()
     if (!msg || uploading || files.length) return
     try {
@@ -504,6 +514,7 @@ export function Composer({
 
   const [stopping, setStopping] = useState(false)
   const stop = async () => {
+    if (disabled || isClearing(host, pane)) return
     setStopping(true)
     haptic('warning')
     try {

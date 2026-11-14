@@ -21,6 +21,30 @@ use crate::tmux::tmux::{AgentProc, ProbeResult, TmuxProbe};
 
 const R100: usize = 100;
 
+#[test]
+fn clear_waits_for_a_new_identity_and_a_ready_empty_input() {
+    let ready: ScreenState = serde_json::from_value(json!({ "working": false, "width": 100, "inputVisible": true })).unwrap();
+    assert!(!clear_ready(Some("old"), Some("old"), false, &ready));
+    assert!(!clear_ready(Some("old"), None, false, &ready));
+    assert!(clear_ready(Some("old"), Some("new"), false, &ready));
+    assert!(clear_ready(Some("old"), None, true, &ready));
+    assert!(!clear_ready(Some("old"), Some("new"), false, &ScreenState { working: true, ..ready.clone() }));
+    assert!(!clear_ready(Some("old"), Some("new"), false, &ScreenState { input_visible: Some(false), ..ready.clone() }));
+    assert!(!clear_ready(Some("old"), Some("new"), false, &ScreenState { draft: Some("/clear".into()), ..ready.clone() }));
+    let prompt = serde_json::from_value(json!({ "body": ["Confirm?"], "options": [], "multi": false })).unwrap();
+    assert!(!clear_ready(Some("old"), Some("new"), false, &ScreenState { prompt: Some(prompt), ..ready }));
+}
+
+#[test]
+fn only_clear_commands_hold_the_keyboard_for_a_conversation_reset() {
+    for command in ["/clear", " /new\n"] { assert!(clears_conversation(AgentKind::Codex, command)); }
+    assert!(clears_conversation(AgentKind::Claude, "/clear"));
+    for command in ["/clear extra", "/goal clear", "Explain /clear", "/clear\nhello"] {
+        assert!(!clears_conversation(AgentKind::Codex, command));
+    }
+    assert!(!clears_conversation(AgentKind::Claude, "/new"));
+}
+
 fn rule(n: usize) -> String {
     "─".repeat(n)
 }

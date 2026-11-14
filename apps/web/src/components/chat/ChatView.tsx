@@ -39,6 +39,7 @@ const NO_LIVE: LiveItem[] = []
 export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }: { host: string; pane: string; agent?: AgentKind; onTerminal: () => void; controls?: React.ReactNode; ultracode?: boolean }) {
   const key = chatKey(host, pane)
   const chat = useStore((s) => s.chats[key])
+  const clearing = !!chat?.clearing
   const hubUp = useStore((s) => s.connected)
   const machine = useStore((s) => s.hosts.find((h) => h.config.id === host))
   const machineDown = !!machine && machine.status !== 'online'
@@ -495,11 +496,11 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                 ) : machineDown ? (
                   <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3">{machine!.config.name} is offline. This is the conversation as last seen; you can send again once it reconnects.<HelpLink id={host} /></div>
                 ) : null}
-                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected} /> : textQuestion && chat?.info?.sessionId ?
+                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected || clearing} /> : textQuestion && chat?.info?.sessionId ?
                   <PromptCard key={`${chat.info.sessionId}:${textQuestion.call}:${textQuestion.index}`} host={host} pane={pane}
-                    disabled={!connected || identifying || switching}
+                    disabled={!connected || identifying || switching || clearing}
                     prompt={{ body: [textQuestion.question], options: [], multi: false, input: { label: 'Your answer', multiline: true } }}
-                    onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching} controls={controls} ultracode={ultracode} />}
+                    onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching || clearing} controls={controls} ultracode={ultracode} />}
               </ComposerDock>
             )}
           </div>

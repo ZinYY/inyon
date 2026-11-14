@@ -11,9 +11,12 @@ import { reuse } from './reuse.ts'
 import { allPanes } from './overview.ts'
 import { clearSnapshots, loadChat, loadOrganize, loadOverview, saveChat, saveOrganize, saveOverview } from './snapshot.ts'
 import { mergeOrganize, NO_ORGANIZE } from './organize.ts'
+import type { ClearingConversation } from './clearConversation.ts'
 export { norm, msgKey, PENDING_MS, type PendingMessage } from './pending.ts'
 
 export interface ChatState {
+  /** Local interaction lock until /clear completes and its fresh snapshot arrives. */
+  clearing?: ClearingConversation
   info?: ChatInfo
   items: ChatItem[]
   hasMore: boolean

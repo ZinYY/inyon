@@ -14,6 +14,7 @@ import { SignInSheet } from '../components/SignInSheet.tsx'
 import { useSession } from '../components/session/useSession.ts'
 import { SessionHeader } from '../components/session/SessionHeader.tsx'
 import { ComposerControls } from '../components/session/ComposerControls.tsx'
+import { ClearingConversation } from '../components/chat/ClearingConversation.tsx'
 import type { PanelTab } from '../components/session/Panels.tsx'
 
 // the side panel and its sheets bring the markdown renderer: load them with the chat, not the app
@@ -113,57 +114,60 @@ export function PanePage() {
 
   return (
     <ChatActionsContext.Provider value={actions}>
-      <SkinScope agent={agent} className="flex min-h-0 flex-1 flex-col bg-bg text-fg">
-        <SessionHeader
-          s={s}
-          view={view}
-          setView={setView}
-          panelOpen={sidePanel}
-          togglePanel={() => setSettings({ sidePanel: !sidePanel })}
-          openSheet={(which) => {
-            if (which === 'activity' && showPanel) setTab('activity')
-            else setSheet(which)
-          }}
-        />
-        {/* an agent that stays in its terminal asks you to sign in there itself */}
-        {agent && agent !== 'claude' && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
-          <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">
-            <LogIn className="size-4 shrink-0 text-warn" />
-            <span className="min-w-0 flex-1">No default {agentDef(agent).name} sign-in detected on {ref.host.config.name}. This session may use its own API configuration.</span>
-            <Button size="xs" variant="primary" onClick={() => setSignIn(true)}>Sign in</Button>
-          </div>
-        )}
-        {ref && <SignInSheet hostId={ref.host.config.id} hostName={ref.host.config.name} agent={signIn && agent ? agent : null} onClose={() => setSignIn(false)} />}
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <Suspense fallback={<Loading machine={ref?.host.config.name} />}>
-              {!ref && !info ? (
-                <Loading />
-              ) : view === 'chat' ? (
-                // each view rises in over the one it replaces; another session's chat comes in the same way
-                <div key={`chat:${host}${pane}`} className="animate-page flex min-h-0 flex-1 flex-col">
-                  {agent === 'devin' ? <DevinPaneChat host={host} pane={pane} /> : <ChatView host={host} pane={pane} agent={agent} onTerminal={() => setView('terminal')} controls={agent ? <ComposerControls s={s} /> : undefined} ultracode={s.ultracode} />}
-                </div>
-              ) : (
-                <div key="terminal" className="animate-page flex min-h-0 flex-1 flex-col">
-                  <TerminalView key={`${host}${pane}`} host={host} pane={pane} agent={agent} />
-                </div>
-              )}
-            </Suspense>
-          </div>
-          {panelShown && (
-            // an empty panel holds the room while the real one loads, so the chat doesn't get wider and narrower again
-            <Suspense fallback={<aside className="w-[420px] shrink-0 border-l border-line bg-sidebar 2xl:w-[480px]" />}>
-              <SidePanel s={s} items={items} tab={tab} setTab={setTab} onTask={setTask} onSubagent={setSub} closing={!showPanel} />
-            </Suspense>
+      <SkinScope agent={agent} className="relative flex min-h-0 flex-1 flex-col bg-bg text-fg">
+        <div className="flex min-h-0 flex-1 flex-col" inert={!!s.chat?.clearing && view === 'chat'} aria-busy={!!s.chat?.clearing}>
+          <SessionHeader
+            s={s}
+            view={view}
+            setView={setView}
+            panelOpen={sidePanel}
+            togglePanel={() => setSettings({ sidePanel: !sidePanel })}
+            openSheet={(which) => {
+              if (which === 'activity' && showPanel) setTab('activity')
+              else setSheet(which)
+            }}
+          />
+          {/* an agent that stays in its terminal asks you to sign in there itself */}
+          {agent && agent !== 'claude' && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
+            <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">
+              <LogIn className="size-4 shrink-0 text-warn" />
+              <span className="min-w-0 flex-1">No default {agentDef(agent).name} sign-in detected on {ref.host.config.name}. This session may use its own API configuration.</span>
+              <Button size="xs" variant="primary" onClick={() => setSignIn(true)}>Sign in</Button>
+            </div>
           )}
+          {ref && <SignInSheet hostId={ref.host.config.id} hostName={ref.host.config.name} agent={signIn && agent ? agent : null} onClose={() => setSignIn(false)} />}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Suspense fallback={<Loading machine={ref?.host.config.name} />}>
+                {!ref && !info ? (
+                  <Loading />
+                ) : view === 'chat' ? (
+                  // each view rises in over the one it replaces; another session's chat comes in the same way
+                  <div key={`chat:${host}${pane}`} className="animate-page flex min-h-0 flex-1 flex-col">
+                    {agent === 'devin' ? <DevinPaneChat host={host} pane={pane} /> : <ChatView host={host} pane={pane} agent={agent} onTerminal={() => setView('terminal')} controls={agent ? <ComposerControls s={s} /> : undefined} ultracode={s.ultracode} />}
+                  </div>
+                ) : (
+                  <div key="terminal" className="animate-page flex min-h-0 flex-1 flex-col">
+                    <TerminalView key={`${host}${pane}`} host={host} pane={pane} agent={agent} />
+                  </div>
+                )}
+              </Suspense>
+            </div>
+            {panelShown && (
+              // an empty panel holds the room while the real one loads, so the chat doesn't get wider and narrower again
+              <Suspense fallback={<aside className="w-[420px] shrink-0 border-l border-line bg-sidebar 2xl:w-[480px]" />}>
+                <SidePanel s={s} items={items} tab={tab} setTab={setTab} onTask={setTask} onSubagent={setSub} closing={!showPanel} />
+              </Suspense>
+            )}
+          </div>
+          <ControlsSheet s={s} open={sheet === 'controls'} onClose={() => setSheet(null)} />
+          <ActivitySheet s={s} items={items} open={sheet === 'activity'} onClose={() => setSheet(null)} onTask={setTask} onSubagent={setSub} />
+          <Suspense fallback={null}>
+            {task && <TaskOutputSheet host={host} task={task} onClose={() => setTask(null)} />}
+            {sub && <SubagentSheet s={s} sub={sub} onClose={() => setSub(null)} />}
+          </Suspense>
         </div>
-        <ControlsSheet s={s} open={sheet === 'controls'} onClose={() => setSheet(null)} />
-        <ActivitySheet s={s} items={items} open={sheet === 'activity'} onClose={() => setSheet(null)} onTask={setTask} onSubagent={setSub} />
-        <Suspense fallback={null}>
-          {task && <TaskOutputSheet host={host} task={task} onClose={() => setTask(null)} />}
-          {sub && <SubagentSheet s={s} sub={sub} onClose={() => setSub(null)} />}
-        </Suspense>
+        {s.chat?.clearing && view === 'chat' && <ClearingConversation host={host} pane={pane} state={s.chat.clearing} onTerminal={() => setView('terminal')} />}
       </SkinScope>
     </ChatActionsContext.Provider>
   )

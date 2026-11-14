@@ -175,7 +175,16 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
     let r = async {
         let (h, p, t) = (host_id.to_owned(), pane_id.to_owned(), text.to_owned());
         let send_id = id.clone();
-        in_lane(host_id, pane_id, move || async move { send_message_to_pane_id(&h, &p, &t, from_composer, steer, &send_id).await }).await?;
+        in_lane(host_id, pane_id, move || async move {
+            let before = registry().find_pane(&h, &p).and_then(|f| f.pane.agent);
+            let clearing = before.as_ref().is_some_and(|a| clears_conversation(a.kind, &t));
+            send_message_to_pane_id(&h, &p, &t, from_composer, steer || clearing, &send_id).await?;
+            if clearing {
+                let before = before.unwrap();
+                wait_for_clear(&h, &p, before.kind, before.pid, before.session_id.as_deref()).await?;
+            }
+            Ok(())
+        }).await?;
         confirm_delivery(host_id, pane_id, &id, text).await
     }
     .await;
@@ -187,6 +196,52 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
     }
     w.idle_later();
     r
+}
+
+fn clears_conversation(kind: AgentKind, text: &str) -> bool {
+    match kind {
+        AgentKind::Codex => matches!(text.jtrim(), "/clear" | "/new"),
+        AgentKind::Claude => text.jtrim() == "/clear",
+        _ => false,
+    }
+}
+
+/// Enter being accepted only proves that a command reached the TUI. Keep the keyboard
+/// lane until the new conversation is identified and its empty input is ready.
+fn clear_ready(before: Option<&str>, after: Option<&str>, blank_codex: bool, screen: &ScreenState) -> bool {
+    let changed = after.is_some_and(|id| Some(id) != before) || (after.is_none() && blank_codex);
+    changed && screen.input_visible == Some(true) && !screen.working && screen.prompt.is_none() && screen.dialog.is_none()
+        && screen.draft.as_deref().is_none_or(|s| s.is_blank()) && screen.draft_clipped.is_none()
+}
+
+async fn wait_for_clear(host: &str, pane: &str, kind: AgentKind, pid: u32, before: Option<&str>) -> HubResult<()> {
+    let deadline = now_ms() + 60_000;
+    let mut stable = 0;
+    let mut identity = None;
+    while now_ms() < deadline {
+        registry().refresh_one(host, 6000).await;
+        let Some(agent) = registry().find_pane(host, pane).and_then(|f| f.pane.agent) else {
+            stable = 0;
+            sleep(500).await;
+            continue;
+        };
+        if agent.kind != kind || agent.pid != pid {
+            return Err(http(409, "The agent changed while clearing. Open the terminal to check before sending."));
+        }
+        let screen = current_screen(host, pane).await?;
+        if clear_ready(before, agent.session_id.as_deref(), kind == AgentKind::Codex && registry().codex_is_empty(host, pane), &screen) {
+            stable = if identity.as_ref() == Some(&agent.session_id) { stable + 1 } else { 1 };
+            identity = Some(agent.session_id.clone());
+            if stable >= 2 {
+                let w = watchers().get(host, pane);
+                w.sync();
+                w.kick_screen();
+                return Ok(());
+            }
+        } else { stable = 0; }
+        sleep(500).await;
+    }
+    Err(http(409, "Could not confirm that the conversation finished clearing. Refresh its status or open the terminal before sending another message."))
 }
 
 /// The pane's screen as plain lines.

@@ -7,6 +7,7 @@ import { copyText } from '../../lib/clipboard.ts'
 import { useAgentCatalog } from './useAgentCatalog.ts'
 import { confirmAction } from '../Confirm.tsx'
 import { endSession } from '../../lib/end.ts'
+import { clearConversation, isClearing, isClearCommand } from '../../lib/clearConversation.ts'
 
 /** Everything a session view needs: pane ref, live status, transcript summary, and actions. */
 export function useSession(host: string, pane: string) {
@@ -53,13 +54,14 @@ export function useSession(host: string, pane: string) {
   }
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
+    if (isClearing(host, pane)) return
     try {
       await fn()
     } catch (e) {
       toast({ title: label, body: (e as Error).message, tone: 'error' })
     }
   }
-  const send = (text: string, label = 'Could not send') => run(label, () => api.send(host, pane, text))
+  const send = (text: string, label = 'Could not send') => run(label, () => isClearCommand(agent, text) ? clearConversation(host, pane, text) : api.send(host, pane, text))
   // a setting goes to the agent as a slash command, but the chat doesn't show it as a message
   const setting = (text: string, label: string) => run(label, () => api.setting(host, pane, text))
 
