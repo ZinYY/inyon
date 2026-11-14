@@ -1000,8 +1000,8 @@ fn launch_uses_the_running_native_binary_but_not_its_node_interpreter() {
 fn windows_fork_reuses_the_running_image_with_powershell_quoting() {
     run(|| async {
         let _fake = Fake::install(|_, cmd, _| {
-            if cmd.ends_with("40 executable") { return ok("C:\\Program Files\\A'B\\codex.exe\n"); }
-            if cmd.ends_with("41 executable") { return ok("C:\\Program Files\\node.exe\n"); }
+            if cmd.contains("40 executable; fi; done") { return ok("C:\\Program Files\\A'B\\codex.exe\n"); }
+            if cmd.contains("41 executable; fi; done") { return ok("C:\\Program Files\\node.exe\n"); }
             ok("codex\n")
         });
         let rt = fork_pane("codex", Some(FORK_ID));
@@ -1014,6 +1014,18 @@ fn windows_fork_reuses_the_running_image_with_powershell_quoting() {
             "$env:https_proxy='http://localhost'; & 'C:\\Program Files\\A''B\\codex.exe' fork id");
         assert_eq!(active_bin(&host, AgentKind::Codex, Some(41.0)).await.unwrap(), "codex");
     });
+}
+
+#[test]
+fn windows_fork_probe_skips_an_unavailable_python3_alias() {
+    use std::os::unix::fs::PermissionsExt;
+    let bin = TempDir::new("python-probe-");
+    bin.write("python3", "#!/bin/sh\nexit 127\n");
+    bin.write("python", "#!/bin/sh\ncase \"$*\" in *executable) printf '%s\\n' 'C:\\Installed Agent\\codex.exe';; esac\n");
+    for name in ["python3", "python"] { std::fs::set_permissions(bin.path(name), std::fs::Permissions::from_mode(0o755)).unwrap(); }
+    let result = std::process::Command::new("/bin/sh").arg("-c").arg(process_probe_command(42.0, "executable")).env("PATH", bin.s()).output().unwrap();
+    assert!(result.status.success());
+    assert_eq!(String::from_utf8(result.stdout).unwrap().trim(), r"C:\Installed Agent\codex.exe");
 }
 
 /// From "a restart keeps a flag value with spaces in it whole, read from the real argument list":

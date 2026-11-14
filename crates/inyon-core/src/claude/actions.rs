@@ -2000,7 +2000,7 @@ pub(crate) async fn resume_for(host: &Host, kind: AgentKind, session_id: Option<
 async fn active_bin(host: &Host, kind: AgentKind, pid: Option<f64>) -> HubResult<String> {
     if let Some(pid) = pid {
         if on_psmux(&host.id()) {
-            let cmd = format!("python3 -c {} {} executable", shq(include_str!("process_environment.py")), fmt_number(pid.trunc()));
+            let cmd = process_probe_command(pid, "executable");
             if let Ok(r) = host.run(&cmd).await {
                 let path = r.stdout.jtrim();
                 let base = path.rsplit(['/', '\\']).next().unwrap_or_default();
@@ -2513,9 +2513,13 @@ fn proxy_environment_prefix(output: &str, win: bool) -> String {
     if vars.is_empty() { String::new() } else { format!("{} {}", vars.join(" "), if win { "& " } else { "" }) }
 }
 
+fn process_probe_command(pid: f64, mode: &str) -> String {
+    format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {} {}; fi; done",
+        shq(include_str!("process_environment.py")), fmt_number(pid.trunc()), mode)
+}
+
 async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
-    let cmd = format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} {}; fi; done",
-        shq(include_str!("process_environment.py")), fmt_number(pid.trunc()));
+    let cmd = process_probe_command(pid, "");
     match host.run(&cmd).await {
         Ok(r) if r.code == 0 => proxy_environment_prefix(&r.stdout, on_psmux(&host.id())),
         _ => String::new(),
