@@ -14,7 +14,7 @@ import { flush, renderSettled as render } from '../../test/render.tsx'
 let n = 0
 const nextPane = () => `%${++n}`
 const box = () => screen.getByRole('textbox') as HTMLTextAreaElement
-const sendButton = () => screen.getByLabelText(/^(Send|Steer now|Queue follow-up|Run command|Stop)$/) as HTMLButtonElement
+const sendButton = () => screen.getByLabelText(/^(Send|Send BTW|Steer now|Queue follow-up|Run command|Stop)$/) as HTMLButtonElement
 const draft = (pane: string, text: string, at: number, source: 'app' | 'terminal' = 'terminal') => act(() => emit({ t: 'chat.draft', key: `box:${pane}`, text, source, at }))
 
 describe('Composer keeps what you type while live data flows', () => {
@@ -151,11 +151,9 @@ describe('Composer send button', () => {
     const user = userEvent.setup()
     const pane = nextPane()
     const { rerender } = await render(<Composer host="box" pane={pane} agent="codex" working={false} />)
-    // idle: no choice to make
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.getByLabelText('Send mode: Send')).toBeTruthy()
     rerender(<Composer host="box" pane={pane} agent="codex" working />)
-    const toggle = screen.getByRole('switch') as HTMLButtonElement
-    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    const toggle = screen.getByLabelText('Send mode: Steer now') as HTMLButtonElement
     expect(toggle.textContent).toBe('Steer now')
     await user.type(box(), 'also check the tests')
     expect(screen.getByLabelText('Steer now')).toBeTruthy()
@@ -166,7 +164,8 @@ describe('Composer send button', () => {
     expect(call.slice(0, 3)).toEqual(['box', pane, 'also check the tests'])
     expect(call[4]).toBe(true)
     await user.click(toggle)
-    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    await user.click(screen.getByRole('menuitem', { name: /Queue/ }))
+    expect(toggle.textContent).toBe('Queue')
     await user.type(box(), 'after this turn')
     expect(sendButton().getAttribute('aria-label')).toBe('Queue follow-up')
     await user.click(sendButton())
@@ -174,12 +173,44 @@ describe('Composer send button', () => {
     expect(api.send.mock.calls.at(-1)![4]).toBeUndefined()
     rerender(<Composer host="box" pane={pane} agent="codex" working={false} />)
     rerender(<Composer host="box" pane={pane} agent="codex" working />)
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByLabelText('Send mode: Steer now')).toBeTruthy()
     // a shell command runs as itself whichever way; other agents never see the switch
     await user.type(box(), '!ls')
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByLabelText(/^Send mode:/)).toBeNull()
     rerender(<Composer host="box" pane={nextPane()} agent="claude" working />)
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByLabelText(/^Send mode:/)).toBeNull()
+  })
+
+  test('BTW mode wraps multiline input once, locks while switching, and sends side followups normally', async () => {
+    const user = userEvent.setup()
+    const pane = nextPane()
+    const key = `box:${pane}`
+    let finish!: (value: any) => void
+    api.refreshConversation.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    const { rerender } = await render(<Composer host="box" pane={pane} agent="codex" working />)
+    await user.click(screen.getByLabelText('Send mode: Steer now'))
+    await user.click(screen.getByRole('menuitem', { name: /BTW/ }))
+    rerender(<Composer host="box" pane={pane} agent="codex" working={false} />)
+    expect(screen.getByLabelText('Send mode: BTW')).toBeTruthy()
+    fireEvent.change(box(), { target: { value: 'First line\nSecond line' } })
+    await user.click(screen.getByLabelText('Send BTW'))
+    await flush()
+    expect(api.send.mock.calls.at(-1)!.slice(0, 3)).toEqual(['box', pane, '/btw First line\nSecond line'])
+    expect(api.send.mock.calls.at(-1)![4]).toBe(true)
+    expect(useStore.getState().chats[key].clearing).toBeTruthy()
+    const count = api.send.mock.calls.length
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(api.send.mock.calls.length).toBe(count)
+    await act(async () => {
+      finish({ reset: { t: 'chat.reset', key, info: chatInfo({ agent: 'codex', sessionId: 'side', transcriptPath: 'codex-side:side' }), items: [], hasMore: false }, screen: { working: false, width: 80, inputVisible: true } })
+      await flush()
+    })
+    expect(useStore.getState().chats[key].clearing).toBeUndefined()
+    expect(screen.queryByLabelText(/^Send mode:/)).toBeNull()
+    await user.type(box(), 'A followup')
+    await user.click(screen.getByLabelText('Send'))
+    await flush()
+    expect(api.send.mock.calls.at(-1)![2]).toBe('A followup')
   })
 
   test("agents without shell commands send '!' text as a message", async () => {

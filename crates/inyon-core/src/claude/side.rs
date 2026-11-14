@@ -19,7 +19,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     let mut blocks: Vec<(bool, String)> = vec![];
     let mut continuation = String::new();
     for line in &lines[..end] {
-        if re!(r"^\s*Worked for ").is_match(line) { continue; }
+        if re!(r"^\s*Worked for |^\s*└ Tip: ").is_match(line) { continue; }
         if re!(r"^[•◦●○◉∙⋅\u{2800}-\u{28ff}] .*esc to interrupt|^\s*\d+ background terminals? running").is_match(line) { break; }
         if let Some(t) = line.strip_prefix("› ").or_else(|| line.strip_prefix("» ")) {
             blocks.push((true, t.to_owned()));
@@ -78,5 +78,10 @@ mod tests {
         let follow = merge(&next, &screen(&["› Question", "", "• First answer", "", "› Question", "", "• Second answer"]), "side").unwrap();
         assert_eq!(follow.len(), 4);
         assert_eq!(text(&follow[3]).1, "Second answer");
+    }
+    #[test]
+    fn native_timing_and_shortcut_tips_are_not_assistant_text() {
+        let items = merge(&[], &screen(&["› Question", "• Answer", "  Worked for 2s • 12:00", "└ Tip: Use a preset shortcut"]), "side").unwrap();
+        assert_eq!(text(&items[1]).1, "Answer");
     }
 }

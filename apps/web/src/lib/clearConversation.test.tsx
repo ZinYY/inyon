@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import { act, fireEvent, renderHook, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { AgentKind } from '@inyon/protocol'
-import { clearConversation, changeConversation, isClearCommand, transitionCommand, refreshClearedConversation } from './clearConversation.ts'
+import { clearConversation, changeConversation, sendTransition, isClearCommand, transitionCommand, refreshClearedConversation } from './clearConversation.ts'
 import { patchChat, useStore } from './store.ts'
 import { api, emit, socket } from '../test/fakes.ts'
 import { agentPane, chatInfo, host, item } from '../test/fixtures.ts'
@@ -161,4 +161,18 @@ test('Claude rewind leaves its next confirmation interactive', async () => {
 test('only native state-changing commands are intercepted', () => {
   for (const cmd of ['/rewind', '/compact', '/resume thread', '/fork', '/exit', '/btw question']) expect(transitionCommand('codex', cmd)).toBeTruthy()
   for (const cmd of ['explain /fork', '/goal clear', '/rewind extra', '/compact\nordinary message']) expect(transitionCommand('codex', cmd)).toBeUndefined()
+})
+
+
+test('opening BTW waits for a different thread and accepts multiline questions', async () => {
+  const { pane, key, refreshed } = conversation()
+  const text = '/btw First line\nSecond line'
+  expect(transitionCommand('codex', text)).toBe('Opening side conversation')
+  const operation = sendTransition('box', pane, 'codex', text)
+  await flush()
+  expect(api.refreshConversation).toHaveBeenCalledWith('box', pane, expect.objectContaining({ differentFrom: 'before', allowWorking: true }))
+  expect(useStore.getState().chats[key].clearing).toBeTruthy()
+  refreshed('side')
+  await operation
+  expect(useStore.getState().chats[key].clearing).toBeUndefined()
 })

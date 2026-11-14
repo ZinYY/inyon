@@ -36,6 +36,7 @@ export function isClearCommand(agent: AgentKind | undefined, text: string) {
 
 export function transitionCommand(agent: AgentKind | undefined, text: string): string | undefined {
   if (isClearCommand(agent, text)) return 'Clearing conversation'
+  if (agent === 'codex' && /^\/(btw|side)(?:\s|$)/.test(text.trim())) return 'Opening side conversation'
   if (!agent || !['codex', 'claude', 'opencode', 'antigravity'].includes(agent) || /[\r\n]/.test(text.trim())) return
   const command = text.trim()
   if (/^\/compact(?:\s|$)/.test(command)) return 'Compacting conversation'
@@ -43,7 +44,6 @@ export function transitionCommand(agent: AgentKind | undefined, text: string): s
   if (/^\/resume(?:\s|$)/.test(command)) return 'Switching conversation'
   if (/^\/fork(?:\s|$)/.test(command)) return 'Forking conversation'
   if (/^\/(exit|quit)$/.test(command)) return 'Exiting agent'
-  if (agent === 'codex' && /^\/(btw|side)(?:\s|$)/.test(command)) return 'Opening side conversation'
 }
 
 function applySnapshot(host: string, pane: string, result: RefreshedConversation) {
@@ -111,9 +111,12 @@ export function sendTransition(host: string, pane: string, agent: AgentKind | un
   if (isClearCommand(agent, text)) return clearConversation(host, pane, text)
   const rewind = text.trim() === '/rewind'
   const stopped = /^\/(exit|quit)$/.test(text.trim())
+  const side = agent === 'codex' && /^\/(btw|side)(?:\s|$)/.test(text.trim())
+  const info = useStore.getState().chats[chatKey(host, pane)]?.info
+  const differentFrom = side && !info?.transcriptPath?.startsWith('codex-side:') ? info?.sessionId : undefined
   return changeConversation(host, pane, transitionCommand(agent, text) ?? 'Updating conversation',
     () => api.send(host, pane, text, `change-${crypto.randomUUID()}`, true),
-    { agent, stopped, allowPrompt: !stopped, allowWorking: /^\/(btw|side)(?:\s|$)/.test(text.trim()) }, { rewind })
+    { agent, stopped, allowPrompt: !stopped, allowWorking: side, ...(differentFrom && { differentFrom }) }, { rewind })
 }
 
 /** Recovery only reads status; it never repeats clear, rewind, fork or another mutation. */

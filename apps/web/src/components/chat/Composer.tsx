@@ -2,7 +2,7 @@ import { ComposerSurface, ComposerTextArea, ComposerSendButton, useComposerHeigh
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { appendTo, onCompose } from '../../lib/compose.ts'
 import clsx from 'clsx'
-import { ArrowUp, CalendarClock, Camera, Clock3, FileText, Folder, Hourglass, Paperclip, RotateCw, Square, SquareTerminal, X, Zap } from 'lucide-react'
+import { ArrowUp, CalendarClock, Camera, Clock3, FileText, Folder, Hourglass, MessageSquare, ChevronDown, Paperclip, RotateCw, Square, SquareTerminal, X, Zap } from 'lucide-react'
 import { agentDef, chatKey, type AgentKind, type SlashCommand } from '@inyon/protocol'
 import { haptic } from '../../lib/haptics.ts'
 import { api, isTransient, withRetries, type Uploaded } from '../../lib/api.ts'
@@ -11,7 +11,7 @@ import { SendLaterSheet } from '../session/OrganizeSheets.tsx'
 import { socket } from '../../lib/socket.ts'
 import { nativeFile, onNative, plugin, type NativeFile } from '../../lib/native.ts'
 import { bytes } from '../../lib/format.ts'
-import { openMenu } from '../ui/primitives.tsx'
+import { Menu, openMenu } from '../ui/primitives.tsx'
 import { contextMenu } from '../ui/ContextMenu.tsx'
 import { keyLabel } from '../../lib/keys.ts'
 import { accepted } from '../../lib/pending.ts'
@@ -132,13 +132,18 @@ export function Composer({
   const serverDraft = useStore((s) => s.chats[key]?.draft)
   const [text, setTextState] = useState(() => DRAFTS.get(key) ?? serverDraft?.text ?? '')
   const shellMode = !!agent && agentDef(agent).shell && text.trimStart().startsWith('!')
-  // Steer the current Codex turn by default; Queue remains an explicit choice beside Send.
-  const [steer, setSteer] = useState(true)
+  const info = useStore((s) => s.chats[key]?.info)
+  const side = info?.transcriptPath?.startsWith('codex-side:') === true
+  const [sendMode, setSendMode] = useState<'steer' | 'queue' | 'btw'>('steer')
   const canSteer = agent === 'codex' && working && !shellMode
-  // A new turn or a different session starts with the default again.
-  useEffect(() => {
-    setSteer(true)
-  }, [working, key])
+  const canChooseMode = agent === 'codex' && !shellMode && !side
+  const btw = canChooseMode && sendMode === 'btw'
+  const steer = sendMode === 'steer'
+  // Keep an explicitly selected BTW mode if the main turn finishes while typing.
+  useEffect(() => { setSendMode((mode) => mode === 'btw' ? mode : 'steer') }, [working])
+  useEffect(() => { setSendMode('steer') }, [key, info?.sessionId])
+  const modeLabel = btw ? 'BTW' : canSteer ? (steer ? 'Steer now' : 'Queue') : 'Send'
+  const sendLabel = btw ? 'Send BTW' : canSteer && steer ? 'Steer now' : working ? 'Queue follow-up' : 'Send'
   const [focused, setFocused] = useState(false)
   const [origin, setOrigin] = useState<'app' | 'terminal' | null>(null)
   /**
@@ -438,20 +443,32 @@ export function Composer({
     let msg = value.trim()
     if (uploading) return
     // a bare "/model" or "/resume" would open the agent's terminal menu; the app has its own
-    const menu = !ready.length && menuFor(msg, agent)
+    const menu = !btw && !ready.length && menuFor(msg, agent)
     if (menu && openMenu(menu)) {
       setText('')
       setPop(null)
       return
     }
     if (failed) return
-    if (!ready.length && transitionCommand(agent, msg)) {
+    if (!btw && !ready.length && transitionCommand(agent, msg)) {
       handedOver()
       await sendTransition(host, pane, agent, msg)
       return
     }
     if (ready.length) msg = `${msg}${msg ? '\n\n' : ''}Attached files:\n${ready.map((f) => f.path).join('\n')}`
     if (!msg) return
+    if (btw) {
+      // Attachments and multiline text remain part of the same native side question.
+      const question = /^\/(btw|side)(?:\s|$)/.test(msg) ? msg : `/btw ${msg}`
+      handedOver()
+      const done = await sendTransition(host, pane, agent, question)
+      if (done) setFiles((cur) => cur.filter((file) => {
+        if (!ready.some((r) => r.id === file.id)) return true
+        if (file.preview) URL.revokeObjectURL(file.preview)
+        return false
+      }))
+      return
+    }
     const id = Math.random().toString(36).slice(2)
     patchChat(key, (c) => ({ pending: [...c.pending, { id, text: msg, status: 'sending', at: Date.now() }] }))
     if (value === text) {
@@ -697,7 +714,7 @@ export function Composer({
               send()
             }
           }}
-          placeholder={canSteer && steer ? `Steer ${agentName} now…` : working ? `Queue a message for ${agentName}…` : `Message ${agentName}…`}
+          placeholder={btw ? 'Ask Codex a side question…' : canSteer && steer ? `Steer ${agentName} now…` : working ? `Queue a message for ${agentName}…` : `Message ${agentName}…`}
           aria-label={`Message ${agentName}`}
         />
         {/* a container: next to the side panel the box is narrower than the screen, and its labels fold to icons by its own width */}
@@ -714,29 +731,26 @@ export function Composer({
           <span className={clsx('truncate pr-1 text-[12px] text-fg-3', !controls && 'ml-auto')}>
             {uploading ? 'Uploading…' : failed ? 'Upload failed' : text && origin === 'terminal' ? 'From the terminal' : ''}
           </span>
-          {canSteer && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={steer}
-              aria-label={steer ? 'Steer now: Codex reads the message in the middle of this turn. Switch to queue it for after the turn' : 'Queue: Codex reads the message after this turn. Switch to steer it in now'}
-              title={steer ? 'Steer now (Enter in the terminal): Codex reads it in the middle of this turn' : 'Queue (Tab in the terminal): Codex reads it after this turn'}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setSteer((v) => !v)}
-              className={clsx(
-                'relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 font-mono text-[12px] transition-colors after:absolute after:-inset-1 hover:bg-hover hover:text-fg',
-                steer ? 'text-accent-text' : 'text-fg-2',
-              )}
-            >
-              {steer ? <Zap className="size-3.5" /> : <Clock3 className="size-3.5" />}
-              {steer ? 'Steer now' : 'Queue'}
-            </button>
+          {canChooseMode && (
+            <Menu align="end" width={280}
+              trigger={({ toggle, ref, open }) => <button ref={ref} type="button"
+                aria-label={`Send mode: ${modeLabel}`} aria-haspopup="menu" aria-expanded={open}
+                disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={toggle}
+                className={clsx('relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 font-mono text-[12px] transition-colors hover:bg-hover hover:text-fg', sendMode !== 'queue' ? 'text-accent-text' : 'text-fg-2')}>
+                {btw ? <MessageSquare className="size-3.5" /> : canSteer && !steer ? <Clock3 className="size-3.5" /> : <Zap className="size-3.5" />}
+                {modeLabel}<ChevronDown className="size-3" />
+              </button>}
+              items={[
+                { key: 'steer', label: working ? 'Steer now' : 'Send', hint: working ? 'Add to the current turn' : 'Send to the main conversation', selected: sendMode === 'steer', onSelect: () => setSendMode('steer') },
+                ...(working ? [{ key: 'queue', label: 'Queue', hint: 'Send after the current turn', selected: sendMode === 'queue', onSelect: () => setSendMode('queue') }] : []),
+                { key: 'btw', label: 'BTW', hint: 'Ask a side question with /btw', selected: btw, onSelect: () => setSendMode('btw') },
+              ]} />
           )}
           {/* one button for Send and Stop: its colour fades between the two and the icon swaps with a fade */}
           <ComposerSendButton active={canSend} stop={showStop}
             type="button"
             {...contextMenu(() => [
-              !showStop && !shellMode && { key: 'send', label: canSteer && steer ? 'Steer now' : working ? 'Queue follow-up' : 'Send', icon: <ArrowUp className="size-4" />, disabled: !canSend, onSelect: () => void send() },
+              !showStop && !shellMode && { key: 'send', label: sendLabel, icon: <ArrowUp className="size-4" />, disabled: !canSend, onSelect: () => void send() },
               !shellMode && { key: 'hold', label: `Hold until ${agentName} is free`, keys: keyLabel('alt', 'Enter'), icon: <Hourglass className="size-4" />, disabled: !text.trim() || uploading || files.length > 0, onSelect: () => void hold() },
               // from 0.24 the hub can keep it to send at a set time
               !shellMode && canSchedule(host) && { key: 'later', label: 'Send later…', icon: <CalendarClock className="size-4" />, disabled: !text.trim() || uploading || files.length > 0, onSelect: () => setLater(true) },
@@ -745,8 +759,8 @@ export function Composer({
             onClick={() => (showStop ? stop() : send())}
             onMouseDown={(e) => e.preventDefault()}
             disabled={showStop ? stopping : !canSend}
-            aria-label={showStop ? 'Stop' : shellMode ? 'Run command' : canSteer && steer ? 'Steer now' : working ? 'Queue follow-up' : 'Send'}
-            title={showStop ? 'Stop (Esc in the terminal)' : shellMode ? 'Run shell command' : canSteer && steer ? 'Steer Codex now' : working ? 'Queue a follow-up' : 'Send'}
+            aria-label={showStop ? 'Stop' : shellMode ? 'Run command' : sendLabel}
+            title={showStop ? 'Stop (Esc in the terminal)' : shellMode ? 'Run shell command' : btw ? 'Send a side question with /btw' : canSteer && steer ? 'Steer Codex now' : working ? 'Queue a follow-up' : 'Send'}
           >
             <span key={showStop ? 'stop' : 'send'} className="animate-fade-in flex">
               {showStop ? <Square className="size-3 fill-current" /> : <ArrowUp className="size-[17px]" strokeWidth={2.4} />}
