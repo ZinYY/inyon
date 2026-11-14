@@ -78,6 +78,29 @@ fn nudge(host_id: &str, pane_id: &str) {
     registry().refresh(host_id, 250);
 }
 
+/// Close only the side thread whose native footer was shown when the button was
+/// pressed. Ctrl+C may first interrupt its turn; never send a second key to main.
+pub async fn close_codex_side(host_id: &str, pane_id: &str, expected: &str) -> HubResult<()> {
+    let (host, found) = agent_pane(host_id, pane_id)?;
+    if found.pane.agent.as_ref().is_none_or(|a| a.kind != AgentKind::Codex) { return Err(http(409, "Codex is not running")); }
+    let deadline = now_ms() + 20_000;
+    let mut sent = false;
+    while now_ms() < deadline {
+        let lines = screen_lines(&host, pane_id).await?;
+        match crate::agents::codex::codex_side_thread(&lines) {
+            Some(id) if id == expected => {
+                let screen = crate::hosts::registry::parse_host_screen(host_id, &lines, width_of(&found.pane), AgentKind::Codex);
+                if !sent || !screen.working { send_keys(&host, pane_id, &["C-c"]).await?; sent = true; }
+            }
+            Some(_) => return Err(http(409, "The side conversation changed; check it before closing")),
+            None if sent => { nudge(host_id, pane_id); return Ok(()); }
+            None => return Err(http(409, "No side conversation is visible")),
+        }
+        sleep(500).await;
+    }
+    Err(http(409, "The side conversation is still closing; check the terminal"))
+}
+
 fn nonempty(s: &Option<String>) -> bool {
     s.as_deref().is_some_and(|s| !s.is_empty())
 }

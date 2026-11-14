@@ -473,6 +473,12 @@ impl ChatWatcher {
         self.st.borrow().info.clone()
     }
 
+    /// A completed read, never the empty reset sent while replacing a reader.
+    pub fn snapshot(&self) -> Option<ServerMsg> {
+        let st = self.st.borrow();
+        (st.ready && st.behind.is_none()).then(|| reset_msg(&self.key, &st))
+    }
+
     /// Only the current process's exact conversation can supply activity to the overview.
     pub fn codex_turn_active(&self, session: &str, started_at: u64) -> bool {
         let st = self.st.borrow();
@@ -2065,6 +2071,14 @@ impl ChatWatcher {
             // Live callbacks belong to the previous generation, even for the same file.
             self.stop_live();
         }
+        if path.starts_with("codex-side:") {
+            // Ephemeral Codex threads expose no history or resume API. Their native
+            // screen is authoritative, and returning to the parent changes the path
+            // so sync() discards this view and reads the parent afresh.
+            self.publish_snapshot(vec![]);
+            self.kick_screen();
+            return;
+        }
         if path.starts_with("opencode://") {
             return self.follow_open_code(&path, gen);
         }
@@ -2845,6 +2859,21 @@ impl ChatWatcher {
         };
         let agent = pane.agent.clone().expect("an agent");
         let width = (*pane.width >= 0.0 && pane.width.is_finite()).then_some(*pane.width as u32);
+        if agent.kind == AgentKind::Codex && crate::agents::codex::codex_side_thread(lines)
+            .is_some_and(|id| agent.session_id.as_deref() != Some(&id)) {
+            registry().refresh(&self.host_id, 0);
+            return Ok(()); // never preview a new side reply in the parent's history
+        }
+        let side = agent.transcript_path.as_deref().and_then(|p| p.strip_prefix("codex-side:"));
+        if let Some(id) = side {
+            if crate::agents::codex::codex_side_thread(lines).as_deref() == Some(id) {
+                let next = super::side::merge(&self.st.borrow().items, lines, id);
+                if let Some(items) = next { self.publish_snapshot(items); }
+            } else {
+                registry().refresh(&self.host_id, 0);
+                return Ok(());
+            }
+        }
         let mut screen = crate::hosts::registry::parse_host_screen(&self.host_id, lines, width, agent.kind);
         // The registry tracks Claude turns across spinner-free text output and missing hooks.
         // Chat must keep Stop/queue available for the same observed active turn.
@@ -2906,7 +2935,7 @@ impl ChatWatcher {
                 };
                 if changed { self.live_soon(); }
             }
-        } else if self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
+        } else if side.is_none() && self.reads_live_reply(agent.kind) && self.read_screen_live(lines, width, agent.kind, screen.working, active_codex_turn) {
             self.live_soon();
         }
         // a menu Inyon is working through itself stays out of the app
@@ -3245,6 +3274,10 @@ impl WatchersRef {
         }
         if found.pane.agent.as_ref().and_then(|a| a.transcript_path.as_deref()).is_none_or(str::is_empty) {
             return Err(HubError::http(409, "This pane has no readable conversation record yet"));
+        }
+        if found.pane.agent.as_ref().and_then(|a| a.transcript_path.as_deref()).is_some_and(|p| p.starts_with("codex-side:")) {
+            self.get(host_id, pane_id).kick_screen();
+            return Ok(());
         }
         let key = chat_key(host_id, pane_id);
         let old = self.with(|ws| ws.map.borrow_mut().shift_remove(&key));

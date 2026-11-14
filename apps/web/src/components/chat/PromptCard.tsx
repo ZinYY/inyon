@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { ArrowDown, ArrowRight, ArrowUp, Check, Copy, CornerDownLeft, ExternalLink, Send } from 'lucide-react'
-import { CONFIRM_OPTION, promptKey, type ScreenPrompt } from '@inyon/protocol'
+import { CONFIRM_OPTION, promptKey, chatKey, type ScreenPrompt } from '@inyon/protocol'
 import { haptic } from '../../lib/haptics.ts'
 import { api } from '../../lib/api.ts'
-import { toast } from '../../lib/store.ts'
+import { toast, useStore } from '../../lib/store.ts'
+import { changeConversation, isClearing } from '../../lib/clearConversation.ts'
 import { AgentMark } from './Messages.tsx'
 import { copyText } from '../../lib/clipboard.ts'
 
@@ -118,9 +119,12 @@ export function PromptCard({ prompt, host, pane, disabled, onInput }: { prompt: 
   }, [freeText !== null])
 
   const run = async (id: number | string, fn: () => Promise<unknown>) => {
+    if (isClearing(host, pane)) return
     setBusy(id)
     try {
-      await fn()
+      const rewind = useStore.getState().chats[chatKey(host, pane)]?.rewindFlow || /^Rewind$|^Restore the code and/.test(title)
+      if (rewind) await changeConversation(host, pane, 'Updating conversation', fn, { allowPrompt: true }, { rewind: true })
+      else await fn()
       haptic('select')
     } catch (e) {
       toast({ title: 'Could not answer', body: (e as Error).message, tone: 'error' })

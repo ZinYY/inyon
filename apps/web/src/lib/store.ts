@@ -15,8 +15,9 @@ import type { ClearingConversation } from './clearConversation.ts'
 export { norm, msgKey, PENDING_MS, type PendingMessage } from './pending.ts'
 
 export interface ChatState {
-  /** Local interaction lock until /clear completes and its fresh snapshot arrives. */
+  /** Local interaction lock until a conversation operation and its fresh read finish. */
   clearing?: ClearingConversation
+  rewindFlow?: boolean
   info?: ChatInfo
   items: ChatItem[]
   hasMore: boolean

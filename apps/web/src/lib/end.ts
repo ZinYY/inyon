@@ -1,6 +1,7 @@
-import { agentDef } from '@inyon/protocol'
+import { changeConversation, isClearing } from './clearConversation.ts'
+import { agentDef, chatKey } from '@inyon/protocol'
 import { api } from './api.ts'
-import { hidePane, toast } from './store.ts'
+import { hidePane, toast, useStore } from './store.ts'
 import { haptic } from './haptics.ts'
 import { paneTitle, terminalName, type PaneRef } from './overview.ts'
 import { tmuxTarget } from './groups.ts'
@@ -36,15 +37,15 @@ export async function endSession(r: PaneRef, after?: () => void) {
     danger: true,
   })
   if (!ok) return false
-  hidePane(host, r.pane.id)
-  haptic('success')
-  toast({ title: 'Session ended', tone: 'success' })
-  after?.()
-  try {
-    await api.end(host, r.pane.id)
-  } catch (e) {
-    hidePane(host, r.pane.id, false)
-    toast({ title: 'Could not end the session', body: (e as Error).message, tone: 'error' })
-  }
-  return true
+  if (isClearing(host, r.pane.id)) return false
+  const ended = await changeConversation(host, r.pane.id, 'Ending session', () => api.end(host, r.pane.id), { closed: true }, {
+    onReady: () => {
+      hidePane(host, r.pane.id)
+      haptic('success')
+      toast({ title: 'Session ended', tone: 'success' })
+      after?.()
+    },
+  })
+  if (!ended) toast({ title: 'Could not end the session', body: useStore.getState().chats[chatKey(host, r.pane.id)]?.clearing?.error, tone: 'error' })
+  return ended
 }

@@ -1,79 +1,126 @@
-import { chatKey, type AgentKind, type ChatInfo } from '@inyon/protocol'
+import { chatKey, type AgentKind, type ScreenState, type ServerMsg } from '@inyon/protocol'
 import { api } from './api.ts'
 import { socket } from './socket.ts'
 import { patchChat, useStore } from './store.ts'
 
+export interface RefreshOptions {
+  agent?: AgentKind
+  session?: string
+  differentFrom?: string
+  stopped?: boolean
+  closed?: boolean
+  allowWorking?: boolean
+  allowPrompt?: boolean
+}
+export interface RefreshedConversation {
+  reset: Extract<ServerMsg, { t: 'chat.reset' }>
+  screen: ScreenState
+  draft?: { text: string; source: 'app' | 'terminal'; at: number } | null
+}
 export interface ClearingConversation {
   phase: 'clearing' | 'refreshing' | 'failed'
-  before?: string
+  label: string
+  options: RefreshOptions
+  target?: string
+  onReady?: (pane: string) => void
+  rewind?: boolean
   error?: string
 }
 
+/** The lock is synchronous and shared by every control, including delayed draft/retry work. */
 export const isClearing = (host: string, pane: string) => !!useStore.getState().chats[chatKey(host, pane)]?.clearing
 
 export function isClearCommand(agent: AgentKind | undefined, text: string) {
   return agent === 'codex' ? /^\/(clear|new)$/.test(text.trim()) : agent === 'claude' && text.trim() === '/clear'
 }
 
-function newConversation(info: ChatInfo, before?: string) {
-  // Codex may not allocate the new thread until its first message. The backend confirms
-  // the native empty screen before the send returns; a missing ID is then a valid reset.
-  return info.running && (!before || info.sessionId !== before)
+export function transitionCommand(agent: AgentKind | undefined, text: string): string | undefined {
+  if (isClearCommand(agent, text)) return 'Clearing conversation'
+  if (!agent || !['codex', 'claude', 'opencode', 'antigravity'].includes(agent) || /[\r\n]/.test(text.trim())) return
+  const command = text.trim()
+  if (/^\/compact(?:\s|$)/.test(command)) return 'Compacting conversation'
+  if (/^\/(rewind|undo|redo)$/.test(command)) return 'Updating conversation'
+  if (/^\/resume(?:\s|$)/.test(command)) return 'Switching conversation'
+  if (/^\/fork(?:\s|$)/.test(command)) return 'Forking conversation'
+  if (/^\/(exit|quit)$/.test(command)) return 'Exiting agent'
+  if (agent === 'codex' && /^\/(btw|side)(?:\s|$)/.test(command)) return 'Opening side conversation'
 }
 
-function refreshSnapshot(host: string, pane: string, before?: string) {
-  const key = chatKey(host, pane)
-  return new Promise<void>((resolve, reject) => {
-    const stop = socket.on((m) => {
-      if (m.t !== 'chat.reset' || m.key !== key || !newConversation(m.info, before)) return
-      clearTimeout(timer)
-      stop()
-      resolve()
-    })
-    const timer = setTimeout(() => {
-      stop()
-      reject(new Error('The refreshed conversation has not arrived yet. Check the connection and refresh its status.'))
-    }, 30_000)
-    socket.refreshChat(host, pane)
-  })
+function applySnapshot(host: string, pane: string, result: RefreshedConversation) {
+  // Use the HTTP response to this refresh, not an unrelated cached socket reset.
+  // Replace the prefix too: rewind/undo can change history without changing its ID.
+  const { reset, screen, draft } = result
+  if (reset?.t !== 'chat.reset') throw new Error('The refreshed conversation has not arrived yet.')
+  patchChat(chatKey(host, pane), () => ({
+    info: reset.info, items: reset.items, hasMore: reset.hasMore, screen,
+    loaded: true, stale: undefined, catchingUp: undefined, live: [], pending: [],
+    draft: draft ?? { text: '', source: 'terminal', at: Date.now() },
+  }))
 }
 
-/** One operation shared by the composer and both Clear menus, surviving navigation away. */
-export async function clearConversation(host: string, pane: string, command: string) {
-  if (isClearing(host, pane)) return
+async function finish(host: string, pane: string, operation: ClearingConversation) {
   const key = chatKey(host, pane)
-  const state = useStore.getState()
-  const before = state.chats[key]?.info?.sessionId ?? state.hosts.find((h) => h.config.id === host)?.sessions
-    .flatMap((s) => s.windows).flatMap((w) => w.panes).find((p) => p.id === pane)?.agent?.sessionId
-  patchChat(key, () => ({ clearing: { phase: 'clearing', before } }))
+  const target = operation.target ?? pane
+  patchChat(key, () => ({ clearing: { ...operation, phase: 'refreshing' } }))
+  const unsubscribe = socket.subscribeChat(host, target)
+  try {
+    if (operation.options.closed) {
+      await api.refresh()
+      patchChat(key, () => ({ clearing: undefined }))
+      operation.onReady?.(target)
+      return true
+    }
+    const result = await api.refreshConversation(host, target, operation.options)
+    applySnapshot(host, target, result)
+    patchChat(key, () => ({ clearing: undefined, rewindFlow: operation.rewind && !!result.screen.prompt }))
+    operation.onReady?.(target)
+    return true
+  } finally { unsubscribe() }
+}
+
+/** One mutation, then one authoritative read. Never retry a potentially destructive command. */
+export async function changeConversation(
+  host: string, pane: string, label: string, action: () => Promise<unknown>,
+  options: RefreshOptions = {}, extra: Pick<ClearingConversation, 'rewind' | 'onReady'> = {},
+) {
+  if (isClearing(host, pane)) return false
+  const key = chatKey(host, pane)
+  const operation: ClearingConversation = { phase: 'clearing', label, options, ...extra }
+  patchChat(key, () => ({ clearing: operation }))
   const unsubscribe = socket.subscribeChat(host, pane)
   try {
-    // No automatic retry of a destructive command after an ambiguous network failure.
-    await api.send(host, pane, command, `clear-${crypto.randomUUID()}`, true)
-    patchChat(key, () => ({ clearing: { phase: 'refreshing', before } }))
-    await refreshSnapshot(host, pane, before)
-    patchChat(key, () => ({ clearing: undefined, pending: [], live: [], draft: { text: '', source: 'app', at: Date.now() } }))
+    const result = await action()
+    if (result && typeof result === 'object' && 'pane' in result && typeof result.pane === 'string') operation.target = result.pane
+    return await finish(host, pane, operation)
   } catch (e) {
-    patchChat(key, () => ({ clearing: { phase: 'failed', before, error: (e as Error).message } }))
-  } finally {
-    unsubscribe()
-  }
+    patchChat(key, () => ({ clearing: { ...operation, phase: 'failed', error: (e as Error).message } }))
+    return false
+  } finally { unsubscribe() }
 }
 
-/** Recover a delayed response by reading status again, never by sending /clear a second time. */
+export function clearConversation(host: string, pane: string, command: string) {
+  const state = useStore.getState()
+  const info = state.chats[chatKey(host, pane)]?.info
+  const agent = state.hosts.find((h) => h.config.id === host)?.sessions.flatMap((s) => s.windows)
+    .flatMap((w) => w.panes).find((p) => p.id === pane)?.agent
+  return changeConversation(host, pane, 'Clearing conversation', () => api.send(host, pane, command, `clear-${crypto.randomUUID()}`, true),
+    { agent: info?.agent ?? agent?.kind, differentFrom: info?.sessionId ?? agent?.sessionId })
+}
+
+export function sendTransition(host: string, pane: string, agent: AgentKind | undefined, text: string) {
+  if (isClearCommand(agent, text)) return clearConversation(host, pane, text)
+  const rewind = text.trim() === '/rewind'
+  const stopped = /^\/(exit|quit)$/.test(text.trim())
+  return changeConversation(host, pane, transitionCommand(agent, text) ?? 'Updating conversation',
+    () => api.send(host, pane, text, `change-${crypto.randomUUID()}`, true),
+    { agent, stopped, allowPrompt: !stopped, allowWorking: /^\/(btw|side)(?:\s|$)/.test(text.trim()) }, { rewind })
+}
+
+/** Recovery only reads status; it never repeats clear, rewind, fork or another mutation. */
 export async function refreshClearedConversation(host: string, pane: string) {
   const key = chatKey(host, pane)
   const operation = useStore.getState().chats[key]?.clearing
   if (!operation || operation.phase !== 'failed') return
-  patchChat(key, () => ({ clearing: { ...operation, phase: 'refreshing', error: undefined } }))
-  const unsubscribe = socket.subscribeChat(host, pane)
-  try {
-    await api.refresh()
-    await refreshSnapshot(host, pane, operation.before)
-    patchChat(key, () => ({ clearing: undefined, pending: [], live: [], draft: { text: '', source: 'app', at: Date.now() } }))
-  } catch (e) {
-    patchChat(key, () => ({ clearing: { ...operation, phase: 'failed', error: (e as Error).message } }))
-  } finally {
-    unsubscribe()
-  }
+  try { await finish(host, pane, operation) }
+  catch (e) { patchChat(key, () => ({ clearing: { ...operation, phase: 'failed', error: (e as Error).message } })) }
 }

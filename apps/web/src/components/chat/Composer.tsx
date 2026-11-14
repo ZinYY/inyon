@@ -15,7 +15,7 @@ import { openMenu } from '../ui/primitives.tsx'
 import { contextMenu } from '../ui/ContextMenu.tsx'
 import { keyLabel } from '../../lib/keys.ts'
 import { accepted } from '../../lib/pending.ts'
-import { clearConversation, isClearing, isClearCommand } from '../../lib/clearConversation.ts'
+import { sendTransition, isClearing, transitionCommand } from '../../lib/clearConversation.ts'
 
 /** commands that open a picker in the agent's terminal; the composer's own menus (and OpenCode's providers sheet) do the job */
 const MENU_COMMANDS: Record<string, string> = { '/model': 'model', '/models': 'model', '/effort': 'effort', '/variants': 'effort', '/agents': 'mode', '/agent': 'mode', '/connect': 'providers' }
@@ -445,9 +445,9 @@ export function Composer({
       return
     }
     if (failed) return
-    if (!ready.length && isClearCommand(agent, msg)) {
+    if (!ready.length && transitionCommand(agent, msg)) {
       handedOver()
-      await clearConversation(host, pane, msg)
+      await sendTransition(host, pane, agent, msg)
       return
     }
     if (ready.length) msg = `${msg}${msg ? '\n\n' : ''}Attached files:\n${ready.map((f) => f.path).join('\n')}`

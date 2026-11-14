@@ -1267,7 +1267,7 @@ impl Registry {
         let footer_thread = if proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host) {
             let owned: Vec<String> = pr.borrow().codex_threads.values().flatten().cloned().collect();
             screens.get(&p.id).and_then(|lines| {
-                crate::agents::codex::codex_footer_thread(lines, &owned).or_else(|| {
+                crate::agents::codex::codex_side_thread(lines).or_else(|| crate::agents::codex::codex_footer_thread(lines, &owned)).or_else(|| {
                     // A native picker temporarily replaces the footer, not the
                     // conversation. Carry only this process's previously proven
                     // ID while that ID is still live and the picker is visible.
@@ -1332,7 +1332,11 @@ impl Registry {
                     .await.ok().and_then(|found| found.0)
             } else { None }
         } else { None };
-        if let Some(b) = parked {
+        if let Some(id) = screens.get(&p.id).filter(|_| proc.kind == AgentKind::Codex).and_then(|lines| crate::agents::codex::codex_side_thread(lines)) {
+            info.transcript_path = Some(format!("codex-side:{id}"));
+            info.session_id = Some(id);
+            info.mapped_by = Some(MappedBy::Process);
+        } else if let Some(b) = parked {
             // the window shows the background session it moved its conversation to, and types into it
             info.transcript_path = Some(b.transcript);
             info.session_id = Some(b.session_id);

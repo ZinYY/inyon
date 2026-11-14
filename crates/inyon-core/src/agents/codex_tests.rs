@@ -1032,6 +1032,18 @@ fn windows_native_footer_requires_a_current_composer_and_live_id() {
 }
 
 #[test]
+fn ephemeral_side_identity_requires_its_native_footer_and_close_hint() {
+    let id = "00000000-0000-0000-0000-000000000002";
+    let mut lines = vec!["› Ask a follow-up question".into(), format!("  {id} · GPT-6-Astra high"), "  ← for agents · Side from main thread · ⌃/ to switch · ⌃c to close".into()];
+    assert_eq!(codex_side_thread(&lines).as_deref(), Some(id));
+    assert_eq!(codex_footer_thread(&lines, &[]), None);
+    lines.pop();
+    assert_eq!(codex_side_thread(&lines), None);
+    lines.insert(0, "Side from main thread · ⌃/ to switch · ⌃c to close".into());
+    assert_eq!(codex_side_thread(&lines), None, "quoted text above the composer is not a side footer");
+}
+
+#[test]
 fn native_footer_identity_survives_wrapped_and_multiline_drafts() {
     let id = "00000000-0000-0000-0000-000000000001".to_owned();
     for marker in ["›", "»", "!"] {

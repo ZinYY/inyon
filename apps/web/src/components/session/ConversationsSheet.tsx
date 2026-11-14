@@ -1,3 +1,4 @@
+import { changeConversation, isClearing } from '../../lib/clearConversation.ts'
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
 import { ArrowRight, History } from 'lucide-react'
@@ -35,12 +36,12 @@ export function ConversationsSheet({ host, pane, agent, working, open, onClose }
   useOpened(open, `${host} ${pane} ${agent}`, load)
 
   const pick = async (c: PastConversation) => {
-    if (c.current || switching) return
+    if (c.current || switching || isClearing(host, pane)) return
     if (working && !(await confirmAction({ title: 'Switch conversation?', body: 'The current one is saved and can be resumed later.', yes: 'Switch' }))) return
     setSwitching(c.id)
     try {
-      await api.switchConversation(host, pane, agent, c.id)
       onClose()
+      if (!await changeConversation(host, pane, 'Switching conversation', () => api.switchConversation(host, pane, agent, c.id), { agent, session: c.id, allowPrompt: true })) return
       toast({ title: 'Conversation switched', body: c.title, tone: 'success' })
     } catch (e) {
       toast({ title: 'Could not switch', body: (e as Error).message, tone: 'error' })

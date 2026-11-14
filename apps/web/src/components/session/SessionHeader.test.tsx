@@ -19,7 +19,7 @@ test('the three-dot menu reloads the chat without clearing or restarting the age
   fireEvent.click(screen.getAllByRole('button', { name: 'More' }).at(-1)!)
   fireEvent.click(screen.getByText('Reload full chat'))
   await flush()
-  expect(api.reloadChat).toHaveBeenCalledWith('box', '%1')
+  expect(api.refreshConversation).toHaveBeenCalledWith('box', '%1', expect.objectContaining({ allowWorking: true, allowPrompt: true }))
   expect(api.send).not.toHaveBeenCalled()
   expect(api.restart).not.toHaveBeenCalled()
 })

@@ -10,7 +10,7 @@ import { Composer } from '../chat/Composer.tsx'
 import { ConfirmHost } from '../Confirm.tsx'
 import { openMenu } from '../ui/primitives.tsx'
 import { allPanes } from '../../lib/overview.ts'
-import { agentPane, host } from '../../test/fixtures.ts'
+import { agentPane, host, chatInfo } from '../../test/fixtures.ts'
 import { useStore } from '../../lib/store.ts'
 import { api } from '../../test/fakes.ts'
 import { flush, renderSettled as render } from '../../test/render.tsx'
@@ -34,6 +34,7 @@ const toasts = () => useStore.getState().toasts.map((t) => [t.title, t.tone])
 
 beforeEach(() => {
   closed = 0
+  api.refreshConversation.mockImplementation(async (_h, p) => ({ reset: { t: 'chat.reset', key: `box:${p}`, info: chatInfo({ sessionId: 'b2' }), items: [], hasMore: false }, screen: { working: false, width: 100, inputVisible: true } }))
   useStore.setState({ toasts: [] })
 })
 
@@ -126,7 +127,7 @@ describe('Past conversations', () => {
     expect(closed).toBe(0)
   })
 
-  test('a switch that fails says why and keeps the sheet open', async () => {
+  test('a switch that fails keeps chat locked with recovery available', async () => {
     answer()
     api.switchConversation.mockImplementation(async () => {
       throw new Error('Claude Code did not exit; close it from the terminal')
@@ -135,9 +136,8 @@ describe('Past conversations', () => {
     await render(sheet())
     await user.click(row('Write the README'))
     await flush()
-    expect(closed).toBe(0)
-    expect(toasts()).toEqual([['Could not switch', 'error']])
-    expect(row('Write the README').disabled).toBe(false)
+    expect(closed).toBe(1)
+    expect(useStore.getState().chats['box:%4'].clearing).toMatchObject({ phase: 'failed', error: 'Claude Code did not exit; close it from the terminal' })
   })
 
   test('↓ and ↑ move between conversations', async () => {

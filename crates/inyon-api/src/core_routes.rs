@@ -733,6 +733,20 @@ pub fn add(routes: &mut Routes) {
         "/api/hosts/:id/panes/:pane/fork",
         vec![(M::POST, h(|r| async move { Ok(ok_json(&json!({ "pane": actions::fork_conversation(&id(&r), &pane(&r)).await? }))) }))],
     );
+    guarded(
+        routes,
+        "/api/hosts/:id/panes/:pane/chat/refresh",
+        vec![(M::POST, h(|mut r| async move {
+            let body = r.body().await?;
+            let options = serde_json::from_value(body).map_err(|_| http(400, "Invalid refresh options"))?;
+            Ok(json_of(&inyon_core::claude::transition::refresh(&id(&r), &pane(&r), options).await?))
+        }))],
+    );
+    guarded(routes, "/api/hosts/:id/panes/:pane/side/close", vec![(M::POST, h(|mut r| async move {
+        let b = r.body().await?;
+        actions::close_codex_side(&id(&r), &pane(&r), &str_or_empty(field(&b, "session")?)).await?;
+        Ok(ok())
+    }))]);
     // a session's latest messages, condensed (`inyon read`)
     guarded(
         routes,

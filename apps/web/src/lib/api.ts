@@ -4,6 +4,7 @@ import { isPhone, phone } from './phone.ts'
 import { checkPlain, hubToken, isHubHost, splitHostId, type PairedHub } from './hubs.ts'
 import { NoChunkedUploads, retryable, uploadChunked, UploadError, type Uploaded } from './upload.ts'
 import type { DevinSession, DevinUpdate } from './devin.ts'
+import type { RefreshOptions, RefreshedConversation } from './clearConversation.ts'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -403,6 +404,8 @@ export const api = {
   reconnect: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/reconnect`),
   restart: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/restart`),
   reloadChat: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/chat/reload`, undefined, 30_000),
+  refreshConversation: (host: string, pane: string, options: RefreshOptions) => request<RefreshedConversation>('POST', `${panePath(host, pane)}/chat/refresh`, options, 120_000),
+  closeSide: (host: string, pane: string, session: string) => request('POST', `${panePath(host, pane)}/side/close`, { session }, 30_000),
   exit: (host: string, pane: string) => request('POST', `${panePath(host, pane)}/exit`),
   /** the agent exits, then its tmux pane closes (and its window or session, if that was the last) */
   end: (host: string, pane: string) => request<{ closed: 'pane' | 'window' | 'session' }>('POST', `${panePath(host, pane)}/end`),

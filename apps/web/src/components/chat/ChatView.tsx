@@ -1,3 +1,4 @@
+import { changeConversation, isClearing } from '../../lib/clearConversation.ts'
 import { ConversationColumn, ComposerDock } from './ChatChrome.tsx'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
@@ -90,6 +91,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     return () => clearTimeout(timer)
   }, [host, pane, switching, paneAgent?.sessionId])
   const running = chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent
+  const sideConversation = chat?.info?.transcriptPath?.startsWith('codex-side:') === true
   const working = !!screen?.working
   const prompt = screen?.prompt
   // a question asked before the connection dropped (opened from its alert, say) keeps its buttons,
@@ -286,6 +288,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
 
   /** `auto`: the resend when the connection is back, which is a retry already: one go, and if it fails too the message waits for a tap */
   const retry = async (id: string, text: string, auto = false) => {
+    if (isClearing(host, pane)) return
     patchChat(key, (c) => ({ pending: c.pending.map((p) => (p.id === id ? { ...p, status: 'sending', at: Date.now(), retryable: false } : p)) }))
     try {
       await (auto ? api.send(host, pane, text, id) : withRetries(() => api.send(host, pane, text, id)))
@@ -306,7 +309,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     const short = text.length > 60 ? `${text.slice(0, 60)}…` : text
     if (!(await confirmAction({ title: 'Rewind the conversation?', body: `Codex forgets "${short}" and everything after it.`, yes: 'Rewind', danger: true }))) return
     try {
-      await api.rewind(host, pane, text)
+      if (!await changeConversation(host, pane, 'Rewinding conversation', () => api.rewind(host, pane, text), { agent: 'codex' })) return
       toast({ title: 'Conversation rewound', tone: 'success' })
     } catch (e) {
       toast({ title: 'Could not rewind', body: (e as Error).message, tone: 'error' })
@@ -389,6 +392,10 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                 </>
               ) : (
                 <>
+                  {sideConversation && <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-elev px-4 py-3">
+                    <div><p className="text-sm font-medium">Side conversation</p><p className="text-xs text-fg-3">Temporary messages captured while connected.</p></div>
+                    <Button size="sm" variant="ghost" disabled={clearing || !connected} onClick={() => void changeConversation(host, pane, 'Returning to main conversation', () => api.closeSide(host, pane, chat.info!.sessionId!), { agent: 'codex', differentFrom: chat.info?.sessionId, allowWorking: true })}>Close side conversation</Button>
+                  </div>}
                   {chat.hasMore && (
                     <div className="mb-4 min-h-8">
                       {loadingMore ? (
@@ -569,11 +576,11 @@ function NotRunning({
   const start = async (kind: AgentKind, resume?: string) => {
     setBusy(resume ? 'resume' : kind)
     try {
-      await api.start(host, pane, kind, resume)
+      await changeConversation(host, pane, resume ? 'Resuming conversation' : 'Starting agent', () => api.start(host, pane, kind, resume), { agent: kind, session: resume, allowPrompt: true })
     } catch (e) {
       toast({ title: 'Could not start', body: (e as Error).message, tone: 'error' })
     } finally {
-      setTimeout(() => setBusy(null), 2500)
+      setBusy(null)
     }
   }
   return (

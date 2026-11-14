@@ -7,7 +7,7 @@ import { copyText } from '../../lib/clipboard.ts'
 import { useAgentCatalog } from './useAgentCatalog.ts'
 import { confirmAction } from '../Confirm.tsx'
 import { endSession } from '../../lib/end.ts'
-import { clearConversation, isClearing, isClearCommand } from '../../lib/clearConversation.ts'
+import { changeConversation, sendTransition, isClearing, transitionCommand } from '../../lib/clearConversation.ts'
 
 /** Everything a session view needs: pane ref, live status, transcript summary, and actions. */
 export function useSession(host: string, pane: string) {
@@ -61,15 +61,14 @@ export function useSession(host: string, pane: string) {
       toast({ title: label, body: (e as Error).message, tone: 'error' })
     }
   }
-  const send = (text: string, label = 'Could not send') => run(label, () => isClearCommand(agent, text) ? clearConversation(host, pane, text) : api.send(host, pane, text))
+  const send = (text: string, label = 'Could not send') => run(label, () => transitionCommand(agent, text) ? sendTransition(host, pane, agent, text) : api.send(host, pane, text))
   // a setting goes to the agent as a slash command, but the chat doesn't show it as a message
   const setting = (text: string, label: string) => run(label, () => api.setting(host, pane, text))
 
   const actions = {
     send,
     reloadChat: () => run('Could not reload chat', async () => {
-      await api.reloadChat(host, pane)
-      toast({ title: 'Reloading full chat', body: 'Reading the original conversation records again. Your agent keeps running.', tone: 'info' })
+      await changeConversation(host, pane, 'Reloading conversation', async () => {}, { agent, allowWorking: true, allowPrompt: true })
     }),
     setModel: selectModel,
     setEffort: (level: string) => selectedModel?.variants?.[level]
@@ -100,7 +99,7 @@ export function useSession(host: string, pane: string) {
       }
       if (agent !== 'codex' || !(await confirmAction({ title: 'Rewind your last message?', body: 'Codex forgets it and its reply. To go further back, use the rewind button under any message.', yes: 'Rewind', danger: true }))) return
       return run('Could not rewind', async () => {
-        await api.rewind(host, pane)
+        if (!await changeConversation(host, pane, 'Rewinding conversation', () => api.rewind(host, pane), { agent })) return
         toast({ title: 'Conversation rewound', tone: 'success' })
       })
     },
@@ -120,17 +119,16 @@ export function useSession(host: string, pane: string) {
     exit: async () => {
       if (!def || !(await confirmAction({ title: `Exit ${def.name} to the shell?`, body: 'The conversation is saved, and the pane stays open at its shell. To close the pane too, use End session.', yes: 'Exit' }))) return
       return run(`Could not exit ${def.name}`, async () => {
-        await api.exit(host, pane)
+        if (!await changeConversation(host, pane, 'Exiting agent', () => api.exit(host, pane), { stopped: true })) return
         toast({ title: `${def.name} exited`, tone: 'success' })
       })
     },
     /** Claude Code, Codex and OpenCode can carry on a copy of the conversation in a new window */
-    canFork: (agent === 'claude' || agent === 'codex' || agent === 'opencode') && !!(info?.sessionId ?? ref?.pane.agent?.sessionId),
+    canFork: !info?.transcriptPath?.startsWith('codex-side:') && (agent === 'claude' || agent === 'codex' || agent === 'opencode') && !!(info?.sessionId ?? ref?.pane.agent?.sessionId),
     fork: (go: (pane: string) => void) =>
       run('Could not fork', async () => {
-        const r = await api.fork(host, pane)
-        toast({ title: 'Forked into a new window', body: 'Both conversations carry on separately from here.', tone: 'success' })
-        go(r.pane)
+        await changeConversation(host, pane, 'Forking conversation', () => api.fork(host, pane),
+          { agent, differentFrom: info?.sessionId ?? ref?.pane.agent?.sessionId, allowPrompt: true }, { onReady: go })
       }),
     copyId: async () => {
       const id = info?.sessionId ?? ref?.pane.agent?.sessionId

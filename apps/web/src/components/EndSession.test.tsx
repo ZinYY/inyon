@@ -37,7 +37,7 @@ async function endFromCard(title: string) {
 }
 
 describe('ending a session', () => {
-  test('the sheet names the session, machine and tmux target, and the card goes at once', async () => {
+  test('the sheet names the session, machine and tmux target, and the card stays until closing is confirmed', async () => {
     let finish!: () => void
     api.end.mockImplementation(() => new Promise((r) => (finish = () => r({ closed: 'pane' }))))
     const user = await endFromCard('Fix the login test')
@@ -47,8 +47,11 @@ describe('ending a session', () => {
     expect(within(sheet).getByText('api:1.0')).toBeTruthy()
     expect(within(sheet).getByText(/Claude Code exits, then its tmux pane closes\. Your other windows stay/)).toBeTruthy()
     await user.click(within(sheet).getByRole('button', { name: 'End session' }))
-    // on its way out before the machine has even answered: fading, and gone a moment later
-    expect(card('Fix the login test')!.closest('[data-leaving]')).toBeTruthy()
+    expect(card('Fix the login test')!.closest('[data-leaving]')).toBeNull()
+    expect(useStore.getState().chats['box:%1'].clearing).toBeTruthy()
+    finish()
+    await flush()
+    expect(api.refresh).toHaveBeenCalledTimes(1)
     await new Promise((r) => setTimeout(r, LEAVE_MS + 30))
     await flush()
     expect(card('Fix the login test')).toBeNull()
@@ -59,7 +62,6 @@ describe('ending a session', () => {
     emit({ t: 'overview', hosts: [fresh(box())] } as any)
     await flush()
     expect(card('Fix the login test')).toBeNull()
-    finish()
     await flush()
   })
 

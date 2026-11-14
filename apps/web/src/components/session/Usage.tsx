@@ -1,3 +1,4 @@
+import { changeConversation, isClearing } from '../../lib/clearConversation.ts'
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { Clock, Coins, Gauge, Layers, RadioTower, RotateCw } from 'lucide-react'
@@ -73,13 +74,14 @@ function RateRow({ label, w: raw }: { label: string; w?: { pct: number; resetsAt
 export function StoppedNote({ host, pane, compact }: { host: string; pane: string; compact?: boolean }) {
   const [busy, setBusy] = useState<'reconnect' | 'restart' | null>(null)
   const run = async (what: 'reconnect' | 'restart') => {
+    if (isClearing(host, pane)) return
     setBusy(what)
     try {
       if (what === 'reconnect') {
         await api.reconnect(host, pane)
         toast({ title: 'Reconnected', body: 'Numbers return with its next update. The session keeps running.', tone: 'success' })
       } else {
-        await api.restart(host, pane)
+        if (!await changeConversation(host, pane, 'Restarting agent', () => api.restart(host, pane), { allowPrompt: true })) return
         toast({ title: 'Session resumed', body: 'Same conversation, fresh settings.', tone: 'success' })
       }
     } catch (e) {

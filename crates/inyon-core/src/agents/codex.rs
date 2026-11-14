@@ -573,6 +573,17 @@ pub fn codex_footer_thread(lines: &[String], owned: &[String]) -> Option<String>
     owned.iter().find(|id| id.as_str() == &m[1]).cloned()
 }
 
+/// /btw (/side) has a native footer but deliberately has no rollout or writer lock.
+/// This ID is only used for a screen-backed temporary conversation, never a file lookup.
+pub fn codex_side_thread(lines: &[String]) -> Option<String> {
+    let clean: Vec<_> = lines.iter().map(|l| crate::claude::screen::unstyle(l).text).collect();
+    let (_, footer) = crate::claude::screen::codex_composer_footer(&clean)?;
+    let hint = clean[footer + 1..].join(" ");
+    if !hint.contains("Side from ") || !(hint.contains("to switch") && hint.contains("to close")) { return None; }
+    let m = re!(r"^ {2}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · |$)").captures(&clean[footer])?;
+    Some(m[1].to_owned())
+}
+
 pub fn codex_footer_title(lines: &[String], cwd: Option<&str>) -> Option<String> {
     let folder = cwd?.split(['/', '\\']).rfind(|s| !s.is_empty())?;
     for clean in lines.iter().rev().map(|l| crate::claude::screen::unstyle(l).text).filter(|l| !l.trim().is_empty()).take(4) {

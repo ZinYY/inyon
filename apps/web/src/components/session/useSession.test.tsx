@@ -10,7 +10,7 @@ import { api, emit } from '../../test/fakes.ts'
 test('reloading chat rebuilds the reader without sending an agent command', async () => {
   const { result } = renderHook(() => useSession('box', '%1'))
   await result.current.actions.reloadChat()
-  expect(api.reloadChat).toHaveBeenCalledWith('box', '%1')
+  expect(api.refreshConversation).toHaveBeenCalledWith('box', '%1', expect.objectContaining({ allowWorking: true, allowPrompt: true }))
   expect(api.send).not.toHaveBeenCalled()
   expect(api.restart).not.toHaveBeenCalled()
 })
