@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, jest, mock, spyOn, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, jest, mock, spyOn, test } from 'bun:test'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ChatItem, SendState } from '@inyon/protocol'
 import { ChatView, reconnect } from './ChatView.tsx'
@@ -10,6 +10,12 @@ import { socket } from '../../lib/socket.ts'
 import { emit } from '../../test/fakes.ts'
 import { agentPane, chatInfo, host, item } from '../../test/fixtures.ts'
 import { flush } from '../../test/render.tsx'
+import { forgetReadingPositions } from '../../lib/readingPosition.ts'
+beforeEach(forgetReadingPositions)
+const mockRecovery = () => spyOn(api, 'refreshConversation').mockImplementation(async () => {
+  const chat = useStore.getState().chats['box:%1']
+  return { reset: { t: 'chat.reset' as const, key: 'box:%1', info: chat.info!, items: chat.items, hasMore: chat.hasMore }, screen: chat.screen ?? { working: false, width: 80 } }
+})
 
 // bun keeps a spy in place for every test file after this one
 afterAll(() => mock.restore())
@@ -86,7 +92,7 @@ describe('ChatView', () => {
   const view = () => <ChatView host="box" pane="%1" agent="claude" onTerminal={() => {}} />
   const load = (items: ChatItem[], info = chatInfo({ sessionId: 'current' })) => act(() => emit({ t: 'chat.reset', key: 'box:%1', info, items, hasMore: true }))
 
-  test('a missed session reset is recovered without exposing the previous conversation', () => {
+  test('a missed session reset retains readable history with locked input until recovery', () => {
     jest.useFakeTimers()
     const refresh = spyOn(socket, 'refreshChat')
     refresh.mockClear()
@@ -95,7 +101,7 @@ describe('ChatView', () => {
     const rendered = render(view())
     try {
       load([item.user('Previous session message')], chatInfo({ sessionId: 'previous' }))
-      expect(screen.queryByText('Previous session message')).toBeNull()
+      expect(screen.getByText('Previous session message')).toBeTruthy()
       act(() => jest.advanceTimersByTime(2999))
       expect(refresh).not.toHaveBeenCalled()
       act(() => jest.advanceTimersByTime(1))
@@ -111,6 +117,7 @@ describe('ChatView', () => {
   })
 
   test('a message that failed because the connection dropped goes out again once it is back', async () => {
+    const recovery = mockRecovery()
     useStore.setState({ connected: false, hosts: [host('box')] })
     const send = spyOn(api, 'send').mockResolvedValue({ ok: true } as any)
     render(view())
@@ -126,9 +133,11 @@ describe('ChatView', () => {
     expect(send.mock.calls.map((c) => c[3])).toEqual(['lost'])
     expect(useStore.getState().chats['box:%1'].pending.find((p) => p.id === 'lost')?.status).toBe('sent')
     send.mockRestore()
+    recovery.mockRestore()
   })
 
   test('a message whose resend fails again waits for a tap instead of going round on every reconnect', async () => {
+    const recovery = mockRecovery()
     // a request the browser refuses outright looks like a dropped connection (a TypeError) too
     useStore.setState({ connected: false, hosts: [host('box')] })
     const send = spyOn(api, 'send').mockRejectedValue(new TypeError('Failed to fetch'))
@@ -145,6 +154,7 @@ describe('ChatView', () => {
     const p = useStore.getState().chats['box:%1'].pending[0]!
     expect(p).toMatchObject({ status: 'failed', error: 'Failed to fetch', retryable: false })
     send.mockRestore()
+    recovery.mockRestore()
   })
 
   test("Codex's reply shows as it is written, and the finished message takes its place once", async () => {
@@ -265,10 +275,10 @@ describe('ChatView', () => {
     expect(sent.mock.calls.some(([m]) => m.t === 'chat.more')).toBe(false)
     scrollTo(300)
     expect(sent.mock.calls.filter(([m]) => m.t === 'chat.more')).toHaveLength(1)
-    // a skeleton of lines where the older messages land, not a spinner
+    // Earlier messages share the composer wait, leaving the reading area intact.
     expect(screen.getByText('Loading earlier messages')).toBeTruthy()
-    expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0)
-    expect(container.querySelector('.animate-spin')).toBeNull()
+    expect(container.querySelectorAll('.skeleton')).toHaveLength(0)
+    expect(container.querySelector('.animate-spin')).not.toBeNull()
     // only one request at a time, and an empty answer still ends the wait
     scrollTo(100)
     expect(sent.mock.calls.filter(([m]) => m.t === 'chat.more')).toHaveLength(1)
@@ -316,14 +326,14 @@ describe('ChatView', () => {
     expect(screen.getByText('No agent is running in this pane')).toBeTruthy()
   })
 
-  for (const kind of ['codex', 'claude'] as const) test(`${kind} hides cached history until the current session is identified`, async () => {
+  for (const kind of ['codex', 'claude'] as const) test(`${kind} retains cached history with locked input until the current session is identified`, async () => {
     const current = agentPane('%1', kind)
     useStore.setState({ connected: true, hosts: [host('box', { panes: [current] })] })
     render(<ChatView host="box" pane="%1" agent={kind} onTerminal={() => {}} />)
     load([item.user('Previous session message')], chatInfo({ sessionId: 'previous' }))
     expect(screen.getByText('Waiting to identify this conversation')).toBeTruthy()
-    expect(screen.queryByText('Previous session message')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Open terminal' })).toBeTruthy()
+    expect(screen.getByText('Previous session message')).toBeTruthy()
+    expect((screen.getByLabelText(`Message ${kind === 'claude' ? 'Claude Code' : 'Codex'}`) as HTMLTextAreaElement).disabled).toBe(true)
     act(() => {
       useStore.setState({ hosts: [host('box', { panes: [{ ...current, agent: { ...current.agent!, sessionId: 'current' } }] })] })
       emit({ t: 'chat.reset', key: 'box:%1', info: chatInfo({ sessionId: 'current' }), items: [], hasMore: false })
@@ -347,14 +357,14 @@ describe('ChatView', () => {
     act(() => emit({ t: 'overview', hosts: [] }))
   })
 
-  test('before the conversation arrives: lines in its shape, and the catch-up percentage on the label', async () => {
+  test('initial loading and catch-up use a spinner in the composer only', async () => {
     useStore.setState({ connected: true, hosts: [host('box')] })
     const { container } = render(view())
-    expect(screen.getByRole('status').textContent).toBe('Loading the conversation')
-    expect(container.querySelectorAll('.skeleton')).toHaveLength(3)
-    expect(container.querySelector('.animate-spin')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('Loading the conversation')
+    expect(container.querySelectorAll('.skeleton')).toHaveLength(0)
+    expect(container.querySelector('.animate-spin')).not.toBeNull()
     act(() => emit({ t: 'chat.progress', key: 'box:%1', done: 40, total: 100 }))
-    expect(screen.getByRole('status').textContent).toBe('Loading the conversation · 40%')
+    expect(screen.getByRole('status').textContent).toContain('Loading the conversation · 40%')
     load([item.user('hello')])
     await flush()
     expect(screen.queryByText(/Loading the conversation/)).toBeNull()
@@ -369,7 +379,7 @@ describe('ChatView', () => {
       emit({ t: 'chat.progress', key: 'box:%1', done: 40, total: 100 })
       emit({ t: 'chat.screen', key: 'box:%1', screen: { working: true, width: 80, activity: 'Pondering…' } })
     })
-    expect(screen.getByRole('status').textContent).toContain('Catching up on what you missed')
+    expect(screen.getByRole('status').textContent).toContain('Loading the conversation')
     expect(screen.getByRole('status').textContent).toContain('40%')
     expect(screen.queryByText('Pondering…')).toBeNull()
     load([item.user('before you left'), item.text('done while you were away')])
@@ -425,7 +435,7 @@ describe('ChatView', () => {
     expect(container.querySelector('[aria-label="Jump to latest"]')).toBe(jump)
   })
 
-  test('coming back after a while jumps to the latest message', async () => {
+  test('coming back after a while preserves the reading position', async () => {
     useStore.setState({ connected: true, hosts: [host('box')] })
     const { container } = render(view())
     load(longConversation(5))
@@ -450,7 +460,7 @@ describe('ChatView', () => {
     now.mockReturnValue(t + 60_000 + 3 * 3600_000)
     hidden(false)
     await new Promise((r) => requestAnimationFrame(r))
-    expect(to).toHaveBeenCalled()
+    expect(to).not.toHaveBeenCalled()
     now.mockRestore()
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => false })
   })
@@ -493,18 +503,19 @@ describe('a long question card', () => {
 describe('opened while the machine reconnects', () => {
   const view = () => <ChatView host="box" pane="%1" agent="claude" onTerminal={() => {}} />
   const asking = () =>
-    host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'waiting', waitingFor: 'Bash command: npm test', options: [{ n: 1, label: 'Yes' }, { n: 2, label: 'No' }] } })] })
+    host('box', { panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'waiting', sessionId: 'current', waitingFor: 'Bash command: npm test', options: [{ n: 1, label: 'Yes' }, { n: 2, label: 'No' }] } })] })
   // the app's own first picture after a cold start: the machine connecting, what it was doing unknown
   const connecting = () => host('box', { status: 'connecting', panes: [agentPane('%1', 'claude', { agent: { kind: 'claude', pid: 1, state: 'unknown' } })] })
 
   test('says it is reconnecting, not offline, and keeps the question it was asking, held until it is back', async () => {
+    const recovery = mockRecovery()
     useStore.setState({ connected: true, hosts: [asking()] })
     useStore.setState({ hosts: [connecting()] })
     render(view())
-    act(() => emit({ t: 'chat.reset', key: 'box:%1', info: chatInfo(), items: [item.user('run the tests')], hasMore: false }))
+    act(() => emit({ t: 'chat.reset', key: 'box:%1', info: chatInfo({ sessionId: 'current' }), items: [item.user('run the tests')], hasMore: false }))
     await flush()
     expect(screen.getByText('Reconnecting to box…')).toBeTruthy()
-    expect(screen.getByText('Reconnecting to box…').className).toContain('animate-fade-in')
+    expect(screen.getByText('Reconnecting to box…').closest('[role="status"]')).toBeTruthy()
     expect(screen.queryByText(/is offline/)).toBeNull()
     expect(screen.getByText('Bash command: npm test')).toBeTruthy()
     const yes = () => screen.getByText('Yes').closest('button')!
@@ -519,6 +530,7 @@ describe('opened while the machine reconnects', () => {
     await flush()
     expect(screen.queryByText(/Reconnecting/)).toBeNull()
     expect(yes().disabled).toBe(false)
+    recovery.mockRestore()
   })
 
   test('a machine still away after a while is called offline', async () => {

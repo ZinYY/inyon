@@ -5,6 +5,7 @@ import { DevinPage } from './Devin.tsx'
 import { api } from '../test/fakes.ts'
 import { renderSettled as render, flush } from '../test/render.tsx'
 import type { DevinUpdate } from '../lib/devin.ts'
+import { useStore } from '../lib/store.ts'
 
 const saved: DevinUpdate = {
   version: 1, reset: true, loading: false,
@@ -13,7 +14,7 @@ const saved: DevinUpdate = {
   order: ['m1'], messages: [{ id: 'm1', role: 'assistant', text: 'Saved answer', tools: [] }],
 }
 const open = () => render(<MemoryRouter initialEntries={['/m/example/devin/test-chat']}><Routes><Route path="m/:host/devin/:session" element={<DevinPage />} /></Routes></MemoryRouter>)
-beforeEach(() => { api.devinRead.mockResolvedValue(saved) })
+beforeEach(() => { api.devinRead.mockResolvedValue(saved); useStore.setState({ connected: true }) })
 
 test('an existing tmux CLI is visible and messages are sent by stable session ID', async () => {
   api.devinSend.mockResolvedValue({ status: 'sent', tmux: 'existing-manual-cli', pane: '%7' })
@@ -78,9 +79,10 @@ test('an invalid first response retries without a blank page or losing the draft
   await open()
   expect(screen.getByRole('alert').textContent).toContain('Retrying')
   const input = screen.getByLabelText('Message Devin') as HTMLTextAreaElement
-  fireEvent.change(input, { target: { value: 'keep draft while reconnecting' } })
+  expect(input.disabled).toBe(true)
   await waitFor(() => expect(screen.getByText('Saved answer')).toBeTruthy(), { timeout: 2000 })
-  expect(input.value).toBe('keep draft while reconnecting')
+  expect(input.value).toBe('')
+  expect(input.disabled).toBe(false)
   expect(screen.queryByRole('alert')).toBeNull()
   expect(api.devinRead.mock.calls[1]).toEqual(['example', 'test-chat', 0])
 })
@@ -93,6 +95,22 @@ test('a malformed incremental response preserves history and its cursor until re
   expect(screen.getByText('Saved answer')).toBeTruthy()
   await waitFor(() => expect(screen.getByText('Recovered answer')).toBeTruthy(), { timeout: 2000 })
   expect(api.devinRead.mock.calls[2]).toEqual(['example', 'test-chat', 1])
+})
+
+test('a loading reset leaves saved history and the draft intact until the complete update', async () => {
+  api.devinRead.mockResolvedValueOnce(saved)
+    .mockResolvedValueOnce({ ...saved, version: 2, loading: true, order: [], messages: [] })
+    .mockResolvedValue({ ...saved, version: 3, reset: false, order: ['m1', 'm2'], messages: [{ id: 'm2', role: 'assistant', text: 'Complete update', tools: [] }] })
+  await open()
+  const input = screen.getByLabelText('Message Devin') as HTMLTextAreaElement
+  fireEvent.change(input, { target: { value: 'Keep this draft' } })
+  await waitFor(() => expect(input.disabled).toBe(true), { timeout: 2000 })
+  expect(screen.getByText('Saved answer').closest('[inert]')).toBeNull()
+  expect(screen.getByText('Reading saved history')).toBeTruthy()
+  await waitFor(() => expect(screen.getByText('Complete update')).toBeTruthy(), { timeout: 2000 })
+  expect(api.devinRead.mock.calls[2]).toEqual(['example', 'test-chat', 1])
+  expect(input.disabled).toBe(false)
+  expect(input.value).toBe('Keep this draft')
 })
 
 test('tool calls and intermediate output share the final reply footer', async () => {

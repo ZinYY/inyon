@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import { act, fireEvent, renderHook, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { AgentKind } from '@inyon/protocol'
-import { clearConversation, changeConversation, sendTransition, isClearCommand, transitionCommand, refreshClearedConversation } from './clearConversation.ts'
+import { clearConversation, changeConversation, sendTransition, isClearCommand, transitionCommand, refreshClearedConversation, waitForConnection, recoverConnection } from './clearConversation.ts'
 import { patchChat, useStore } from './store.ts'
 import { api, emit, socket } from '../test/fakes.ts'
 import { agentPane, chatInfo, host, item } from '../test/fixtures.ts'
@@ -68,6 +68,91 @@ test('a lost response keeps the lock; recovery refreshes without resending clear
   expect(useStore.getState().chats[key].clearing).toBeUndefined()
 })
 
+test('reconnect preserves cached history, loaded older pages and unsent draft until a complete read', async () => {
+  const { pane, key, info } = conversation('claude')
+  const older = item.user('Older readable message')
+  const head = item.user('Recent readable message')
+  patchChat(key, () => ({ items: [older, head], hasMore: false, draft: { text: 'My unsent question', source: 'app', at: 1 } }))
+  useStore.setState({ connected: false })
+  waitForConnection('box', pane)
+  emit({ t: 'chat.reset', key, info, items: [], hasMore: false })
+  expect(useStore.getState().chats[key].clearing?.retained?.items).toEqual([older, head])
+  let ready!: (v: any) => void
+  api.refreshConversation.mockImplementation(() => new Promise((r) => { ready = r }))
+  useStore.setState({ connected: true })
+  const recovery = recoverConnection('box', pane)
+  expect(api.refreshConversation.mock.calls[0][2]).toEqual({ allowWorking: true, allowPrompt: true, readOnly: true })
+  ready({ reset: { t: 'chat.reset', key, info, items: [head, item.text('New reply')], hasMore: true }, screen: { working: false, width: 80 } })
+  await recovery
+  const result = useStore.getState().chats[key]
+  expect(result.clearing).toBeUndefined()
+  expect(result.items[0]).toEqual(older)
+  expect(result.hasMore).toBe(false)
+  expect(result.draft?.text).toBe('My unsent question')
+  expect(api.send).not.toHaveBeenCalled()
+})
+
+test('another disconnect invalidates the in-flight read and serializes recovery without replaying actions', async () => {
+  const { pane, key, info } = conversation()
+  const reads: ((v: any) => void)[] = []
+  api.refreshConversation.mockImplementation(() => new Promise((r) => { reads.push(r) }))
+  useStore.setState({ connected: false }); waitForConnection('box', pane)
+  useStore.setState({ connected: true }); const first = recoverConnection('box', pane)
+  useStore.setState({ connected: false }); waitForConnection('box', pane)
+  useStore.setState({ connected: true }); recoverConnection('box', pane)
+  expect(reads).toHaveLength(1)
+  reads[0]({ reset: { t: 'chat.reset', key, info, items: [item.user('Stale response')], hasMore: false }, screen: { working: false, width: 80 } })
+  await first; await flush()
+  expect(reads).toHaveLength(2)
+  expect(useStore.getState().chats[key].clearing?.retained?.items[0]).toMatchObject({ text: 'Previous conversation' })
+  reads[1]({ reset: { t: 'chat.reset', key, info, items: [item.user('Fresh response')], hasMore: false }, screen: { working: false, width: 80 } })
+  await flush()
+  expect(useStore.getState().chats[key].items[0]).toMatchObject({ text: 'Fresh response' })
+  expect(useStore.getState().chats[key].clearing).toBeUndefined()
+  expect(api.send).not.toHaveBeenCalled()
+})
+
+test('reconnect never automatically retries an old pending message into a different conversation', async () => {
+  const { pane, key, info } = conversation()
+  patchChat(key, () => ({ pending: [{ id: 'unsure', text: 'Old question', at: Date.now(), status: 'failed', retryable: true }] }))
+  useStore.setState({ connected: false }); waitForConnection('box', pane)
+  api.refreshConversation.mockResolvedValue({ reset: { t: 'chat.reset', key, info: { ...info, sessionId: 'different' }, items: [], hasMore: false }, screen: { working: false, width: 80 } })
+  useStore.setState({ connected: true }); await recoverConnection('box', pane)
+  expect(useStore.getState().chats[key].pending[0]).toMatchObject({ status: 'failed', retryable: false })
+  expect(api.send).not.toHaveBeenCalled()
+})
+
+test('refresh restores the latest reading anchor after DOM replacement, including scrolling during the wait', async () => {
+  const { pane, key, info, refreshed } = conversation()
+  const items = Array.from({ length: 12 }, (_, i) => item.user(`Readable message ${i}`))
+  patchChat(key, () => ({ items }))
+  await renderSettled(<MemoryRouter initialEntries={[`/m/box/p/${pane.slice(1)}`]}><Routes><Route path="/m/:host/p/:pane" element={<PanePage />} /></Routes></MemoryRouter>)
+  const scroller = (await screen.findByText('Readable message 0')).closest('.overflow-y-auto') as HTMLElement
+  const original = HTMLElement.prototype.getBoundingClientRect
+  const anchors = () => [...scroller.querySelectorAll<HTMLElement>('[data-chat-anchor]')]
+  Object.defineProperties(scroller, { scrollHeight: { get: () => anchors().length * 100 }, clientHeight: { value: 200 } })
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    const index = anchors().indexOf(this)
+    const top = index < 0 ? 0 : index * 100 - scroller.scrollTop
+    return { top, bottom: top + 100, height: 100, width: 200, left: 0, right: 200, x: 0, y: top, toJSON() {} }
+  }
+  try {
+    fireEvent.wheel(scroller, { deltaY: -100 }); scroller.scrollTop = 500; fireEvent.scroll(scroller)
+    let operation!: Promise<unknown>
+    act(() => { operation = changeConversation('box', pane, 'Reloading conversation', async () => {}) })
+    await flush()
+    act(() => emit({ t: 'chat.reset', key, info, items: [], hasMore: false }))
+    expect(screen.getByText('Readable message 5')).toBeTruthy()
+    scroller.scrollTop = 200; fireEvent.scroll(scroller)
+    const id = anchors()[2].dataset.chatAnchor
+    act(() => refreshed('before', [item.user('New earlier one'), item.user('New earlier two'), ...items.map((i) => ({ ...i, seq: i.seq + 100 }))]))
+    await act(() => operation)
+    expect(scroller.scrollTop).toBe(400)
+    expect(anchors().find((a) => a.dataset.chatAnchor === id)!.getBoundingClientRect().top).toBe(0)
+    expect(screen.getByText('Readable message 2').closest('[inert]')).toBeNull()
+  } finally { HTMLElement.prototype.getBoundingClientRect = original }
+})
+
 test('the menu uses the same lock and settings cannot enter while clear is running', async () => {
   const { pane, key, info, refreshed } = conversation('claude')
   const { result } = renderHook(() => useSession('box', pane))
@@ -84,7 +169,7 @@ test('the menu uses the same lock and settings cannot enter while clear is runni
 })
 
 for (const agent of ['claude', 'codex'] as const) {
-  test(`${agent}: typing /clear disables input and the whole chat until its refreshed snapshot`, async () => {
+  test(`${agent}: clear locks only controls and preserves readable history until its complete snapshot`, async () => {
     const { pane, key, info, refreshed } = conversation(agent)
     let sent!: () => void
     api.send.mockImplementation(() => new Promise<void>((resolve) => { sent = resolve }))
@@ -97,6 +182,7 @@ for (const agent of ['claude', 'codex'] as const) {
     await flush()
     expect(input.disabled).toBe(true)
     expect(input.closest('[inert]')).not.toBeNull()
+    expect(screen.getByText('Previous conversation').closest('[inert]')).toBeNull()
     expect(screen.getByText('Clearing conversation…')).toBeTruthy()
     // A second event before/after React paints must not dispatch another request.
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -104,6 +190,9 @@ for (const agent of ['claude', 'codex'] as const) {
     await act(async () => { sent(); await flush() })
     expect(screen.getByText('Refreshing conversation…')).toBeTruthy()
     expect(input.disabled).toBe(true)
+    act(() => emit({ t: 'chat.reset', key, info: { ...info, sessionId: 'after' }, items: [item.user('Incomplete replacement')], hasMore: false }))
+    expect(screen.getByText('Previous conversation')).toBeTruthy()
+    expect(screen.queryByText('Incomplete replacement')).toBeNull()
     act(() => {
       emit({ t: 'overview', hosts: [host('box', { panes: [agentPane(pane, agent, { agent: { kind: agent, pid: 1, state: 'idle', sessionId: 'after' } })] })] })
       refreshed()

@@ -27,6 +27,8 @@ export interface ChatState {
   live?: LiveItem[]
   /** when earlier messages last came back (with or without any), so a wait for them can end */
   moreAt?: number
+  /** Older history is loading; keep mutation controls locked until it settles. */
+  readingMore?: boolean
   /** catching up on what was said while away, as a fraction read; cleared by the next reset */
   catchingUp?: number
   /** sent from this device, not yet seen in the transcript */
@@ -198,7 +200,7 @@ export function patchChat(key: string, fn: (c: ChatState) => Partial<ChatState>)
     else sessionStorage.removeItem(pendingStorageKey(key))
   } catch {}
   useStore.setState({ chats: { ...chats, [key]: next } })
-  if (next.loaded && !next.stale && next.items.length) saveChat(key, next)
+  if (next.loaded && !next.stale && !next.clearing && next.items.length) saveChat(key, next)
 }
 
 /** Shows the page of this chat kept on the device, until the hub sends the real one. */

@@ -1,4 +1,6 @@
-import { changeConversation, isClearing } from '../../lib/clearConversation.ts'
+import { changeConversation, isClearing, waitForConnection, recoverConnection } from '../../lib/clearConversation.ts'
+import { readingPosition, rememberReadingPosition } from '../../lib/readingPosition.ts'
+import { ClearingConversation, ConversationWait } from './ClearingConversation.tsx'
 import { ConversationColumn, ComposerDock } from './ChatChrome.tsx'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
@@ -13,7 +15,7 @@ import { accepted, othersSends, settle as settleSends } from '../../lib/pending.
 import { buildRows } from '../../lib/chat.ts'
 import { api, isTransient, withRetries } from '../../lib/api.ts'
 import { AgentLogo, useReplyFont } from '../../lib/skin.tsx'
-import { Button, Empty, openMenu, Pulse, Waiting } from '../ui/primitives.tsx'
+import { Button, Empty, openMenu } from '../ui/primitives.tsx'
 import { AssistantTurn, ChatAgent, ChatRewind, CommandRow, GoalRow, LiveTurn, NoticeRow, PendingBubble, QueuedBubble, UserMessage, WorkingIndicator } from './Messages.tsx'
 import { ChatHost } from './agent.ts'
 import { ReplyFont } from './copy.tsx'
@@ -30,8 +32,6 @@ import { HelpLink } from '../ConnectSheet.tsx'
 import { isPhone } from '../../lib/phone.ts'
 
 const NO_AGENTS: AgentKind[] = []
-/** away longer than this, coming back jumps to the latest message */
-const AWAY_MS = 5 * 60_000
 const NO_QUEUE: string[] = []
 const NO_HELD: HeldPrompt[] = []
 const NO_PENDING: PendingMessage[] = []
@@ -39,12 +39,23 @@ const NO_LIVE: LiveItem[] = []
 
 export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }: { host: string; pane: string; agent?: AgentKind; onTerminal: () => void; controls?: React.ReactNode; ultracode?: boolean }) {
   const key = chatKey(host, pane)
-  const chat = useStore((s) => s.chats[key])
-  const clearing = !!chat?.clearing
+  const currentChat = useStore((s) => s.chats[key])
+  const operation = currentChat?.clearing
+  const chat = operation?.retained ?? currentChat
+  const clearing = !!operation
   const hubUp = useStore((s) => s.connected)
   const machine = useStore((s) => s.hosts.find((h) => h.config.id === host))
   const machineDown = !!machine && machine.status !== 'online'
   const connected = hubUp && !machineDown
+  useLayoutEffect(() => {
+    if (!connected && currentChat?.loaded) waitForConnection(host, pane)
+  }, [host, pane, connected, currentChat?.loaded])
+  useEffect(() => {
+    if (!connected || !operation?.reconnect) return
+    if (operation.phase !== 'failed') { void recoverConnection(host, pane); return }
+    const timer = setTimeout(() => void recoverConnection(host, pane), 5000)
+    return () => clearTimeout(timer)
+  }, [host, pane, connected, operation?.id, operation?.phase])
   const installed = useStore((s) => s.hosts.find((h) => h.config.id === host)?.agents) ?? NO_AGENTS
   // why the last turn stopped, when it ended on an error (a rate limit, signed out)
   const failure = useStore((s) => {
@@ -58,14 +69,16 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const stick = useRef(true)
   // the first rows on screen and where they were, so content changing above them doesn't move what's
   // read (several: the top one is rebuilt when older messages join its turn)
-  const anchor = useRef<{ el: Element; top: number }[]>([])
+  const anchor = useRef<{ id: string; top: number }[]>([])
   const lastTop = useRef(0)
   const touchY = useRef<number | null>(null)
   // when the reader last touched, wheeled or keyed: only then is a move up theirs (content shrinking
   // below also moves the scroll position up, and that mustn't stop following)
   const inputAt = useRef(0)
   const [atBottom, setAtBottom] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const loadingMore = !!currentChat?.readingMore
+  const setLoadingMore = (value: boolean) => patchChat(key, () => ({ readingMore: value || undefined }))
+  const positioned = useRef(false)
   const font = useReplyFont(agent)
 
   useEffect(() => socket.subscribeChat(host, pane), [host, pane])
@@ -78,7 +91,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const identifying = connected && !!paneAgent && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !paneAgent.sessionId
   const switching = connected && !!paneAgent?.sessionId && (paneAgent.kind === 'codex' || paneAgent.kind === 'claude') && !!chat?.loaded && chat.info?.sessionId !== paneAgent.sessionId
   useEffect(() => {
-    if (!switching) return
+    if (!switching || clearing) return
     // Overview and chat arrive separately. If a switch's reset was missed, ask for the current
     // snapshot instead of leaving this pane disabled until a manual reload or reconnect.
     let delay = 3000
@@ -89,7 +102,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     }
     let timer = setTimeout(refresh, delay)
     return () => clearTimeout(timer)
-  }, [host, pane, switching, paneAgent?.sessionId])
+  }, [host, pane, switching, clearing, paneAgent?.sessionId])
   const running = chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent
   const sideConversation = chat?.info?.transcriptPath?.startsWith('codex-side:') === true
   const working = !!screen?.working
@@ -99,6 +112,10 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const shownPrompt = prompt ?? (connected ? undefined : lastAsk(host, pane))
   const textQuestion = useMemo(() => agent === 'codex' ? pendingTextQuestion(chat?.items ?? []) : undefined, [agent, chat?.items])
   const reconnecting = useReconnecting(machine?.status)
+  const waiting = clearing || !connected || identifying || switching || !chat?.loaded || currentChat?.catchingUp !== undefined || loadingMore
+  const waitingLabel = !hubUp ? 'Reconnecting…' : machineDown ? reconnecting ? `Reconnecting to ${machine!.config.name}…` : `${machine!.config.name} is offline`
+    : identifying ? 'Waiting to identify this conversation' : switching ? 'Switching conversation…'
+    : loadingMore ? 'Loading earlier messages' : currentChat?.catchingUp !== undefined ? `Loading the conversation · ${Math.round(currentChat.catchingUp * 100)}%` : 'Loading the conversation'
   const queue = chat?.info?.queue ?? NO_QUEUE
   const held = chat?.info?.held ?? NO_HELD
   const organize = useStore((s) => s.organize)
@@ -106,7 +123,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   // where the chat has no list to put them in (nothing running, or a terminal-first agent), the
   // messages waiting to go still show, with their Send now and Cancel
   const scheduledList = scheduled.length > 0 && (
-    <div className="mt-6 space-y-5">
+    <div inert={waiting} className="mt-6 space-y-5">
       {scheduled.map((s) => (
         <ScheduledBubble key={s.id} host={host} pane={pane} s={s} />
       ))}
@@ -142,9 +159,18 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     const el = scroller.current
     if (!el || !list.current) return
     const top = el.getBoundingClientRect().top
-    const rows = [...list.current.children]
-    const first = rows.findIndex((row) => row.getBoundingClientRect().bottom > top)
-    anchor.current = first < 0 ? [] : rows.slice(first, first + 3).map((row) => ({ el: row, top: row.getBoundingClientRect().top - top }))
+    const rows = list.current.querySelectorAll<HTMLElement>('[data-chat-anchor]')
+    // Anchors are ordered and non-overlapping. Avoid measuring every old message
+    // on each scroll event in a long conversation.
+    let first = 0, end = rows.length
+    while (first < end) {
+      const middle = (first + end) >>> 1
+      if (rows[middle].getBoundingClientRect().bottom > top) end = middle
+      else first = middle + 1
+    }
+    anchor.current = Array.from({ length: Math.min(3, rows.length - first) }, (_, i) => rows[first + i])
+      .map((row) => ({ id: row.dataset.chatAnchor!, top: row.getBoundingClientRect().top - top }))
+    rememberReadingPosition(key, { anchors: anchor.current, top: el.scrollTop, follow: stick.current })
   }
 
   // the latest loadMore, for the scroll handler (which is made once)
@@ -154,14 +180,14 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     const el = scroller.current
     if (!el) return
     const away = el.scrollHeight - el.scrollTop - el.clientHeight
-    if (away < 24) stick.current = true
+    if (away < 24 && !waiting) stick.current = true
     else if (el.scrollTop < lastTop.current - 2 && Date.now() - inputAt.current < 1200) stick.current = false
     // scrolling up towards the top fetches earlier messages before the reader gets there
     if (!stick.current && el.scrollTop < lastTop.current && el.scrollTop < Math.max(400, el.clientHeight)) more.current()
     lastTop.current = el.scrollTop
     setAtBottom(away < 80)
     saveAnchor()
-  }, [])
+  }, [waiting])
 
   const toBottom = (smooth = false) => {
     const el = scroller.current
@@ -175,13 +201,15 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     const el = scroller.current
     if (!el) return
     if (stick.current) return toBottom()
-    const a = anchor.current.find((x) => x.el.isConnected)
-    if (!a) return saveAnchor()
-    const delta = a.el.getBoundingClientRect().top - el.getBoundingClientRect().top - a.top
-    if (Math.abs(delta) >= 1) {
-      el.scrollTop += delta
-      lastTop.current = el.scrollTop
-    }
+    const parts = new Map([...list.current?.querySelectorAll<HTMLElement>('[data-chat-anchor]') ?? []].map((part) => [part.dataset.chatAnchor, part]))
+    const a = anchor.current.find((x) => parts.has(x.id))
+    if (a) {
+      const delta = parts.get(a.id)!.getBoundingClientRect().top - el.getBoundingClientRect().top - a.top
+      if (Math.abs(delta) >= 1) el.scrollTop += delta
+    } else el.scrollTop = Math.max(0, Math.min(lastTop.current, el.scrollHeight - el.clientHeight))
+    lastTop.current = el.scrollTop
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80)
+    saveAnchor()
   }
 
   // sending a message yourself always goes to the bottom and follows again, wherever you were
@@ -193,7 +221,20 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     if (fresh) stick.current = true
   }, [stored])
 
-  useLayoutEffect(settle, [rows, working, prompt, pending.length, queue.length, stored, live])
+  useLayoutEffect(() => {
+    if (!chat?.loaded || positioned.current) return
+    positioned.current = true
+    const saved = readingPosition(key)
+    if (saved) { stick.current = saved.follow; anchor.current = saved.anchors; lastTop.current = saved.top; settle() }
+    else { stick.current = true; toBottom() }
+  }, [key, chat?.loaded])
+  useLayoutEffect(() => {
+    if (!waiting || !chat?.loaded) return
+    // Keep the currently visible messages even if new output arrived while disconnected.
+    stick.current = false
+    saveAnchor()
+  }, [waiting])
+  useLayoutEffect(settle, [rows, working, prompt, pending.length, queue.length, stored, live, waiting])
 
   // older messages arrived (they're prepended; settle() kept the reading position)
   const firstSeq = chat?.items[0]?.seq
@@ -205,24 +246,12 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     return () => clearTimeout(t)
   }, [loadingMore])
 
-  useEffect(() => {
-    stick.current = true
-    requestAnimationFrame(() => toBottom())
-  }, [key, chat?.loaded])
-
-  // back after a while (the phone in a pocket, another tab): show the latest, not where you left off.
-  // This session's notification is read now, too.
+  // Returning from another tab acknowledges notifications without moving the reading position.
   useEffect(() => {
     if (!document.hidden) clearNativeNotification(notifyTag(host, pane))
-    let hiddenAt = document.hidden ? Date.now() : 0
     const onVisible = () => {
-      if (document.hidden) return void (hiddenAt = Date.now())
+      if (document.hidden) return
       clearNativeNotification(notifyTag(host, pane))
-      if (hiddenAt && Date.now() - hiddenAt > AWAY_MS) {
-        stick.current = true
-        requestAnimationFrame(() => toBottom())
-      }
-      hiddenAt = 0
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
@@ -278,7 +307,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
 
   const loadMore = () => {
     const first = chat?.items[0]
-    if (!first || loadingMore || !chat?.hasMore) return
+    if (!first || loadingMore || !chat?.hasMore || clearing || !connected) return
     stick.current = false
     saveAnchor()
     setLoadingMore(true)
@@ -301,9 +330,9 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   // messages that failed only because the connection dropped go out by themselves once it's back,
   // once: a failure that only looks like a dropped connection would otherwise resend on every reconnect
   useEffect(() => {
-    if (!connected) return
+    if (!connected || clearing) return
     for (const p of useStore.getState().chats[key]?.pending ?? []) if (p.status === 'failed' && p.retryable && !p.remote) void retry(p.id, p.text, true)
-  }, [connected, key])
+  }, [connected, key, clearing])
 
   const rewind = useCallback(async (text: string) => {
     const short = text.length > 60 ? `${text.slice(0, 60)}…` : text
@@ -328,26 +357,30 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   const arrivals = useRef<Map<string, boolean>>(new Map())
   const lastSeq = useRef<number | undefined>(undefined)
   const bubbles = useRef<Set<string>>(new Set())
+  const waited = useRef(false)
+  if (waiting) waited.current = true
   const arriving = useMemo(() => {
     const now = new Map<string, boolean>()
     if (!chat?.loaded) return now
     const seq = (k: string) => Number(k.slice(1))
     const settled = lastSeq.current !== undefined
-    const decide = (k: string, fresh: boolean) => now.set(k, arrivals.current.get(k) ?? (settled && fresh))
+    const replace = waited.current && !waiting
+    const decide = (k: string, fresh: boolean) => now.set(k, replace ? false : arrivals.current.get(k) ?? (settled && fresh))
     for (const r of rows) decide(r.key, seq(r.key) > (lastSeq.current ?? Infinity) && !(r.type === 'user' && bubbles.current.has(r.item.text)))
     for (const p of pending) decide(`p${p.id}`, true)
     for (const q of queue) decide(`q${q}`, true)
     lastSeq.current = Math.max(lastSeq.current ?? 0, ...rows.map((r) => seq(r.key)))
     bubbles.current = new Set([...pending.map((p) => p.text), ...queue])
     arrivals.current = now
+    if (!waiting) waited.current = false
     return now
-  }, [rows, pending, queue, chat?.loaded])
+  }, [rows, pending, queue, chat?.loaded, waiting])
   const rowView = (r: (typeof rows)[number]) => {
     switch (r.type) {
       case 'user':
         return <UserMessage row={r} />
       case 'assistant':
-        return <AssistantTurn row={r} live={working} />
+        return <AssistantTurn row={r} live={working} anchorParts />
       case 'command':
         return <CommandRow row={r} />
       case 'goal':
@@ -360,7 +393,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
   return (
     <ChatAgent.Provider value={agent}>
     <ChatHost.Provider value={host}>
-    <ChatRewind.Provider value={agent === 'codex' && running && !working ? rewind : undefined}>
+    <ChatRewind.Provider value={agent === 'codex' && running && !working && !waiting ? rewind : undefined}>
     <ChatJobs.Provider value={jobs}>
       <ReplyFont.Provider value={font}>
         <div className="flex min-h-0 flex-1 flex-col">
@@ -379,15 +412,9 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                   </Empty>
                   {scheduledList}
                 </>
-              ) : identifying ? (
-                <Empty icon={<AgentLogo kind={agent} size={28} />} title="Waiting to identify this conversation" action={<Button onClick={onTerminal}><SquareTerminal className="size-4" /> Open terminal</Button>}>
-                  Chat will appear when the current session is identified. You can use the terminal meanwhile.
-                </Empty>
-              ) : switching || !chat?.loaded || (!rows.length && chat.catchingUp !== undefined) ? (
-                <Waiting shape="lines" className="pt-4" label={chat?.catchingUp !== undefined ? `Loading the conversation · ${Math.round(chat.catchingUp * 100)}%` : 'Loading the conversation'} />
-              ) : !running && !rows.length ? (
+              ) : !running && !rows.length && !waiting ? (
                 <>
-                  <NotRunning host={host} pane={pane} agent={agent} installed={installed} sessionId={chat.info?.sessionId} onTerminal={onTerminal} />
+                  <NotRunning host={host} pane={pane} agent={agent} installed={installed} sessionId={chat?.info?.sessionId} onTerminal={onTerminal} />
                   {scheduledList}
                 </>
               ) : (
@@ -396,31 +423,26 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                     <div><p className="text-sm font-medium">Side conversation</p><p className="text-xs text-fg-3">Temporary messages captured while connected.</p></div>
                     <Button size="sm" variant="ghost" disabled={clearing || !connected} onClick={() => void changeConversation(host, pane, 'Returning to main conversation', () => api.closeSide(host, pane, chat.info!.sessionId!), { agent: 'codex', differentFrom: chat.info?.sessionId, allowWorking: true })}>Close side conversation</Button>
                   </div>}
-                  {chat.hasMore && (
+                  {chat?.hasMore && (
                     <div className="mb-4 min-h-8">
-                      {loadingMore ? (
-                        // taller than the button it replaces: settle() keeps the reading position as the top grows
-                        <Waiting shape="lines" count={2} label="Loading earlier messages" className="pb-2" />
-                      ) : (
                         <div className="flex justify-center">
-                          <Button size="sm" variant="ghost" onClick={loadMore}>
+                          <Button size="sm" variant="ghost" onClick={loadMore} disabled={waiting}>
                             <History className="size-4" /> Earlier messages
                           </Button>
                         </div>
-                      )}
                     </div>
                   )}
-                  {!rows.length && !pending.length && (
+                  {!rows.length && !pending.length && !waiting && (
                     <Empty icon={<AgentLogo kind={agent} size={28} />} title="New conversation">
                       Messages you send here are typed into the terminal, exactly as if you typed them there.
                     </Empty>
                   )}
                   <div ref={list} className="space-y-5">
                     {rows.map((r) => (
-                      <div key={r.key} className={arriving.get(r.key) ? 'animate-slide-up' : undefined}>{rowView(r)}</div>
+                      <div key={r.key} data-chat-anchor={r.type === 'assistant' ? undefined : r.type === 'user' ? r.item.uuid : r.key} className={arriving.get(r.key) && !waiting ? 'animate-slide-up' : undefined}>{rowView(r)}</div>
                     ))}
                     {pending.map((p) => (
-                      <div key={p.id} className={arriving.get(`p${p.id}`) ? 'animate-slide-up' : undefined}>
+                      <div key={p.id} inert={waiting} className={arriving.get(`p${p.id}`) ? 'animate-slide-up' : undefined}>
                         <PendingBubble p={p} onRetry={() => retry(p.id, p.text)} onDismiss={() => patchChat(key, (c) => ({ pending: c.pending.filter((x) => x.id !== p.id) }))} onScreen={() => setScreenOpen(true)} />
                       </div>
                     ))}
@@ -430,18 +452,17 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                       </div>
                     ))}
                     {held.map((p, i) => (
-                      <div key={p.id} className="animate-slide-up">
+                      <div key={p.id} inert={waiting} className="animate-slide-up">
                         <HeldBubble host={host} pane={pane} p={p} index={i} count={held.length} agentName={agent ? agentDef(agent).name : 'the agent'} />
                       </div>
                     ))}
                     {scheduled.map((s) => (
-                      <div key={s.id} className="animate-slide-up">
+                      <div key={s.id} inert={waiting} className="animate-slide-up">
                         <ScheduledBubble host={host} pane={pane} s={s} />
                       </div>
                     ))}
-                    {chat.catchingUp !== undefined && <Reading label="Catching up on what you missed" done={chat.catchingUp} />}
-                    {liveShown && chat.catchingUp === undefined && <LiveTurn items={live} />}
-                    {working && !prompt && chat.catchingUp === undefined && (
+                    {liveShown && <LiveTurn items={live} />}
+                    {working && !prompt && !waiting && (
                       <div className={lastOpen || liveShown ? '-mt-3' : ''}>
                         <WorkingIndicator activity={screen?.activity} since={since} output={liveOutput} />
                       </div>
@@ -465,7 +486,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
                   </div>
                   {!running && (
                     <div className="mt-8">
-                      <NotRunning host={host} pane={pane} agent={agent} installed={installed} sessionId={chat.info?.sessionId} onTerminal={onTerminal} compact />
+                      <NotRunning host={host} pane={pane} agent={agent} installed={installed} sessionId={chat?.info?.sessionId} onTerminal={onTerminal} compact />
                     </div>
                   )}
                 </>
@@ -494,20 +515,19 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
             >
               <ArrowDown className="size-4" />
             </button>
-            {running && chatCapable && (
+            {(running || waiting) && chatCapable && (
               <ComposerDock>
-                {!hubUp ? (
-                  <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3" role="status">Reconnecting…{!isPhone() && <HelpLink id="self" />}</div>
-                ) : machineDown && reconnecting ? (
-                  <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3" role="status">Reconnecting to {machine!.config.name}…<HelpLink id={host} /></div>
-                ) : machineDown ? (
-                  <div className="animate-fade-in mb-2 text-center text-[12px] text-fg-3">{machine!.config.name} is offline. This is the conversation as last seen; you can send again once it reconnects.<HelpLink id={host} /></div>
-                ) : null}
-                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={!connected || clearing} /> : textQuestion && chat?.info?.sessionId ?
+                <div className={clsx('relative flex min-h-0 flex-col', waiting && 'min-h-28')} aria-busy={waiting}>
+                <div inert={waiting} className={clsx('flex min-h-0 flex-col', waiting && 'opacity-40')}>
+                {shownPrompt ? <PromptCard prompt={shownPrompt} host={host} pane={pane} disabled={waiting} /> : textQuestion && chat?.info?.sessionId ?
                   <PromptCard key={`${chat.info.sessionId}:${textQuestion.call}:${textQuestion.index}`} host={host} pane={pane}
-                    disabled={!connected || identifying || switching || clearing}
+                    disabled={waiting}
                     prompt={{ body: [textQuestion.question], options: [], multi: false, input: { label: 'Your answer', multiline: true } }}
-                    onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={!connected || identifying || switching || clearing} controls={controls} ultracode={ultracode} />}
+                    onInput={(text) => api.questionReply(host, pane, chat.info!.sessionId!, textQuestion.call, textQuestion.index, text)} /> : <Composer host={host} pane={pane} agent={agent} working={working} disabled={waiting} controls={controls} ultracode={ultracode} />}
+                </div>
+                {waiting && (operation && connected ? <ClearingConversation host={host} pane={pane} state={operation} onTerminal={onTerminal} /> :
+                  <ConversationWait label={waitingLabel} detail={<>{!connected ? 'Saved messages stay available while the connection recovers.' : 'You can keep reading while the conversation refreshes.'}{!connected && (!isPhone() || hubUp) && <HelpLink id={hubUp ? host : 'self'} />}</>} />)}
+                </div>
               </ComposerDock>
             )}
           </div>
@@ -608,17 +628,6 @@ function NotRunning({
         </Button>
       </div>
       {!kinds.length && <Play className="hidden" />}
-    </div>
-  )
-}
-
-/** A read the hub is doing out of sight; the chat updates all at once when it's done. */
-function Reading({ label, done }: { label: string; done: number }) {
-  return (
-    <div className="animate-fade-in flex items-center gap-3 py-1 text-[13px] text-fg-3" role="status">
-      <Pulse className="mx-[3px]" />
-      <span>{label}…</span>
-      <span className="tabular-nums">{Math.round(done * 100)}%</span>
     </div>
   )
 }

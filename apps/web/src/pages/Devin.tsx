@@ -8,6 +8,7 @@ import { modelName, shortPath } from '../lib/format.ts'
 import { AgentLogo, SkinScope, useReplyFont } from '../lib/skin.tsx'
 import { toast, useStore } from '../lib/store.ts'
 import { Button, Empty, IconButton, Segmented, Waiting } from '../components/ui/primitives.tsx'
+import { ConversationWait } from '../components/chat/ClearingConversation.tsx'
 import { StateDot, StatePill } from '../components/ui/status.tsx'
 import { ReplyFont } from '../components/chat/Markdown.tsx'
 import { AssistantTurn, ChatAgent, UserMessage, WorkingIndicator } from '../components/chat/Messages.tsx'
@@ -81,6 +82,8 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
   const nav = useNavigate()
   const font = useReplyFont('codex')
   const machine = useStore((s) => s.hosts.find((h) => h.config.id === host))
+  const hubUp = useStore((s) => s.connected)
+  const [loading, setLoading] = useState(true)
   const [atBottom, setAtBottom] = useState(true)
   const [update, setUpdate] = useState<DevinUpdate | null>(null)
   const [messages, setMessages] = useState(new Map<string, DevinMessage>())
@@ -105,11 +108,12 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         if (!document.hidden) {
           const next = parseDevinUpdate(await api.devinRead(host, sid, version.current))
           if (!active) return
-          if (next.version !== version.current || next.reset) {
+          setLoading(!!next.loading)
+          if (!next.loading && (next.version !== version.current || next.reset)) {
             setMessages((previous) => next.messages.length || next.reset || previous.size > next.order.length ? mergeDevin(previous, next) : previous)
             setUpdate(next)
           }
-          version.current = next.version
+          if (!next.loading) version.current = next.version
           setError(next.error ?? '')
         }
       } catch (e) { if (active) setError((e as Error).message) }
@@ -154,8 +158,9 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
   }, [])
   const rows = devinTurns((update?.order ?? []).slice(-limit).flatMap((id) => { const m = messages.get(id); return m ? [m] : [] }))
   const state = update?.state
+  const waiting = sending || loading || !hubUp || !!machine && machine.status !== 'online' || !!error
   const send = async () => {
-    if (sending || !text.trim()) return
+    if (waiting || !text.trim()) return
     if (state?.status !== 'idle' || error) {
       toast({ title: 'Devin is not ready', body: error || state?.reason || DEVIN_BUSY, tone: 'error' })
       return
@@ -208,7 +213,6 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
         saveAnchor()
       }}>
         <ConversationColumn ref={column}>
-          {(!update || update.loading) && !error && <Waiting shape="lines" label="Reading saved history" />}
           {(update?.order.length ?? 0) > limit && <Button size="sm" onClick={() => { follows.current = false; saveAnchor(); setLimit(limit + 80) }}>Load earlier messages</Button>}
           <div className="space-y-5">{rows.map((turn, i) => <SavedTurn key={turn[0]!.id} messages={turn} open={state?.status === 'busy' && i === rows.length - 1} />)}</div>
           {state?.status === 'busy' && <div className="mt-5 space-y-2"><WorkingIndicator activity="Working…" />
@@ -219,9 +223,14 @@ function DevinChat({ host, sid }: { host: string; sid: string }) {
       <div className="relative flex min-h-0 flex-col">
         {!atBottom && <button type="button" aria-label="Jump to latest" className="absolute -top-12 right-4 z-10 flex size-9 items-center justify-center rounded-full border border-line bg-elev text-fg-2 shadow-float hover:text-fg sm:right-6" onClick={() => { follows.current = true; settle() }}><ArrowDown className="size-4" /></button>}
         <ComposerDock>
-          {error && <p role="alert" className="mb-2 text-center text-[12px] text-danger">{error}</p>}
-          <PlainComposer value={text} onChange={setText} onSend={() => { void send() }} disabled={sending} label="Message Devin"
+          <div className={`relative${waiting ? ' min-h-28' : ''}`} aria-busy={waiting}>
+          <div inert={waiting} className={waiting ? 'opacity-40' : undefined}>
+          <PlainComposer value={text} onChange={setText} onSend={() => { void send() }} disabled={waiting} label="Message Devin"
             controls={<span className="inline-flex h-8 min-w-0 items-center truncate px-2.5 font-mono text-[12px] text-fg-2">{modelName(update?.session?.model)}{sending && ' · Sending…'}</span>} />
+          </div>
+          {waiting && <ConversationWait label={!hubUp || machine && machine.status !== 'online' ? 'Reconnecting…' : sending ? 'Sending message…' : loading ? 'Reading saved history' : 'Waiting for the conversation'}
+            detail={error ? <span role="alert">{error}</span> : 'You can keep reading while the conversation refreshes.'} />}
+          </div>
         </ComposerDock>
       </div>
     </ReplyFont.Provider></ChatHost.Provider></ChatAgent.Provider>

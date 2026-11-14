@@ -17,6 +17,8 @@ pub struct RefreshOptions {
     #[serde(default)] pub stopped: bool,
     #[serde(default)] pub allow_working: bool,
     #[serde(default)] pub allow_prompt: bool,
+    /// Reconnect: validate the current reader without discarding its history/cache.
+    #[serde(default)] pub read_only: bool,
 }
 
 #[derive(Serialize)]
@@ -39,6 +41,9 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
     let mut reloaded = false;
     while now_ms() < deadline {
         registry().refresh_one(host, 6000).await;
+        if options.read_only && registry().get(host).is_some_and(|r| r.borrow().state.status != inyon_protocol::HostStatus::Online) {
+            return Err(http(503, "The machine is still reconnecting."));
+        }
         // A fork returns its native pane ID before the next host probe necessarily
         // lists it (especially with PSmux's separate servers). Discovery is part of
         // the transition, not a reason to fail or repeat the fork command.
@@ -49,8 +54,9 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
             continue;
         };
         let agent = found.pane.agent.as_ref();
+        let stopped = options.stopped || options.read_only && agent.is_none();
         let identity = agent.map(|a| (a.kind, a.pid, a.session_id.clone()));
-        let matches = if options.stopped { agent.is_none() } else { agent.is_some_and(|a| {
+        let matches = if stopped { agent.is_none() } else { agent.is_some_and(|a| {
             options.agent.is_none_or(|k| k == a.kind)
                 && options.session.as_ref().is_none_or(|s| a.session_id.as_ref() == Some(s))
                 && options.different_from.as_ref().is_none_or(|s| a.session_id.as_ref() != Some(s)
@@ -61,20 +67,20 @@ pub async fn refresh(host: &str, pane: &str, options: RefreshOptions) -> HubResu
         // This also saves Claude's selected rewind branch and restored input before
         // any replacement reader is created. Never replace it mid-picker.
         w.poll_screen().await;
-        let screen = if options.stopped { w.screen() } else { current_screen(host, pane).await? };
-        if matches && (options.stopped || screen_ready(&screen, &options)) {
+        let screen = if stopped { w.screen() } else { current_screen(host, pane).await? };
+        if matches && (stopped || screen_ready(&screen, &options)) {
             stable = if previous == identity { stable + 1 } else { 1 };
             previous = identity.clone();
             if stable >= 3 {
                 let prompt = screen.prompt.is_some() || screen.dialog.is_some();
-                if !reloaded && !prompt && agent.and_then(|a| a.transcript_path.as_deref()).is_some_and(|s| !s.is_empty()) {
+                if !options.read_only && !reloaded && !prompt && agent.and_then(|a| a.transcript_path.as_deref()).is_some_and(|s| !s.is_empty()) {
                     watchers().reload(host, pane)?;
                     reloaded = true;
                 }
                 let fresh = watchers().get(host, pane);
                 fresh.sync();
                 let readable = agent.and_then(|a| a.transcript_path.as_deref()).is_none_or(|p| p.is_empty() || p.starts_with("codex-side:")) || fresh.following();
-                if let Some(reset) = fresh.snapshot().filter(|_| readable || options.stopped) {
+                if let Some(reset) = fresh.snapshot().filter(|_| readable || stopped) {
                     let draft = if screen.input_visible == Some(true) && screen.draft_clipped.is_none() {
                         Some(Draft { text: screen.draft.clone().unwrap_or_default(), source: DraftSource::Terminal, at: now_ms() as f64, mirrored: screen.draft.clone() })
                     } else { get_draft(&inyon_protocol::chat_key(host, pane)) };

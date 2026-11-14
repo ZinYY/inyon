@@ -14,7 +14,6 @@ import { SignInSheet } from '../components/SignInSheet.tsx'
 import { useSession } from '../components/session/useSession.ts'
 import { SessionHeader } from '../components/session/SessionHeader.tsx'
 import { ComposerControls } from '../components/session/ComposerControls.tsx'
-import { ClearingConversation } from '../components/chat/ClearingConversation.tsx'
 import type { PanelTab } from '../components/session/Panels.tsx'
 
 // the side panel and its sheets bring the markdown renderer: load them with the chat, not the app
@@ -115,7 +114,8 @@ export function PanePage() {
   return (
     <ChatActionsContext.Provider value={actions}>
       <SkinScope agent={agent} className="relative flex min-h-0 flex-1 flex-col bg-bg text-fg">
-        <div className="flex min-h-0 flex-1 flex-col" inert={!!s.chat?.clearing && view === 'chat'} aria-busy={!!s.chat?.clearing}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div inert={s.locked && view === 'chat'}>
           <SessionHeader
             s={s}
             view={view}
@@ -127,6 +127,7 @@ export function PanePage() {
               else setSheet(which)
             }}
           />
+          </div>
           {/* an agent that stays in its terminal asks you to sign in there itself */}
           {agent && agent !== 'claude' && agentDef(agent).chat && ref?.host.signedIn && !ref.host.signedIn.includes(agent) && (
             <div className="flex shrink-0 items-center gap-3 border-b border-line bg-warn-soft/60 px-4 py-2 text-[13px]">
@@ -167,7 +168,6 @@ export function PanePage() {
             {sub && <SubagentSheet s={s} sub={sub} onClose={() => setSub(null)} />}
           </Suspense>
         </div>
-        {s.chat?.clearing && view === 'chat' && <ClearingConversation host={host} pane={pane} state={s.chat.clearing} onTerminal={() => setView('terminal')} />}
       </SkinScope>
     </ChatActionsContext.Provider>
   )

@@ -13,12 +13,13 @@ import { changeConversation, sendTransition, isClearing, transitionCommand } fro
 export function useSession(host: string, pane: string) {
   const hosts = useStore((s) => s.hosts)
   const chat = useStore((s) => s.chats[chatKey(host, pane)])
+  const connected = useStore((s) => s.connected)
   const ref = useMemo(() => allPanes(hosts).find((r) => r.host.config.id === host && r.pane.id === pane), [hosts, host, pane])
   const agent: AgentKind | undefined = ref?.pane.agent?.kind ?? chat?.info?.agent
   const catalog = useAgentCatalog(host, pane, agent)
   // the machine's own lists when the agent has them: OpenCode's models and agents (custom ones too)
   const def = useMemo(() => agent ? { ...agentDef(agent), models: catalog?.models ?? agentDef(agent).models, modes: catalog?.modes ?? agentDef(agent).modes } : undefined, [agent, catalog])
-  const info = chat?.info
+  const info = chat?.clearing?.retained?.info ?? chat?.info
   const live = ref?.pane.agent?.status
   // Claude's reader merges confirmed local settings with the usage report. A resumed session
   // or a newer report must never inherit controls from the previous conversation.
@@ -138,7 +139,10 @@ export function useSession(host: string, pane: string) {
     },
   }
 
-  return { ref, agent, def, status, info, screen, chat, actions, efforts, catalog, ultracode }
+  const native = agent === 'claude' || agent === 'codex'
+  const locked = !!chat?.clearing || !!chat?.readingMore || chat?.catchingUp !== undefined || !connected || !!ref && ref.host.status !== 'online' ||
+    !!def?.chat && (!chat?.loaded || native && !!ref?.pane.agent && (!ref.pane.agent.sessionId || ref.pane.agent.sessionId !== info?.sessionId))
+  return { ref, agent, def, status, info, screen, chat, actions, efforts, catalog, ultracode, locked }
 }
 
 export type SessionModel = ReturnType<typeof useSession>
