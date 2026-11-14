@@ -996,6 +996,26 @@ fn launch_uses_the_running_native_binary_but_not_its_node_interpreter() {
     });
 }
 
+#[test]
+fn windows_fork_reuses_the_running_image_with_powershell_quoting() {
+    run(|| async {
+        let _fake = Fake::install(|_, cmd, _| {
+            if cmd.ends_with("40 executable") { return ok("C:\\Program Files\\A'B\\codex.exe\n"); }
+            if cmd.ends_with("41 executable") { return ok("C:\\Program Files\\node.exe\n"); }
+            ok("codex\n")
+        });
+        let rt = fork_pane("codex", Some(FORK_ID));
+        rt.borrow_mut().state.os = Some("Windows".into());
+        let host = registry().host("h").unwrap();
+        let bin = active_bin(&host, AgentKind::Codex, Some(40.0)).await.unwrap();
+        assert_eq!(bin, "& 'C:\\Program Files\\A''B\\codex.exe'");
+        assert_eq!(fork_launch_line("codex fork id", &bin, ""), format!("{bin} fork id"));
+        assert_eq!(fork_launch_line("codex fork id", &bin, "$env:https_proxy='http://localhost'; & "),
+            "$env:https_proxy='http://localhost'; & 'C:\\Program Files\\A''B\\codex.exe' fork id");
+        assert_eq!(active_bin(&host, AgentKind::Codex, Some(41.0)).await.unwrap(), "codex");
+    });
+}
+
 /// From "a restart keeps a flag value with spaces in it whole, read from the real argument list":
 /// where there is no /proc to read, there is no argument list
 #[test]

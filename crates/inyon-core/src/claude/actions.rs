@@ -1999,6 +1999,17 @@ pub(crate) async fn resume_for(host: &Host, kind: AgentKind, session_id: Option<
 /// to the usual launcher rather than attempting to run node as if it were Claude or Codex.
 async fn active_bin(host: &Host, kind: AgentKind, pid: Option<f64>) -> HubResult<String> {
     if let Some(pid) = pid {
+        if on_psmux(&host.id()) {
+            let cmd = format!("python3 -c {} {} executable", shq(include_str!("process_environment.py")), fmt_number(pid.trunc()));
+            if let Ok(r) = host.run(&cmd).await {
+                let path = r.stdout.jtrim();
+                let base = path.rsplit(['/', '\\']).next().unwrap_or_default();
+                let name = if kind == AgentKind::Antigravity { "agy" } else { kind.as_str() };
+                if r.code == 0 && re!(r"^[A-Za-z]:[\\/]").is_match(path) && base.eq_ignore_ascii_case(&format!("{name}.exe")) {
+                    return Ok(format!("& '{}'", path.replace('\'', "''")));
+                }
+            }
+        }
         if let Ok(r) = host.run(&format!("readlink /proc/{}/exe 2>/dev/null", fmt_number(pid.trunc()))).await {
             let path = r.stdout.jtrim();
             let base = path.rsplit('/').next().unwrap_or_default();
@@ -2513,6 +2524,7 @@ async fn fork_proxy_environment(host: &Host, pid: f64) -> String {
 
 fn fork_launch_line(cmd: &str, bin: &str, proxy: &str) -> String {
     // Resolve the agent executable before adding the shell's environment assignments.
+    let bin = if proxy.ends_with("& ") { bin.strip_prefix("& ").unwrap_or(bin) } else { bin };
     format!("{proxy}{}", with_bin(cmd, bin))
 }
 

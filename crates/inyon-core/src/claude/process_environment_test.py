@@ -3,7 +3,7 @@ import subprocess
 import sys
 import time
 import unittest
-from process_environment import selected, process_proxies, process_start
+from process_environment import selected, process_proxies, process_start, process_executable
 
 
 class EnvironmentTest(unittest.TestCase):
@@ -25,6 +25,8 @@ class EnvironmentTest(unittest.TestCase):
             start = process_start(child.pid)
             self.assertTrue(start)
             self.assertEqual(process_start(child.pid), start)
+            if os.name == 'nt' or sys.platform.startswith('linux'):
+                self.assertTrue(os.path.samefile(process_executable(child.pid), sys.executable))
         finally:
             child.terminate()
             child.wait()

@@ -122,9 +122,33 @@ def process_start(pid):
         kernel.CloseHandle(handle)
 
 
+def process_executable(pid):
+    """Read the running image path, without relying on a new shell's PATH."""
+    if os.name != 'nt':
+        return str(Path(f'/proc/{pid}/exe').resolve(strict=True))
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        raise OSError('Cannot open process')
+    try:
+        buf = ctypes.create_unicode_buffer(32768)
+        size = wintypes.DWORD(len(buf))
+        if not kernel.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+            raise OSError('Cannot read process executable')
+        return buf.value
+    finally:
+        kernel.CloseHandle(handle)
+
+
 if __name__ == '__main__':
     try:
         pid = int(sys.argv[1])
-        print(process_start(pid) if sys.argv[2:] == ['start'] else json.dumps(process_proxies(pid)))
+        mode = sys.argv[2:]
+        print(process_executable(pid) if mode == ['executable'] else process_start(pid) if mode == ['start'] else json.dumps(process_proxies(pid)))
     except (OSError, ValueError, IndexError, subprocess.SubprocessError):
-        print('' if sys.argv[2:] == ['start'] else '{}')
+        print('' if sys.argv[2:] in (['start'], ['executable']) else '{}')
