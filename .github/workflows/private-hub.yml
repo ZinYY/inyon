@@ -29,15 +29,17 @@ jobs:
           cache-on-failure: true
       - name: Install Linux build dependencies
         run: |
-          # Use a mirror of Ubuntu's signed archive when the runner cannot resolve Ubuntu's hosts.
           sources="$RUNNER_TEMP/inyon-ubuntu.list"
-          printf '%s\n' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble main universe' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble-updates main universe' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble-security main universe' > "$sources"
-          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=3 -o Acquire::https::Timeout=30)
-          sudo apt-get "${apt_options[@]}" update -qq
-          sudo apt-get "${apt_options[@]}" install -y musl-tools python3
+          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
+          installed=false
+          for mirror in https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
+            printf 'deb %s noble main universe\ndeb %s noble-updates main universe\ndeb %s noble-security main universe\n' "$mirror" "$mirror" "$mirror" > "$sources"
+            if sudo apt-get "${apt_options[@]}" update -qq && sudo apt-get "${apt_options[@]}" install -y musl-tools python3; then
+              installed=true
+              break
+            fi
+          done
+          "$installed"
       - run: bun install --frozen-lockfile
       # The generator rewrites a stale file, then deliberately fails its first check.
       - run: cargo test -p inyon-protocol --test gen || cargo test -p inyon-protocol --test gen
@@ -143,13 +145,16 @@ jobs:
       - name: Install release signing tool
         run: |
           sources="$RUNNER_TEMP/inyon-ubuntu.list"
-          printf '%s\n' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble main universe' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble-updates main universe' \
-            'deb https://mirrors.edge.kernel.org/ubuntu noble-security main universe' > "$sources"
-          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=3 -o Acquire::https::Timeout=30)
-          sudo apt-get "${apt_options[@]}" update -qq
-          sudo apt-get "${apt_options[@]}" install -y minisign
+          apt_options=(-o "Dir::Etc::sourcelist=$sources" -o Dir::Etc::sourceparts=- -o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
+          installed=false
+          for mirror in https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
+            printf 'deb %s noble main universe\ndeb %s noble-updates main universe\ndeb %s noble-security main universe\n' "$mirror" "$mirror" "$mirror" > "$sources"
+            if sudo apt-get "${apt_options[@]}" update -qq && sudo apt-get "${apt_options[@]}" install -y minisign; then
+              installed=true
+              break
+            fi
+          done
+          "$installed"
       - name: Sign and publish
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
@@ -166,4 +171,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Render failed Codex BTW commands through the shared tool UI with error status. Match truncated command headings against their output, preserve completed calls across older running frames, and reconcile clipped output without appending historical tools after the answer.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep send execution and draft handover owned by the Hub across navigation and reconnects. Always synchronize cleared drafts, preserve subsequent edits, and settle the client display from Hub receipts. Render failed Codex BTW tools with the shared tool UI and reconcile truncated command output without duplicate cards.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

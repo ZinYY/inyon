@@ -445,6 +445,51 @@ fn a_mirror_reads_the_live_box_and_waits_for_the_paste_to_be_visible() {
 // draft-sent.test.ts
 
 #[test]
+fn returning_subscriber_receives_an_empty_draft_after_send_handover_and_completion() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        let first = Rc::new(Phone::default());
+        let sub: Sub = first.clone();
+        w.subscribe(sub.clone());
+        w.draft_from_app("Could you suggest", Some(&sub));
+        let text = "Could you suggest a quiet cafe?";
+        w.track_send("navigation", text, false);
+        w.consume_draft();
+        assert_eq!(first.drafts().last().unwrap().0, "");
+        let returning = Rc::new(Phone::default());
+        w.subscribe(returning.clone());
+        assert_eq!(returning.drafts().last().unwrap().0, "");
+        // A delayed copy of the submitted message cannot revive the draft.
+        w.draft_from_app(text, Some(&sub));
+        assert!(get_draft(KEY).is_none_or(|d| d.text.is_empty()));
+        w.draft_sent(Some(text), now_ms());
+        assert_eq!(get_draft(KEY), None);
+        let after = Rc::new(Phone::default());
+        w.subscribe(after.clone());
+        assert_eq!(after.drafts().last().unwrap().0, "");
+        watchers().stop(KEY);
+    });
+}
+
+#[test]
+fn draft_handover_preserves_paste_identity_and_subsequent_edits() {
+    run(|| async {
+        let (_fake, w) = draft_box();
+        let text = "Please suggest a coastal walk.";
+        set_draft(KEY, draft(text, now_ms() as f64, Some(text)));
+        w.track_send("next-draft", text, false);
+        let accepted_at = w.delivery("next-draft").unwrap().at;
+        w.consume_draft();
+        assert_eq!(get_draft(KEY).unwrap().mirrored.as_deref(), Some(text));
+        wait(10).await;
+        w.draft_from_app("Please", None);
+        w.draft_sent(Some(text), accepted_at);
+        assert_eq!(get_draft(KEY).unwrap().text, "Please");
+        watchers().stop(KEY);
+    });
+}
+
+#[test]
 fn windows_codex_tab_drafts_stay_in_chat_until_explicit_send() {
     run(|| async {
         let fake = Fake::install(|_, cmd, _| {

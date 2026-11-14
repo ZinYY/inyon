@@ -209,7 +209,7 @@ export function Composer({
     synced.current = serverDraft.text
     setTextState(serverDraft.text)
     setOrigin(serverDraft.source)
-  }, [serverDraft?.at])
+  }, [serverDraft?.at, serverDraft?.text])
   const files = useFiles(key)
   const setFiles = useCallback((v: Attachment[] | ((f: Attachment[]) => Attachment[])) => updateFiles(key, typeof v === 'function' ? v : () => v), [key])
   const [pop, setPop] = useState<Popover | null>(null)
@@ -476,6 +476,10 @@ export function Composer({
       pending.current = undefined
       sent.current = { text: value, at: Date.now() }
       synced.current = ''
+      DRAFTS.set(key, '')
+      // Clear the display cache as part of handing over. The Hub's next draft
+      // snapshot is authoritative, including when it is empty.
+      patchChat(key, () => ({ draft: { text: '', source: 'app', at: Date.now() } }))
       setTextState('')
       setOrigin(null)
       // on a touch screen the keyboard goes down, so the reply has the screen (a tablet's keyboard
@@ -511,6 +515,8 @@ export function Composer({
     pending.current = undefined
     sent.current = { text, at: Date.now() }
     synced.current = ''
+    DRAFTS.set(key, '')
+    patchChat(key, () => ({ draft: { text: '', source: 'app', at: Date.now() } }))
     setTextState('')
     setOrigin(null)
     setPop(null)

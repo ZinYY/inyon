@@ -233,6 +233,44 @@ describe('Composer send button', () => {
     expect(api.send.mock.calls).toEqual([['box', pane, 'ship it', p.id]])
   })
 
+  test('leaving while Sending and returning cannot restore the submitted draft', async () => {
+    const user = userEvent.setup()
+    const pane = nextPane()
+    let finish!: () => void
+    api.send.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const first = await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    draft(pane, 'Could you suggest a quiet cafe?', 10)
+    await user.click(sendButton())
+    expect(box().value).toBe('')
+    first.unmount()
+    const second = await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    expect(box().value).toBe('')
+    expect(useStore.getState().chats[`box:${pane}`].pending[0].status).toBe('sending')
+    second.unmount()
+    // The Hub finishes while this page is absent; its empty snapshot on return
+    // replaces the old cache even without the original HTTP response.
+    draft(pane, '', 11, 'app')
+    await act(async () => { finish(); await flush() })
+    await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    expect(box().value).toBe('')
+    expect(api.send).toHaveBeenCalledTimes(1)
+  })
+
+  test('a new draft typed during a Hub-owned send survives its completion', async () => {
+    const user = userEvent.setup()
+    const pane = nextPane()
+    let finish!: () => void
+    api.send.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const first = await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    draft(pane, 'A coastal walk, please.', 10)
+    await user.click(sendButton())
+    await user.type(box(), 'And a cafe nearby')
+    first.unmount()
+    await act(async () => { finish(); await flush() })
+    await render(<Composer host="box" pane={pane} agent="claude" working={false} />)
+    expect(box().value).toBe('And a cafe nearby')
+  })
+
   test('an accepted resume command is complete even when it writes no transcript entry', async () => {
     const user = userEvent.setup()
     const pane = nextPane()

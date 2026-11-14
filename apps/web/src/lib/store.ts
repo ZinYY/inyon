@@ -315,7 +315,7 @@ function onMessage(m: Tagged) {
       })
       break
     case 'chat.info':
-      patchChat(m.key, (c) => ({ info: m.info, loaded: c.loaded || !m.info.transcriptPath }))
+      patchChat(m.key, (c) => ({ info: m.info, loaded: c.loaded || !m.info.transcriptPath, pending: settle(c.pending, c.items, m.info.sends) }))
       break
     case 'chat.screen':
       patchChat(m.key, () => ({ screen: m.screen }))

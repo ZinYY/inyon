@@ -129,10 +129,11 @@ describe('settle', () => {
     expect(settle([p], [], [ledger(p, 'failed', { error: 'pane is gone' })])).toEqual([{ ...p, status: 'failed', error: 'pane is gone' }])
   })
 
-  test('a send still in flight keeps its bubble as it is', () => {
+  test('Hub status settles a send even while its HTTP response is pending', () => {
     const p: PendingMessage = { ...msg('do it'), status: 'sending' }
     expect(settle([p], [], [ledger(p, 'sending')])).toEqual([p])
-    expect(settle([p], [], [ledger(p, 'failed', { error: 'x' })])).toEqual([p])
+    expect(settle([p], [], [ledger(p, 'sent')])[0].status).toBe('sent')
+    expect(settle([p], [], [ledger(p, 'failed', { error: 'x' })])).toEqual([{ ...p, status: 'failed', error: 'x' }])
   })
 
   test('the ledger wins over matching text: a tracked send stays until it says delivered', () => {

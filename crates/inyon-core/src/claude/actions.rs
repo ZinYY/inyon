@@ -195,6 +195,7 @@ async fn send_and_follow(host_id: &str, pane_id: &str, text: &str, from_composer
         return if sent.text == text { Ok(()) } else { Err(http(409, "This send ID already belongs to different text. Send a new message.")) };
     }
     w.track_send(&id, text, setting);
+    if from_composer && !setting { w.consume_draft(); }
     let r = async {
         let (h, p, t) = (host_id.to_owned(), pane_id.to_owned(), text.to_owned());
         let send_id = id.clone();
@@ -392,7 +393,11 @@ async fn send_message_to_pane_id(host_id: &str, pane_id: &str, text: &str, from_
     if text.is_blank() {
         return Err(http(400, "Message is empty"));
     }
-    let started_at = if from_composer { now_ms() } else { 0 };
+    // Acceptance, not the eventual keyboard turn, separates this send's draft
+    // from a new message typed while another operation held the lane.
+    let started_at = if from_composer {
+        watchers().peek(host_id, pane_id).and_then(|w| w.delivery(send_id)).map_or_else(now_ms, |s| s.at)
+    } else { 0 };
     if has_paste_preview(text) && re!(r"^\[Pasted[^\n]+\]$", "i").is_match(text.jtrim()) {
         return Err(http(409, "This saved message contains only a terminal paste preview. Paste the original text again; the preview does not contain the message."));
     }

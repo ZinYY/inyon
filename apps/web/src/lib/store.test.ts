@@ -136,6 +136,16 @@ describe('pending messages', () => {
   const p = (text: string, more: Partial<PendingMessage> = {}): PendingMessage => ({ id: text, text, status: 'sent', at: T, ...more })
   const ts = new Date(T + 1000).toISOString()
 
+  test('Hub info settles a send after navigation without waiting for its HTTP response', () => {
+    const pending = p('A quiet cafe?', { status: 'sending' })
+    patchChat('k', () => ({ pending: [pending] }))
+    const receipt = { id: pending.id, text: pending.text, at: T, state: 'sent' as const }
+    emit({ t: 'chat.info', key: 'k', info: chatInfo({ sends: [receipt] }) })
+    expect(chat('k').pending[0].status).toBe('sent')
+    emit({ t: 'chat.info', key: 'k', info: chatInfo({ sends: [{ ...receipt, state: 'delivered' }] }) })
+    expect(chat('k').pending).toEqual([])
+  })
+
   test('the transcript confirms them on reset and on append', () => {
     patchChat('k', () => ({ pending: [p('one'), p('two'), p('three')] }))
     reset('k', [item.user('one', { ts })])

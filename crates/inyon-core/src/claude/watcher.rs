@@ -721,21 +721,25 @@ impl ChatWatcher {
         for m in msgs {
             s.send(&m);
         }
-        if let Some(d) = get_draft(&self.key) {
-            s.send(&ServerMsg::ChatDraft { key: self.key.clone(), text: d.text, source: d.source, at: d.at as u64 });
-        }
+        // An empty draft is authoritative too. A subscriber may have missed
+        // the clear while it was on Overview or disconnected.
+        s.send(&self.draft_message());
     }
 
     // ---------- drafts (two-way with Claude's input box) ----------
 
-    fn broadcast_draft(&self, except: Option<&Sub>) {
+    fn draft_message(&self) -> ServerMsg {
         let d = get_draft(&self.key);
-        let msg = ServerMsg::ChatDraft {
+        ServerMsg::ChatDraft {
             key: self.key.clone(),
             text: d.as_ref().map(|d| d.text.clone()).unwrap_or_default(),
             source: d.as_ref().map_or(DraftSource::App, |d| d.source),
             at: d.as_ref().map_or(now_ms(), |d| d.at as u64),
-        };
+        }
+    }
+
+    fn broadcast_draft(&self, except: Option<&Sub>) {
+        let msg = self.draft_message();
         let subs = self.st.borrow().subs.clone();
         for s in subs {
             if except.is_none_or(|e| !same_sub(e, &s)) {
@@ -746,6 +750,14 @@ impl ChatWatcher {
 
     /// Text typed in the app: save it, share it with other devices, and mirror it into the terminal.
     pub fn draft_from_app(&self, text: &str, from: Option<&Sub>) {
+        // The Hub already owns this text as a send. A delayed draft frame or
+        // a returning client's old cache cannot put it back in the input box.
+        if !text.is_empty() && self.st.borrow().ledger.list().iter().any(|s|
+            s.state == SendStatus::Sending && s.setting != Some(true)
+                && (squash(&s.text) == squash(text) || squash(&s.text).starts_with(&format!("{}Attachedfiles:", squash(text))))) {
+            if let Some(from) = from { from.send(&self.draft_message()); }
+            return;
+        }
         // A phone's keyboard can put a message back in the box just after it was sent, and the app
         // passes that on as a draft. It isn't one: keep the box empty, and tell that app so.
         let ls = self.st.borrow().last_sent.clone();
@@ -770,6 +782,18 @@ impl ChatWatcher {
         let mut st = self.st.borrow_mut();
         rt::clear(&mut st.mirror_timer);
         st.mirror_timer = Some(t);
+    }
+
+    /// Move a composer's draft into the Hub-owned send immediately, before
+    /// waiting for the keyboard lane. Keep the mirror marker for long pastes.
+    pub fn consume_draft(&self) {
+        // Edits are debounced, so the last saved draft may be only a prefix
+        // of the submitted text. Any later edit arrives after this handover.
+        if let Some(d) = get_draft(&self.key) {
+            set_draft(&self.key, Some(Draft { text: String::new(), at: now_ms() as f64, ..d }));
+            rt::clear(&mut self.st.borrow_mut().mirror_timer);
+        }
+        self.broadcast_draft(None);
     }
 
     fn mirror(&self) {
