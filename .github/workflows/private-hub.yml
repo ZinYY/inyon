@@ -165,4 +165,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Prevent duplicate Codex BTW messages across Markdown redraws, collapsed tool rows and clipped viewports. Fix Windows executable discovery when python3 is an unavailable alias. Includes guarded conversation transitions and the BTW send mode.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep a single complete Codex BTW reply when the terminal briefly repaints an incomplete middle section. Includes stable multi-turn side chat, guarded transitions and Windows fork fixes.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

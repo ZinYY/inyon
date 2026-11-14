@@ -13,6 +13,14 @@ fn text(item: &ChatItem) -> (bool, &str) {
     }
 }
 
+fn same_reply(a: &str, b: &str) -> bool {
+    if a.is_empty() || b.is_empty() { return false; }
+    a.starts_with(b) || b.starts_with(a)
+        // A terminal repaint can briefly omit rows in the middle of a reply.
+        // Its substantial unchanged opening still identifies the same block.
+        || (a.chars().take(64).count() == 64 && b.chars().take(64).count() == 64 && a.chars().take(64).eq(b.chars().take(64)))
+}
+
 /// The top of a viewport can start halfway through an already captured reply.
 /// Only extend a known suffix; an older or unrelated viewport must never replace it.
 fn extend_clipped(before: &str, now: &str) -> Option<String> {
@@ -78,7 +86,7 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
     let old: Vec<_> = out.iter().map(|item| { let (role, s) = text(item); (role, bare(s)) }).collect();
     let new: Vec<_> = blocks.iter().map(|(role, s)| (*role, bare(s))).collect();
     let compatible = |a: &(bool, String), b: &(bool, String)| {
-        a.0 == b.0 && (a.1 == b.1 || (!a.0 && !a.1.is_empty() && !b.1.is_empty() && (b.1.starts_with(&a.1) || a.1.starts_with(&b.1))))
+        a.0 == b.0 && (a.1 == b.1 || (!a.0 && same_reply(&a.1, &b.1)))
     };
     let indices = (0..out.len()).filter_map(|start| {
         if new.first().is_none_or(|b| !compatible(&old[start], b)) { return None; }
@@ -103,7 +111,9 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
         let index = indices[i];
         if let Some(old) = out.get(index) {
             // A narrower viewport must not truncate a reply already seen in full.
-            if bare(text(old).1).starts_with(&bare(&value)) { continue; }
+            let before = bare(text(old).1);
+            let now = bare(&value);
+            if before.starts_with(&now) || (!user && same_reply(&before, &now) && before.len() >= now.len()) { continue; }
         }
         let seq = out.get(index).map(ChatItem::seq).unwrap_or_else(|| out.last().map_or(0, |it| it.seq()+1));
         let uuid = format!("side:{id}:{seq}");
@@ -151,6 +161,19 @@ mod tests {
             assert_eq!(items[1].seq(), 1);
         }
         assert!(text(&items[1]).1.contains("light jacket"));
+    }
+
+    #[test]
+    fn an_incomplete_repaint_cannot_append_or_shorten_the_same_reply() {
+        let opening = "• Spend the afternoon by the coast: you can fit a beach, coffee and some local history into one easy outing.";
+        let full = screen(&["› Any afternoon ideas?", opening, "  1. Walk along the beach.", "  2. Stop for coffee.", "  3. Visit the museum.", "  Finish with another stroll."]);
+        let partial = screen(&["› Any afternoon ideas?", opening, "  1. Walk along the beach.", "  2. Stop for coffee. Finish with another"]);
+        let mut items = merge(&[], &partial, "side").unwrap();
+        items = merge(&items, &full, "side").unwrap();
+        for frame in [&partial, &full].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+        assert_eq!(items.len(), 2);
+        assert!(text(&items[1]).1.contains("3. Visit the museum."));
+        assert!(text(&items[1]).1.ends_with("Finish with another stroll."));
     }
 
     #[test]
