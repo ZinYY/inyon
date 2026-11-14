@@ -31,7 +31,7 @@ fn header(text: &str) -> Option<Header<'_>> {
     }
     // Failed executions use their own native heading, not "Ran". Keep the
     // command and error flag separate so they use the main chat's tool UI.
-    let failed = re!(r"^Failed \(exit -?\d+\) (.+)$", "s").captures(head)?;
+    let failed = re!(r"^(?:Failed \(exit -?\d+\)|Exited \(status -?\d+\)) (.+)$", "s").captures(head)?;
     Some(Header { name: "Bash", command: failed.get(1)?.as_str().trim(), pending: false, is_error: true })
 }
 

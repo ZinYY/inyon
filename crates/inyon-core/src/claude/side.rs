@@ -191,16 +191,18 @@ mod tests {
     }
     #[test]
     fn failed_execution_is_an_error_card_and_replaces_its_running_frame() {
-        let running = screen(&["› How long would the walk take?", "• Running python3 -c 'print(50 / 0)'"]);
-        let mut items = merge(&[], &running, "side").unwrap();
-        let failed = screen(&["› How long would the walk take?", "• Failed (exit 1) python3 -c 'print(50 / 0)'", "  └ ZeroDivisionError: division by zero", "    + 3 lines (^t to expand)", "• I will use a valid walking speed."]);
-        items = merge(&items, &failed, "side").unwrap();
-        assert_eq!(items.len(), 3);
-        for frame in [&running, &failed].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
-        let rendered = super::super::side_tools::render(super::super::side_source::enrich(&items, &[]));
-        assert_eq!(rendered.len(), 4);
-        assert!(matches!(&rendered[1], ChatItem::Assistant { block: AssistantBlock::ToolUse { name, input, .. }, .. } if name == "Bash" && input["command"] == "python3 -c 'print(50 / 0)'"));
-        assert!(matches!(&rendered[2], ChatItem::ToolResult { is_error: true, text, truncated: Some(true), .. } if text.contains("ZeroDivisionError")));
+        for failed_heading in ["Failed (exit 1)", "Exited (status 1)"] {
+            let running = screen(&["› How long would the walk take?", "• Running python3 -c 'print(50 / 0)'"]);
+            let mut items = merge(&[], &running, "side").unwrap();
+            let failed = screen(&["› How long would the walk take?", &format!("• {failed_heading} python3 -c 'print(50 / 0)'"), "  └ ZeroDivisionError: division by zero", "    + 3 lines (^t to expand)", "• I will use a valid walking speed."]);
+            items = merge(&items, &failed, "side").unwrap();
+            assert_eq!(items.len(), 3);
+            for frame in [&running, &failed].into_iter().cycle().take(30) { assert!(merge(&items, frame, "side").is_none()); }
+            let rendered = super::super::side_tools::render(super::super::side_source::enrich(&items, &[]));
+            assert_eq!(rendered.len(), 4);
+            assert!(matches!(&rendered[1], ChatItem::Assistant { block: AssistantBlock::ToolUse { name, input, .. }, .. } if name == "Bash" && input["command"] == "python3 -c 'print(50 / 0)'"));
+            assert!(matches!(&rendered[2], ChatItem::ToolResult { is_error: true, text, truncated: Some(true), .. } if text.contains("ZeroDivisionError")));
+        }
     }
 
     #[test]
