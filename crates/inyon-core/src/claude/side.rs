@@ -99,9 +99,22 @@ pub fn merge(previous: &[ChatItem], captured: &[String], id: &str) -> Option<Vec
             continuation.push_str(line.strip_prefix("  ").unwrap_or(line)); continuation.push('\n');
         }
     }
-    for (_, t) in &mut blocks { *t = t.trim().to_owned(); }
-    blocks.retain(|(_, t)| !t.is_empty());
+    for (user, t) in &mut blocks {
+        *t = if *user { t.trim().to_owned() } else { super::side_table::restore(t.trim()) };
+    }
+    // A streamed list can briefly contain only its bullet and an opening
+    // Markdown delimiter. It has no text anchor yet; publishing it would leave
+    // a separate orphan block when the styled, completed item arrives.
+    blocks.retain(|(user, t)| !t.is_empty() && (*user || !matches!(
+        t.trim_start_matches(|c: char| c.is_whitespace() || c == '•'),
+        "*" | "**" | "_" | "__" | "`" | "```"
+    )));
     let mut out = previous.to_vec();
+    for item in &mut out {
+        if let ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } = item {
+            *text = super::side_table::restore(text);
+        }
+    }
     if !continuation.trim().is_empty() {
         if let Some(ChatItem::Assistant { block: AssistantBlock::Text { text }, .. }) = out.last_mut() {
             if let Some(next) = extend_clipped(text, continuation.trim()) { *text = next; }
@@ -170,6 +183,20 @@ mod tests {
         let follow = merge(&next, &screen(&["› Question", "", "• First answer", "", "› Question", "", "• Second answer"]), "side").unwrap();
         assert_eq!(follow.len(), 4);
         assert_eq!(text(&follow[3]).1, "Second answer");
+    }
+    #[test]
+    fn opening_markdown_delimiters_do_not_leave_orphan_reply_blocks() {
+        let mut items = vec![];
+        for opening in ["• • **", "• **", "• ```"] {
+            if let Some(next) = merge(&items, &screen(&["› What should I bring?", opening]), "side") { items = next; }
+            assert_eq!(items.len(), 1);
+        }
+        let full = screen(&["› What should I bring?", "• • A light jacket.", "  • A water bottle."]);
+        items = merge(&items, &full, "side").unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(text(&items[1]).1, "• A light jacket.\n• A water bottle.");
+        assert!(merge(&items, &screen(&["› What should I bring?", "• • **"]), "side").is_none());
+        assert!(merge(&items, &full, "side").is_none());
     }
     #[test]
     fn native_timing_and_shortcut_tips_are_not_assistant_text() {

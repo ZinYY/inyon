@@ -48,6 +48,7 @@ const components: Components = {
     const cls: string = child?.props?.className ?? ''
     const lang = cls.match(/language-([\w+#-]+)/)?.[1]
     const code = textOf(child?.props?.children).replace(/\n$/, '')
+    if (lang === 'terminal-math') return <pre role="math" aria-label={code} className="my-3 overflow-x-auto whitespace-pre font-mono text-[14px] leading-[1.5]">{code}</pre>
     return (
       <div className="group/code my-3 overflow-hidden rounded-xl border border-line bg-code">
         <div className="flex h-8 items-center justify-between border-b border-line pl-3.5 pr-1.5 font-sans text-[12px] text-fg-3">

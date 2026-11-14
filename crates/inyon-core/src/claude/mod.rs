@@ -23,6 +23,8 @@ pub mod transcript;
 pub mod transcript_tail;
 pub mod transition;
 mod side;
+mod side_table;
+mod side_source;
 pub mod titles;
 pub mod watcher;
 

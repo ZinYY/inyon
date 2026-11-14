@@ -241,6 +241,9 @@ struct State {
     display_live: bool,
     display_session: Option<(String, u64, u64)>,
     display_raw: Option<String>,
+    /// Keep screen anchors separate from richer, recovered Markdown.
+    side_native: Vec<ChatItem>,
+    side_sources: Vec<String>,
     live_tail: Option<StreamHandle>,
     goal_tail: Option<StreamHandle>,
     /// Authoritative current goal, separate from historical rollout events.
@@ -374,6 +377,8 @@ impl ChatWatcher {
                 display_live: false,
                 display_session: None,
                 display_raw: None,
+                side_native: vec![],
+                side_sources: vec![],
                 live_tail: None,
                 goal_tail: None,
                 native_goal: None,
@@ -2076,6 +2081,7 @@ impl ChatWatcher {
             // screen is authoritative, and returning to the parent changes the path
             // so sync() discards this view and reads the parent afresh.
             self.publish_snapshot(vec![]);
+            self.start_side_source(gen);
             self.kick_screen();
             return;
         }
@@ -2485,6 +2491,37 @@ impl ChatWatcher {
         if changed { self.live_soon(); }
     }
 
+    fn start_side_source(&self, gen: u64) {
+        let Some(agent) = registry().pane_agent(&self.host_id, &self.pane_id) else { return };
+        if agent.pid == 0 { return; }
+        let Ok(host) = self.host() else { return };
+        let me = self.me.clone();
+        let mine: Rc<RefCell<Option<StreamHandle>>> = Rc::default();
+        let m2 = mine.clone();
+        let command = super::side_source::command(agent.pid, agent.started_at.map_or(0.0, |s| s as f64));
+        if let Ok(t) = host.stream(&command, move |line| {
+            let Some(w) = me.upgrade() else { return };
+            let Ok(value) = serde_json::from_str::<Value>(&line) else { return };
+            let Some(source) = value.get("source").and_then(Value::as_str).filter(|s| !s.is_empty() && s.len() <= 256*1024) else { return };
+            let next = {
+                let mut st = w.st.borrow_mut();
+                if st.stopped || gen != st.generation
+                    || !matches!((&st.live_tail, &*m2.borrow()), (Some(a), Some(b)) if a.same(b))
+                    || st.side_sources.iter().any(|s| s == source) { return; }
+                st.side_sources.push(source.to_owned());
+                while st.side_sources.len() > 32 || st.side_sources.iter().map(String::len).sum::<usize>() > 1024*1024 {
+                    st.side_sources.remove(0);
+                }
+                let next = super::side_source::enrich(&st.side_native, &st.side_sources);
+                (next != st.items).then_some(next)
+            };
+            if let Some(items) = next { w.publish_snapshot(items); }
+        }, true) {
+            *mine.borrow_mut() = Some(t.clone());
+            self.st.borrow_mut().live_tail = Some(t);
+        }
+    }
+
     /// Joins the thread on Codex's app-server through a helper on the machine (codex_live.rs). The
     /// helper needs node and the daemon's socket; without them it ends at once, and is tried again
     /// later rather than at once.
@@ -2671,6 +2708,8 @@ impl ChatWatcher {
             st.display_live = false;
             st.display_session = None;
             st.display_raw = None;
+            st.side_native.clear();
+            st.side_sources.clear();
             st.live_json = String::new();
             (t, had, st.stopped)
         };
@@ -2867,8 +2906,12 @@ impl ChatWatcher {
         let side = agent.transcript_path.as_deref().and_then(|p| p.strip_prefix("codex-side:"));
         if let Some(id) = side {
             if crate::agents::codex::codex_side_thread(lines).as_deref() == Some(id) {
-                let next = super::side::merge(&self.st.borrow().items, lines, id);
-                if let Some(items) = next { self.publish_snapshot(items); }
+                let next = super::side::merge(&self.st.borrow().side_native, lines, id);
+                if let Some(items) = next {
+                    let rendered = super::side_source::enrich(&items, &self.st.borrow().side_sources);
+                    self.st.borrow_mut().side_native = items;
+                    self.publish_snapshot(rendered);
+                }
             } else {
                 registry().refresh(&self.host_id, 0);
                 return Ok(());

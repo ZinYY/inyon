@@ -55,6 +55,7 @@ jobs:
       - run: python3 -m unittest discover -s scripts -p claude_auto_title_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/agents -p codex_goal_test.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p process_environment_test.py
+      - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p side_source_test.py
       - run: python3 scripts/install-claude-sdk.py
       - run: python3 -m unittest discover -s crates/inyon-core/src/claude -p claude_fork_test.py
       - run: bun run typecheck
@@ -165,4 +166,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep known Codex BTW messages anchored when PSmux returns a torn redraw or a truncated question. Handle Windows sticky-prompt styles without appending clipped replies to user input. Includes guarded transitions and Windows fork fixes.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Render Codex BTW tables and formulas using uniquely matched original Markdown from existing local diagnostics, with bounded incremental reads and native-layout fallbacks. Also fix unfinished Markdown fragments. Includes guarded conversation transitions and stable BTW capture across terminal redraws.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

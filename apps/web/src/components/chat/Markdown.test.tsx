@@ -87,6 +87,13 @@ test('shared chat renders inline math, display math and GFM tables', async () =>
   expect(container.querySelectorAll('math')).toHaveLength(5)
 })
 
+test('a drawn formula without raw TeX retains fraction alignment', () => {
+  const drawing = '      25\nd = 3 ── = 1.25\n      60'
+  const { container } = render(<Markdown text={'```terminal-math\n' + drawing + '\n```'} />)
+  expect(container.querySelector('[role="math"]')?.textContent).toBe(drawing)
+  expect(container.textContent).not.toContain('terminal-math')
+})
+
 test('invalid and untrusted TeX remain contained without external images or executable links', async () => {
   const { container } = render(<Markdown text={String.raw`$\includegraphics{https://evil.example/leak}$
 
