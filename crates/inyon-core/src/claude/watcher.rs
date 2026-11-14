@@ -2498,7 +2498,7 @@ impl ChatWatcher {
         let me = self.me.clone();
         let mine: Rc<RefCell<Option<StreamHandle>>> = Rc::default();
         let m2 = mine.clone();
-        let command = super::side_source::command(agent.pid, agent.started_at.map_or(0.0, |s| s as f64));
+        let command = super::side_source::command(agent.pid, agent.started_at.unwrap_or(0));
         if let Ok(t) = host.stream(&command, move |line| {
             let Some(w) = me.upgrade() else { return };
             let Ok(value) = serde_json::from_str::<Value>(&line) else { return };

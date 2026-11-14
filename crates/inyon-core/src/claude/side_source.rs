@@ -3,7 +3,9 @@ use inyon_protocol::{AssistantBlock, ChatItem};
 use crate::{hosts::host::shq, re};
 use super::screen_reply::bare;
 
-pub(super) fn command(pid: u32, started: f64) -> String {
+pub(super) fn command(pid: u32, started_ms: u64) -> String {
+    // AgentPaneInfo uses milliseconds; Codex's diagnostic database uses seconds.
+    let started = started_ms / 1000;
     format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -u -c {} {pid} {started}; fi; done",
         shq(include_str!("side_source.py")))
 }
@@ -118,6 +120,12 @@ pub(super) fn enrich(items: &[ChatItem], sources: &[String]) -> Vec<ChatItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn process_lifetime_filter_uses_database_seconds() {
+        let command = command(42, 1_794_648_123_456);
+        assert!(command.ends_with(" 42 1794648123; fi; done"));
+    }
 
     #[test]
     fn raw_math_matches_visible_prose_and_values_but_not_another_answer() {
