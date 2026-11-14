@@ -69,6 +69,19 @@ fn math_content(text: &str) -> String {
     bare(&re!(r"\\(?:times|cdot|frac|dfrac|tfrac|text|mathrm|mathbf|mathit|left|right|displaystyle)\b").replace_all(text, ""))
 }
 
+fn source_prefix(text: &str, source: &str) -> bool {
+    let prefix = math_content(text);
+    if prefix.len() >= 24 && math_content(source).starts_with(&prefix) { return true; }
+    // A response may start with an unfinished TeX expression. Removing its
+    // commands leaves too few letters/digits for the prose check, so compare
+    // the literal TeX prefix, retaining every operator and numeric value.
+    let compact = |s: &str| s.chars().filter(|c| !c.is_whitespace()).collect::<String>()
+        .trim_start_matches('\\').to_owned();
+    let prefix = compact(text);
+    prefix.len() >= 16 && prefix.contains('\\') && (prefix.starts_with('[') || prefix.starts_with('(') || prefix.starts_with("$$"))
+        && compact(source).starts_with(&prefix)
+}
+
 fn preserve_drawn_math(text: &str) -> String {
     text.split("\n\n").map(|part| {
         let math = part.contains('\n') && (part.contains('─') || part.contains('⎡') || part.contains('⎢'))
@@ -97,10 +110,8 @@ pub(super) fn enrich(items: &[ChatItem], sources: &[String]) -> Vec<ChatItem> {
                     // Remove it only after a complete reply in this same user turn
                     // has uniquely established the source; never fill a new partial
                     // answer from an older, coincidentally matching source.
-                    let prefix = math_content(text);
-                    if prefix.len() < 24 { return None; }
                     let found: std::collections::HashSet<_> = candidates.iter().flatten().copied()
-                        .filter(|&i| math_content(&sources[i]).starts_with(&prefix)).collect();
+                        .filter(|&i| source_prefix(text, &sources[i])).collect();
                     (found.len() == 1).then(|| *found.iter().next().unwrap())
                 });
                 if let Some(i) = matching {
@@ -181,5 +192,20 @@ Either makes an easy stroll before coffee.".to_owned();
         for index in [1, 3] {
             assert!(matches!(&result[index], ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } if text == &source));
         }
+    }
+
+    #[test]
+    fn a_reply_starting_with_a_short_tex_fragment_is_reconciled_after_completion() {
+        let source = "\\[\nd=4\\times\\frac{15}{60}=1\\text{ km}\n\\]\n\nLeave a little time for a rest.".to_owned();
+        let partial = "[\nd = 4 \\times \\frac{15}{60";
+        let assistant = |seq, text: &str| ChatItem::Assistant { seq, uuid: format!("a{seq}"), msg_id: format!("a{seq}"), ts: String::new(), model: None, block: AssistantBlock::Text { text: text.into() } };
+        assert!(source_prefix(partial, &source));
+        assert!(!source_prefix(&partial.replace("15", "25"), &source));
+        assert!(!source_prefix(&partial.replace("\\times", "+"), &source));
+        let pending = vec![assistant(0, partial)];
+        assert_eq!(enrich(&pending, &[source.clone()]), pending);
+        let result = enrich(&[assistant(0, partial), assistant(1, &source)], &[source.clone()]);
+        assert_eq!(result.len(), 1);
+        assert!(matches!(&result[0], ChatItem::Assistant { block: AssistantBlock::Text { text }, .. } if text == &source));
     }
 }
