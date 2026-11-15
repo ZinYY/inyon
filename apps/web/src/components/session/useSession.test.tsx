@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import { act, renderHook } from '@testing-library/react'
 import { AGENTS, chatKey, type AgentStatus } from '@inyon/protocol'
 import { currentModelId, openCodeStatus, useSession } from './useSession.ts'
-import { useStore } from '../../lib/store.ts'
+import { patchChat, useStore } from '../../lib/store.ts'
 import { agentPane, chatInfo, host } from '../../test/fixtures.ts'
 import { flush } from '../../test/render.tsx'
 import { api, emit } from '../../test/fakes.ts'
@@ -26,6 +26,35 @@ test('an online shell does not inherit the agent identity from a saved chat', as
   act(() => useStore.setState({ connected: false }))
   expect(result.current.agent).toBe('codex')
 })
+
+for (const agent of ['claude', 'codex'] as const) {
+  test(`${agent} history switching keeps chat and its wait state through the temporary shell`, async () => {
+    const key = chatKey('box', '%1')
+    useStore.setState({ connected: true, hostsStale: false, hosts: [host('box', { panes: [agentPane('%1', agent)] })] })
+    const old = chatInfo({ agent, sessionId: 'old', title: 'Walk and coffee' })
+    emit({ t: 'chat.info', key, info: old })
+    const { result } = renderHook(() => useSession('box', '%1'))
+    await flush()
+    for (const phase of ['clearing', 'refreshing', 'failed'] as const) {
+      act(() => {
+        const chat = useStore.getState().chats[key]!
+        patchChat(key, () => ({ clearing: { phase, label: 'Switching conversation', options: { agent, session: 'other' }, retained: { ...chat, info: old } } }))
+        useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', agent, { agent: undefined, command: 'cmd' })] })] })
+        emit({ t: 'chat.info', key, info: chatInfo({ running: false }) })
+      })
+      expect(result.current.agent).toBe(agent)
+      expect(result.current.info?.sessionId).toBe('old')
+      expect(result.current.locked).toBe(true)
+    }
+    act(() => {
+      useStore.setState({ hosts: [host('box', { panes: [agentPane('%1', agent, { agent: { kind: agent, pid: 2, state: 'idle', sessionId: 'other' } })] })] })
+      patchChat(key, () => ({ info: chatInfo({ agent, sessionId: 'other' }), clearing: undefined, loaded: true, stale: undefined, catchingUp: undefined }))
+    })
+    expect(result.current.agent).toBe(agent)
+    expect(result.current.info?.sessionId).toBe('other')
+    expect(result.current.locked).toBe(false)
+  })
+}
 
 test('Claude shows confirmed controls before another turn, without carrying them across resume', async () => {
   const live: AgentStatus = { model: 'Opus 5.5', effort: 'high', updatedAt: 1000 }

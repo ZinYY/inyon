@@ -1772,9 +1772,21 @@ pub async fn type_start(host_id: &str, pane_id: &str, agent: AgentKind, resume: 
 pub async fn type_start_command(host_id: &str, pane_id: &str, line: &str) -> HubResult<()> {
     require_tmux_management(host_id)?;
     let (host, _) = agent_pane(host_id, pane_id)?;
-    type_into(&host, pane_id, line, true).await?;
+    type_into(&host, pane_id, &shell_launch_line(line, on_psmux(host_id)), true).await?;
     registry().refresh(host_id, 1500);
     Ok(())
+}
+
+/// Windows panes can return to CMD as well as PowerShell after an agent exits. Generated
+/// launch lines use PowerShell quoting and environment assignments; select that interpreter
+/// explicitly instead of asking the pane's unknown shell to parse them. The encoded argument
+/// contains no shell metacharacters and keeps paths, Unicode and proxy values intact.
+fn shell_launch_line(line: &str, win: bool) -> String {
+    if !win { return line.to_owned(); }
+    use base64::Engine;
+    let script = format!("{line}; exit $LASTEXITCODE");
+    let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    format!("powershell.exe -NoLogo -NoProfile -EncodedCommand {}", base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
 /// Reconnects a Claude session's live numbers without restarting it (see reconnect_status_line).

@@ -16,8 +16,12 @@ export function useSession(host: string, pane: string) {
   const connected = useStore((s) => s.connected)
   const hostsStale = useStore((s) => s.hostsStale)
   const ref = useMemo(() => allPanes(hosts).find((r) => r.host.config.id === host && r.pane.id === pane), [hosts, host, pane])
-  const shell = connected && !hostsStale && ref?.host.status === 'online' && !ref.pane.agent
-  const agent: AgentKind | undefined = shell ? undefined : ref?.pane.agent?.kind ?? chat?.info?.agent
+  // Switching history briefly returns to a shell between agent processes. Keep the locked
+  // chat visible until its target snapshot arrives (or the switch reports an error).
+  const switching = !!chat?.clearing?.options.session
+  const shell = connected && !hostsStale && ref?.host.status === 'online' && !ref.pane.agent && !switching
+  const agent: AgentKind | undefined = shell ? undefined : ref?.pane.agent?.kind ??
+    (switching ? chat?.clearing?.options.agent ?? chat?.clearing?.retained?.info?.agent : undefined) ?? chat?.info?.agent
   const catalog = useAgentCatalog(host, pane, agent)
   // the machine's own lists when the agent has them: OpenCode's models and agents (custom ones too)
   const def = useMemo(() => agent ? { ...agentDef(agent), models: catalog?.models ?? agentDef(agent).models, modes: catalog?.modes ?? agentDef(agent).modes } : undefined, [agent, catalog])

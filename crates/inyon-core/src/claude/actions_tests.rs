@@ -963,6 +963,26 @@ fn opencodes_own_session_ids_resume_it_only_opencodes_and_nothing_a_shell_reads_
 // ---------- integration.test.ts: resumeCommand ----------
 
 #[test]
+fn windows_resume_selects_its_interpreter_before_typing_into_an_unknown_shell() {
+    run(|| async {
+        use base64::Engine;
+        let rt = pane("win", json!([{ "id": "%4", "width": 120 }]));
+        rt.borrow_mut().state.os = Some("Windows".into());
+        let fake = Fake::install(|_, _, _| ok(""));
+        let line = "$env:https_proxy='http://localhost:7890/a''b%PATH%!'; & 'C:\\Program Files\\Agent''s tools\\claude.exe' --resume 00000000-0000-4000-8000-000000000001 '--dangerously-skip-permissions'";
+        type_start_command("win", "%4", line).await.unwrap();
+        let commands = fake.cmds();
+        let typed = commands.iter().flat_map(|cmd| cmd.split(" && ")).find_map(|cmd| keys_re().captures(cmd).and_then(|c| c.get(1).map(|s| unq(s.as_str())))).unwrap();
+        let encoded = typed.strip_prefix("powershell.exe -NoLogo -NoProfile -EncodedCommand ").expect("CMD must not receive a bare PowerShell & expression");
+        let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
+        let units: Vec<u16> = bytes.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+        assert_eq!(String::from_utf16(&units).unwrap(), format!("{line}; exit $LASTEXITCODE"));
+        assert!(encoded.bytes().all(|b| b.is_ascii_alphanumeric() || b"+/=".contains(&b)));
+        assert_eq!(shell_launch_line("'/opt/agent tools/claude' --resume id", false), "'/opt/agent tools/claude' --resume id");
+    });
+}
+
+#[test]
 fn resume_keeps_launch_flags_drops_the_old_session_and_any_prompt() {
     let id = "7409eef9-d507-4808-a592-0bfabe896e3a";
     let s = Some(id);
