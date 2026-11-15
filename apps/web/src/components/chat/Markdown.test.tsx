@@ -6,6 +6,57 @@ import { mathDelimiters } from './mathDelimiters.ts'
 
 const srcs = (text: string) => [...render(<Markdown text={text} />).container.querySelectorAll('img')].map((i) => i.getAttribute('src'))
 
+test('bold punctuation next to CJK prose keeps its emphasis without inserting spaces', () => {
+  for (const [source, bold] of [
+    ['结论：**今天适合散步。**明天再看天气。', '今天适合散步。'],
+    ['选择**“海边步道”**然后喝咖啡。', '“海边步道”'],
+    ['推荐**路线（约一小时）**之后休息。', '路线（约一小时）'],
+    ['**海辺を歩こう。**その後は休憩。', '海辺を歩こう。'],
+    ['**산책(한 시간)**을 추천합니다.', '산책(한 시간)'],
+  ]) {
+    const { container } = render(<Markdown text={source!} />)
+    expect(container.querySelector('strong')?.textContent).toBe(bold!)
+    expect(container.textContent).toBe(source!.replaceAll('**', ''))
+  }
+})
+
+test('streaming a bold sentence and its adjacent continuation does not lose emphasis', () => {
+  const { container, rerender } = render(<Markdown text="推荐：**海边散步。" />)
+  expect(container.textContent).toBe('推荐：**海边散步。')
+  for (const suffix of ['**', '**然后', '**然后喝咖啡。']) {
+    rerender(<Markdown text={'推荐：**海边散步。' + suffix} />)
+    expect(container.querySelectorAll('strong')).toHaveLength(1)
+    expect(container.querySelector('strong')?.textContent).toBe('海边散步。')
+    expect(container.textContent).not.toContain('*')
+  }
+})
+
+test('CJK emphasis preserves code, escaped markers, links and nested inline formatting', () => {
+  const literal = '**散步。**之后'
+  const { container } = render(<Markdown text={[
+    '`' + literal + '`', '```text\n' + literal + '\n```',
+    String.raw`\*\*散步。\*\*之后`,
+    '推荐**[步道](https://example.com/)和`coffee`。**之后休息。',
+    '也可**散步和*休息*。**明天再来。',
+    'English **bold.** Next. snake_case and 2 * 3 * 4.',
+  ].join('\n\n')} />)
+  expect(container.querySelector('p > code')?.textContent).toBe(literal)
+  expect(container.querySelector('pre > code')?.textContent).toBe(literal + '\n')
+  expect([...container.querySelectorAll('p')].some(p => p.textContent === literal)).toBe(true)
+  expect(container.querySelectorAll('strong')).toHaveLength(3)
+  expect(container.querySelector('strong a')?.getAttribute('href')).toBe('https://example.com/')
+  expect(container.querySelector('strong code')?.textContent).toBe('coffee')
+  expect(container.querySelector('strong em')?.textContent).toBe('休息')
+})
+
+test('CJK bold works in table cells alongside lazy math rendering', async () => {
+  const { container } = render(<Markdown text={'| Plan | Note |\n| --- | --- |\n| **散步。**之后休息 | **距离（$d=vt$）**可以计算 |'} />)
+  await waitFor(() => expect(container.querySelector('.katex')).not.toBeNull())
+  expect(container.querySelectorAll('table strong')).toHaveLength(2)
+  expect(container.querySelector('table strong .katex')).not.toBeNull()
+  expect(container.querySelector('td')?.textContent).toBe('散步。之后休息')
+})
+
 test('agent output shows images from this site only', () => {
   expect(srcs('![a](/api/hosts/x/file.png)')).toEqual(['/api/hosts/x/file.png'])
   // "//host/…" is another site, not a path here

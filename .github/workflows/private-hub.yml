@@ -171,4 +171,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Keep send execution and draft handover owned by the Hub across navigation and reconnects. Always synchronize cleared drafts, preserve subsequent edits, and settle the client display from Hub receipts. Render failed Codex BTW tools with the shared tool UI and reconcile truncated command output without duplicate cards.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Render bold text correctly beside CJK punctuation in the shared chat renderer, including streamed replies. Preserve code, escaped markers, links, tables and formulas.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

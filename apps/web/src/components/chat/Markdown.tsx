@@ -1,6 +1,7 @@
 import { memo, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkCjkFriendly from 'remark-cjk-friendly/parseOnly'
 import clsx from 'clsx'
 import { highlight, isLoaded, languageOf, loadLanguage } from './highlight.ts'
 import { mathDelimiters } from './mathDelimiters.ts'
@@ -100,7 +101,8 @@ export const Markdown = memo(function Markdown({ text, className, sans }: { text
   const source = useMemo(() => hasMath ? mathDelimiters(text) : text, [text, hasMath])
   return (
     <div className={clsx('prose-reply', !sans && font !== 'sans' && `reply-${font}`, className)}>
-      <ReactMarkdown remarkPlugins={plugins && hasMath ? [remarkGfm, plugins.remark] : [remarkGfm]}
+      {/* CJK punctuation beside prose must not turn **bold** back into literal markers. */}
+      <ReactMarkdown remarkPlugins={plugins && hasMath ? [remarkGfm, remarkCjkFriendly, plugins.remark] : [remarkGfm, remarkCjkFriendly]}
         rehypePlugins={plugins && hasMath ? [[plugins.rehype, plugins.options]] : []} components={components}>
         {source}
       </ReactMarkdown>
