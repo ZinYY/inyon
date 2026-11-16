@@ -1148,6 +1148,9 @@ fn a_hidden_codex_footer_uses_a_verified_connection_across_hub_restarts_but_not_
             registry().annotate_agents(runtime, &pr).await.unwrap();
             assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(next));
         }
+        let pr = probe(started + 1.0);
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(next), "Windows elapsed-second rounding is not a new process");
         *selected.borrow_mut() = None;
         let pr = probe(started);
         registry().annotate_agents(&b.rt, &pr).await.unwrap();

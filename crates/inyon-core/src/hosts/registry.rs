@@ -1301,13 +1301,16 @@ impl Registry {
         // Side chats have no writer lock and cannot identify the main connection.
         if let Some(id) = footer_thread.as_ref().filter(|id| owners.values().flatten().any(|owned| owned == *id)) {
             let mut r = rt.borrow_mut();
-            let changed = r.codex_anchors.get(&pid).is_none_or(|a| a.id != *id || (a.started_at - proc.started_at).abs() > 0.001);
+            // The Windows probe derives start time from integer elapsed seconds,
+            // which can move by one second between probes. Match the same tolerance
+            // used for native-picker continuity instead of discarding a live binding.
+            let changed = r.codex_anchors.get(&pid).is_none_or(|a| a.id != *id || (a.started_at - proc.started_at).abs() > 5.0);
             if changed {
                 r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: pr.borrow().now });
                 let _ = kv::set(&format!("codex-identities/{}", key_part(&host_id)), &r.codex_anchors);
             }
         }
-        let anchor = rt.borrow().codex_anchors.get(&pid).filter(|a| (a.started_at - proc.started_at).abs() <= 0.001).cloned();
+        let anchor = rt.borrow().codex_anchors.get(&pid).filter(|a| (a.started_at - proc.started_at).abs() <= 5.0).cloned();
         let codex_thread = match &home {
             _ if footer_thread.is_some() => footer_thread,
             Some(home) if proc.kind == AgentKind::Codex && anchor.is_some() => {
