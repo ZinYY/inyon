@@ -1031,6 +1031,15 @@ impl ChatWatcher {
     /// The terminal's input box changed: if someone typed there, adopt it as the draft.
     fn sync_draft_from_screen(&self) {
         if super::actions::typing_in_progress(&self.host_id, &self.pane_id) { return; }
+        // A paced native paste can first expose a short prefix, then scroll out
+        // of view. That prefix is no longer a complete draft. Forget only the
+        // adopted terminal copy, without touching the terminal or an app draft.
+        if self.st.borrow().screen.draft_clipped.is_some()
+            && get_draft(&self.key).is_some_and(|d| d.source == DraftSource::Terminal)
+        {
+            set_draft(&self.key, None);
+            self.broadcast_draft(None);
+        }
         let term = {
             let st = self.st.borrow();
             if st.mirroring.is_some() || now_ms() < st.mirroring_until || now_ms() < st.sending_until || st.screen.prompt.is_some() || st.screen.input_visible != Some(true) || st.screen.draft_clipped.is_some() {

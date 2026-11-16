@@ -1425,6 +1425,10 @@ fn scrolling_a_codex_composer_never_replaces_the_full_app_draft() {
         }
         w.sync_draft_from_screen();
         assert_eq!(get_draft(KEY).unwrap().text, full);
+        set_draft(KEY, Some(Draft { text: "first line".into(), source: DraftSource::Terminal,
+            at: now_ms() as f64, mirrored: Some("first line".into()) }));
+        w.sync_draft_from_screen();
+        assert!(get_draft(KEY).is_none(), "discard an early native-paste prefix once the draft scrolls");
         set_draft(KEY, None);
         w.sync_draft_from_screen();
         assert!(get_draft(KEY).is_none(), "do not invent a complete draft from a terminal viewport");

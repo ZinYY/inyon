@@ -1092,6 +1092,30 @@ fn codex_scroll_arrows_mark_partial_drafts_without_polluting_text_or_newlines() 
 }
 
 #[test]
+fn codex_scrolled_input_still_works_when_windows_hides_the_entire_footer() {
+    let first = format!("\x1b[0;1m›\x1b[0m Bring a hat{}\x1b[0;2m↑\x1b[0m", " ".repeat(106));
+    let mut lines = vec!["• Previous reply".into(), "".into(), first,
+        "  Read a page".into(), "  Enjoy the breeze".into(), "".into()];
+    for s in [parse_screen(&lines, Some(120), AgentKind::Codex), parse_psmux_screen(&lines, Some(120), AgentKind::Codex)] {
+        assert_eq!(s.input_visible, Some(true));
+        assert_eq!(s.draft_clipped.as_deref(), Some("start"));
+        assert_eq!(s.draft.as_deref(), Some("Bring a hat\nRead a page\nEnjoy the breeze"));
+        assert_eq!(s.model, None);
+        assert_eq!(s.effort, None);
+    }
+    // History, a literal arrow, wrong-width output and picker hints remain unknown.
+    let native = lines[2].clone();
+    lines[2] = unstyle(&native).text;
+    assert_ne!(parse_screen(&lines, Some(120), AgentKind::Codex).input_visible, Some(true));
+    lines[2] = native.replace("\x1b[0;2m↑", "↑");
+    assert_ne!(parse_screen(&lines, Some(120), AgentKind::Codex).input_visible, Some(true));
+    lines[2] = native;
+    assert_ne!(parse_screen(&lines, Some(121), AgentKind::Codex).input_visible, Some(true));
+    lines.push("  enter select · esc to cancel".into());
+    assert_ne!(parse_screen(&lines, Some(120), AgentKind::Codex).input_visible, Some(true));
+}
+
+#[test]
 fn codex_text_only_question_keeps_its_identity_and_multiline_answer() {
     let mut key = None;
     for name in ["question-text-empty", "question-text-typed"] {

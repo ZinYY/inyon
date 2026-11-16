@@ -306,7 +306,7 @@ pub fn parse_screen(captured: &[String], pane_width: Option<u32>, agent: AgentKi
         AgentKind::Copilot => return finish(parse_copilot_screen(&raw, pane_width)),
         AgentKind::Opencode => return finish(parse_opencode_screen(&raw, pane_width, Some(captured))),
         AgentKind::Antigravity => return finish(parse_antigravity(&raw, pane_width)),
-        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width)),
+        AgentKind::Codex => return finish(parse_codex(&raw, &styled.iter().map(|l| l.ghost).collect::<Vec<_>>(), pane_width, captured)),
         AgentKind::Claude => {}
         _ => return finish(parse_generic(&raw, pane_width)),
     }
@@ -1347,23 +1347,40 @@ pub(crate) fn codex_composer_footer(lines: &[String]) -> Option<(usize, usize)> 
     None
 }
 
-fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> ScreenState {
-    let mut lines = trimmed_rows(raw);
+/// Windows Codex can devote the rest of the viewport to a tall input box, hiding
+/// its footer altogether. Require its bold prompt, dim scroll arrow at the right
+/// edge and only input continuation rows below it. A quoted prompt in history,
+/// an ordinary arrow or a picker is not enough to authorize typing.
+fn codex_scrolled_composer(lines: &[String], captured: &[String], width: u32) -> Option<(usize, usize)> {
+    let bx = lines.iter().rposition(|l| re!(r"^[›»!](?: |$)").is_match(l))?;
+    if lines.len() - bx < 3 || width < 20 { return None; }
+    let first = &lines[bx];
+    let styled = captured.get(bx)?;
+    if unicode_width::UnicodeWidthStr::width(first.as_str()) != width as usize
+        || !re!(r" {2,}[↑↕]$").is_match(first)
+        || !re!(r"^\x1b\[(?:0;)?1m[›»!]\x1b\[(?:0|22)m").is_match(styled)
+        || !re!(r"\x1b\[(?:0;)?2m[↑↕]\x1b\[(?:0|22)m\s*$").is_match(styled)
+        || lines[bx + 1..].iter().any(|l| (!l.is_empty() && !l.starts_with("  ")) || CX_NAV!().is_match(l))
+    { return None; }
+    Some((bx, lines.len()))
+}
+
+fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>, captured: &[String]) -> ScreenState {
+    let lines = trimmed_rows(raw);
     let width = width_of(pane_width, &lines);
     let mut state = new_state(width);
-    let Some((bx, foot_at)) = codex_composer_footer(&lines) else {
+    let Some((bx, foot_at)) = codex_composer_footer(&lines).or_else(|| codex_scrolled_composer(&lines, captured, width)) else {
         state.prompt = parse_codex_menu(&lines, ghost, width);
         return state;
     };
-    if CX_ID_FOOTER!().is_match(&lines[foot_at]) {
-        lines[foot_at] = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(&lines[foot_at], "  ").into_owned();
-    }
+    let footer = lines.get(foot_at).map(String::as_str).unwrap_or("");
+    let footer = re!(r"^ {2}[0-9a-f-]{36}(?: · )?").replace(footer, "  ");
     state.input_visible = Some(true);
-    if let Some(foot) = CX_FOOTER!().captures(&lines[foot_at]) {
+    if let Some(foot) = CX_FOOTER!().captures(&footer) {
         state.model = Some(foot[1].to_owned());
         state.effort = Some(foot[2].to_owned());
     }
-    if re!(r"(?:^| )Plan mode(?: \((?:⇧|shift\+)tab to cycle\))?$").is_match(&lines[foot_at]) {
+    if re!(r"(?:^| )Plan mode(?: \((?:⇧|shift\+)tab to cycle\))?$").is_match(&footer) {
         state.mode = Some("plan".into());
     }
     let mut rows: Vec<String> = lines[bx..foot_at].to_vec();
@@ -1429,7 +1446,7 @@ fn parse_codex(raw: &[String], ghost: &[bool], pane_width: Option<u32>) -> Scree
     }
     // The spinner disappears during streamed text, but this hint stays until the turn ends.
     // Reading it also prevents a long reply from flickering idle after the debounce expires.
-    if !state.working && lines[foot_at + 1..].iter().any(|l| l.trim() == "tab to queue message") {
+    if !state.working && lines.get(foot_at + 1..).unwrap_or_default().iter().any(|l| l.trim() == "tab to queue message") {
         state.working = true;
         state.activity = Some("Working".into());
     }
