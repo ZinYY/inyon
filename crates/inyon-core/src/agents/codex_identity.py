@@ -6,12 +6,63 @@ Only an ID already proven owned by this live process can be returned. No log
 content leaves the machine, and the database is opened read-only.
 """
 import os
+import json
 from pathlib import Path
 import re
 import sqlite3
 import subprocess
 import sys
 import time
+
+
+def bound_thread(conn, started_at, anchor, owners):
+    """Follow a connection previously identified by this TUI's native footer.
+
+    A shared daemon owns several threads. The observed thread establishes a
+    connection, not a permanent current-thread guess: /new, /resume and rewind
+    can change that connection's foreground thread while the footer is hidden.
+    """
+    rows = conn.execute("""
+        SELECT process_uuid, feedback_log_body FROM logs
+        WHERE thread_id=? AND ts>=? AND ts<=? AND target='codex_core::shell_snapshot'
+        ORDER BY ts DESC, ts_nanos DESC LIMIT 64
+    """, (anchor['id'], int(started_at) - 5, int(anchor['at']) + 1))
+
+    def fields(process, body):
+        if not process or not body or 'rpc.transport="unix_socket"' not in body or 'app_server.client_name="codex-tui"' not in body:
+            return None
+        owner = re.match(r'^pid:(\d+):', process)
+        connection = re.search(r'app_server.connection_id=(\d+)', body)
+        if not owner or owner[1] not in owners or not connection or not re.search(r'rpc.method="thread/(start|resume|fork|revert)"', body):
+            return None
+        return process, connection[1], owner[1]
+
+    bindings = {f for process, body in rows if (f := fields(process, body))}
+    if len(bindings) != 1:
+        return None
+    process, connection, owner = next(iter(bindings))
+    # Include unowned IDs in ordering: a newer thread absent from this probe must
+    # not make us fall back to the previous thread's still-held writer lock.
+    rows = conn.execute("""
+        SELECT ts, ts_nanos, thread_id, feedback_log_body FROM logs
+        WHERE process_uuid=? AND ts>=? AND target='codex_core::shell_snapshot'
+        ORDER BY ts DESC, ts_nanos DESC LIMIT 256
+    """, (process, int(started_at) - 5))
+    events = []
+    for ts, nanos, tid, body in rows:
+        if fields(process, body) != (process, connection, owner):
+            continue
+        request = re.search(r'rpc.request_id=(?:"([^"]+)"|([^ ]+))', body)
+        if not request:
+            continue
+        rid = request[1] or request[2]
+        order = (1, int(rid)) if rid.isdigit() else (0, 0) if rid.startswith('startup-thread-start-') else None
+        if order is not None:
+            events.append((order, ts, nanos, tid))
+    if not events:
+        return None
+    selected = max(events)[3]
+    return selected if selected in owners[owner] else None
 
 
 def active_thread(conn, pid, started_at, owned, transport='in-process', single_connection=False):
@@ -152,6 +203,22 @@ def mac_daemon_owner(pid):
 
 
 def main():
+    if sys.argv[1] == '--binding':
+        home, started_at, anchor, owners = json.loads(sys.argv[2])
+        if os.name == 'nt' and re.match(r'^/[a-zA-Z]/', home):
+            home = home[1] + ':' + home[2:]
+        path = Path(home) / '.codex' / 'logs_2.sqlite'
+        deadline = time.monotonic() + 1.0
+        try:
+            with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=0.1) as conn:
+                conn.execute('PRAGMA query_only=ON')
+                conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+                selected = bound_thread(conn, started_at, anchor, owners)
+                if selected:
+                    print(selected)
+        except (OSError, ValueError, sqlite3.Error):
+            pass
+        return
     home, pid, started_at, *owned = sys.argv[1:]
     pid, started_at = int(pid), float(started_at)
     shared = False

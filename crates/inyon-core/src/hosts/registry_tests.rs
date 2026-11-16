@@ -1114,6 +1114,54 @@ fn shared_codex_daemon_uses_the_foreground_native_id_on_linux_mac_and_windows() 
 }
 
 #[test]
+fn a_hidden_codex_footer_uses_a_verified_connection_across_hub_restarts_but_not_pid_reuse() {
+    run(|| async {
+        let b = ModeBox::new();
+        let screen = b.screen.clone();
+        let first = "00000000-0000-0000-0000-000000000001";
+        let next = "00000000-0000-0000-0000-000000000002";
+        let selected = Rc::new(RefCell::new(Some(next)));
+        let answer = selected.clone();
+        let fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", screen.borrow())) }
+            else if cmd.contains(" --binding ") { ok(answer.borrow().unwrap_or("")) }
+            else if cmd.starts_with("find ") { ok(&format!("/home/u/.codex/sessions/rollout-{}{}.jsonl\n", "2026-01-01T00-00-00-", if cmd.contains(next) { next } else { first })) }
+            else { ok("") }
+        });
+        let started = now_ms() as f64 / 1000.0;
+        let probe = |start| {
+            let mut p = mode_probe(start);
+            p.home = "/home/u".into();
+            p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+            p.codex_threads.insert(900, vec![first.into(), next.into()]);
+            Rc::new(RefCell::new(p))
+        };
+        b.draw(&format!("› Ask Codex to do anything\n  {first} · GPT-6-Astra high · Full Access\n? for shortcuts\n"));
+        registry().annotate_agents(&b.rt, &probe(started)).await.unwrap();
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().id, first);
+        // The native footer is gone, and /new has moved this connection on. Never
+        // simply keep the anchor as the current session even while its lock is live.
+        b.draw("› A long draft\n  Another line\n  The input fills the viewport\n");
+        let replacement = Rc::new(RefCell::new(HostRuntime::new(b.rt.borrow().host.clone(), b.rt.borrow().state.clone())));
+        for runtime in [&b.rt, &replacement] {
+            let pr = probe(started);
+            registry().annotate_agents(runtime, &pr).await.unwrap();
+            assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(next));
+        }
+        *selected.borrow_mut() = None;
+        let pr = probe(started);
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.is_none());
+        let bindings = fake.cmds().iter().filter(|c| c.contains(" --binding ")).count();
+        *selected.borrow_mut() = Some(next);
+        let pr = probe(started + 10.0);
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.is_none());
+        assert_eq!(fake.cmds().iter().filter(|c| c.contains(" --binding ")).count(), bindings);
+    });
+}
+
+#[test]
 fn claude_hook_requires_an_id_matching_its_transcript() {
     assert_eq!(claude_hook_identity(&json!({"session_id":"current", "transcript_path":"C:\\sessions\\current.jsonl"})), Some(("current".into(), "C:\\sessions\\current.jsonl".into())));
     for data in [json!({"transcript_path":"/sessions/current.jsonl"}), json!({"session_id":"", "transcript_path":"/sessions/.jsonl"}), json!({"session_id":"current", "transcript_path":"/sessions/previous.jsonl"})] {

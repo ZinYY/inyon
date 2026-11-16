@@ -222,6 +222,9 @@ pub struct HostRuntime {
     events: Option<StreamHandle>,
     cwd_map: HashMap<i64, Mapped>,
     status_cache: HashMap<i64, CachedStatus>,
+    /// Native footer evidence, bounded to a process lifetime. Persisted on the Hub
+    /// so restarting it while a long draft covers the footer does not lose the binding.
+    codex_anchors: HashMap<i64, crate::agents::codex::CodexAnchor>,
     claude_titles: HashMap<i64, crate::claude::titles::CachedTitle>,
     stopped: bool,
     /// last time the agy status line was put back
@@ -261,6 +264,7 @@ impl HostRuntime {
     }
 
     pub fn new(host: Host, state: HostState) -> Self {
+        let codex_anchors = kv::get(&format!("codex-identities/{}", key_part(&host.id()))).unwrap_or_default();
         HostRuntime {
             before_outage: None,
             offline_notified: false,
@@ -276,6 +280,7 @@ impl HostRuntime {
             events: None,
             cwd_map: HashMap::new(),
             status_cache: HashMap::new(),
+            codex_anchors,
             claude_titles: HashMap::new(),
             stopped: false,
             agy_healed_at: None,
@@ -808,6 +813,7 @@ impl Registry {
         self.hosts.borrow_mut().shift_remove(id);
         if persist {
             kv::del(&snapshot_key(id));
+            kv::del(&format!("codex-identities/{}", key_part(id)));
             prune_chats(Some(id));
             self.persist()?;
             self.emit(RegistryEvent::Overview);
@@ -1239,6 +1245,11 @@ impl Registry {
         let mut r = rt.borrow_mut();
         r.cwd_map.retain(|pid, _| live.contains(pid));
         r.status_cache.retain(|pid, _| live.contains(pid));
+        let anchors_before = r.codex_anchors.len();
+        r.codex_anchors.retain(|pid, _| live.contains(pid));
+        if anchors_before != r.codex_anchors.len() {
+            let _ = kv::set(&format!("codex-identities/{}", key_part(&host.id())), &r.codex_anchors);
+        }
         r.claude_titles.retain(|pid, _| live.contains(pid));
         r.screens.retain(|id, _| agent_ids.contains(id));
         r.empty_codex.retain(|id| agent_ids.contains(id));
@@ -1286,8 +1297,25 @@ impl Registry {
                 })
             })
         } else { None };
+        let owners = pr.borrow().codex_threads.clone();
+        // Side chats have no writer lock and cannot identify the main connection.
+        if let Some(id) = footer_thread.as_ref().filter(|id| owners.values().flatten().any(|owned| owned == *id)) {
+            let mut r = rt.borrow_mut();
+            let changed = r.codex_anchors.get(&pid).is_none_or(|a| a.id != *id || (a.started_at - proc.started_at).abs() > 0.001);
+            if changed {
+                r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: pr.borrow().now });
+                let _ = kv::set(&format!("codex-identities/{}", key_part(&host_id)), &r.codex_anchors);
+            }
+        }
+        let anchor = rt.borrow().codex_anchors.get(&pid).filter(|a| (a.started_at - proc.started_at).abs() <= 0.001).cloned();
         let codex_thread = match &home {
             _ if footer_thread.is_some() => footer_thread,
+            Some(home) if proc.kind == AgentKind::Codex && anchor.is_some() => {
+                match crate::agents::codex::resolve_codex_connection(host, home, anchor.as_ref().unwrap(), &owners).await {
+                    Some(id) => Some(id),
+                    None => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, codex_threads.as_deref().unwrap_or(&[])).await,
+                }
+            }
             Some(home) if proc.kind == AgentKind::Codex => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, codex_threads.as_deref().unwrap_or(&[])).await,
             _ => None,
         };

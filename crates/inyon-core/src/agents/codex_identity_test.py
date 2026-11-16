@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
-from codex_identity import active_thread, shared_daemon_pid, mac_shared_daemon_pid, main
+from codex_identity import active_thread, bound_thread, shared_daemon_pid, mac_shared_daemon_pid, main
 
 
 class ForegroundThreadTest(unittest.TestCase):
@@ -105,6 +105,49 @@ codex 42 user 39u unix 0x333 0t0 ->0x222'''
         self.assertIsNone(mac_shared_daemon_pid(rows + '\ncodex 43 user 4u unix 0x444 0t0 ->0x222', 42, 501))
         self.assertEqual(mac_shared_daemon_pid(rows + '\nnode 43 user 4u unix 0x444 0t0 ->0x222', 42, 501), 90)
         self.assertIsNone(mac_shared_daemon_pid(rows.replace('/private/tmp/codex-daemon-501/', '/tmp/another/'), 42, 501))
+
+    def binding(self):
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'in-process', 'unix_socket')")
+        return bound_thread(self.db, 800, {'id': 'parent', 'at': 1001}, {'42': ['parent', 'new', 'other']})
+
+    def test_hidden_footer_follows_its_connection_without_borrowing_another_tui(self):
+        self.add('parent', 7)
+        self.add('new', 12, ts=1100, method='start')
+        self.add('other', 90, ts=1150)
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=2') WHERE thread_id='other'")
+        self.assertEqual(self.binding(), 'new')
+        self.add('parent', 15, ts=1200)
+        self.assertEqual(self.binding(), 'parent')
+
+    def test_anchor_can_outlive_its_lock_but_not_the_current_threads_lock(self):
+        self.add('parent', 7)
+        self.add('new', 12, ts=1100, method='start')
+        self.binding()
+        anchor = {'id': 'parent', 'at': 1001}
+        self.assertEqual(bound_thread(self.db, 800, anchor, {'42': ['new']}), 'new')
+        self.assertIsNone(bound_thread(self.db, 800, anchor, {'42': ['parent']}))
+        self.assertIsNone(bound_thread(self.db, 800, anchor, {'43': ['new']}))
+        self.assertIsNone(bound_thread(self.db, 1200, anchor, {'42': ['new']}))
+
+    def test_an_ambiguous_native_thread_does_not_bind_two_tuis(self):
+        self.add('parent', 7)
+        self.add('parent', 8)
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=2') WHERE feedback_log_body LIKE '%request_id=8 %'")
+        self.assertIsNone(self.binding())
+
+    def test_a_later_client_resuming_the_anchor_does_not_change_the_binding(self):
+        self.add('parent', 7)
+        self.add('new', 12, ts=1100, method='start')
+        self.add('parent', 99, ts=1200)
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'connection_id=0', 'connection_id=2') WHERE ts=1200")
+        self.assertEqual(self.binding(), 'new')
+
+    def test_hidden_footer_ignores_a_late_old_snapshot_and_non_tui_clients(self):
+        self.add('parent', 7)
+        self.add('new', 12, ts=1100, method='start')
+        self.add('parent', 7, ts=1200)
+        self.add('other', 99, ts=1300, client='other-client')
+        self.assertEqual(self.binding(), 'new')
 
 
 if __name__ == '__main__':

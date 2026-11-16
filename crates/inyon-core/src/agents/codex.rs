@@ -1194,6 +1194,27 @@ pub async fn find_codex_rollout(host: &Host, home: &str, proc: &CodexProc, other
 
 /// Resolve an identity held by the running TUI, including every later rewind segment.
 /// No title or folder fallback is allowed when this identity is available.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CodexAnchor {
+    pub started_at: f64,
+    pub id: String,
+    pub at: f64,
+}
+
+/// A native footer seen in this exact process can identify its daemon connection
+/// even after a tall draft hides the footer. Always re-read the connection's latest
+/// foreground request; the anchor itself is never returned as a fallback.
+pub async fn resolve_codex_connection(host: &Host, home: &str, anchor: &CodexAnchor, owners: &indexmap::IndexMap<i64, Vec<String>>) -> Option<String> {
+    if owners.is_empty() { return None; }
+    let args = serde_json::json!([home, anchor.started_at, anchor, owners]).to_string();
+    let cmd = format!("for p in python3 python; do if \"$p\" -c 'import sys; sys.exit(sys.version_info[0] != 3)' </dev/null >/dev/null 2>&1; then exec \"$p\" -c {} --binding {}; fi; done",
+        shq(include_str!("codex_identity.py")), shq(&args));
+    let r = host.exec(&cmd, crate::hosts::host::ExecOptions::timeout(3000)).await.ok()?;
+    let id = r.stdout.jtrim();
+    (r.code == 0 && owners.values().flatten().any(|candidate| candidate == id)
+        && re!(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").is_match(id)).then(|| id.to_owned())
+}
+
 pub async fn resolve_codex_thread(host: &Host, home: &str, pid: i64, started_at: f64, ids: &[String]) -> Option<String> {
     if ids.len() == 1 { return ids.first().cloned(); }
     let args = ids.iter().map(|id| shq(id)).collect::<Vec<_>>().join(" ");
