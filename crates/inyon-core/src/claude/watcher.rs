@@ -912,8 +912,8 @@ impl ChatWatcher {
         let mut current = screen.draft.unwrap_or_default();
         let d = get_draft(&self.key);
         let target = d.as_ref().map(|d| d.text.clone()).unwrap_or_default();
-        // A literal Tab is a submit shortcut in Windows Codex, even inside a paste.
-        // Leave this draft in Chat until the direct send; never mirror a partial prefix.
+        // Windows Codex can interpret Tabs as submit and drop non-ASCII characters.
+        // Leave literal text in Chat until the direct send; never mirror a partial prefix.
         if crate::agents::codex_input::required(&self.host_id, &self.pane_id, &target) { return; }
         // a paste preview in the box is this draft only if the mirror put this draft there
         let known = squash(d.as_ref().and_then(|d| d.mirrored.as_deref()).unwrap_or("")) == squash(&target);

@@ -979,7 +979,7 @@ pub async fn capture_panes(host: &Host, pane_ids: &[String]) -> HubResult<IndexM
 /// `typeText(host, pane, text, submit)`: types text into a pane as a person would.
 pub async fn type_into(host: &Host, pane: &str, text: &str, submit: bool) -> HubResult<()> {
     if crate::agents::codex_input::required(&host.config().id, pane, text) {
-        return Err(http(409, "Text containing tabs must be sent through Codex's direct input, not terminal keys."));
+        return Err(http(409, "Use Chat to send this text exactly. Windows Codex terminal keys may change these characters."));
     }
     if super::herdr::enabled(host) {
         if text.is_empty() && !submit { return Ok(()); }

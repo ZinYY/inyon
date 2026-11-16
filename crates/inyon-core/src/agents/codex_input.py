@@ -175,14 +175,37 @@ def submit(client, payload, receipts):
     os.replace(temporary, receipt)
 
 
+def windows_executable(home):
+    # The App alias/current junction can be inaccessible from an SSH logon.
+    # Read the installed package selection and run its real binary. This only
+    # connects the official proxy to the existing daemon; no startup or resume.
+    current = home / '.codex' / 'packages' / 'app-server-daemon' / 'current'
+    try:
+        target = current.readlink()
+        if not target.is_absolute():
+            target = current.parent / target
+        binary = target / 'bin' / 'codex.exe'
+        if binary.is_file():
+            return str(binary)
+    except OSError:
+        pass
+    installed = Path(os.environ.get('LOCALAPPDATA', str(home / 'AppData' / 'Local'))) / 'Programs' / 'OpenAI' / 'Codex' / 'bin' / 'codex.exe'
+    try:
+        return str(installed) if installed.is_file() else None
+    except OSError:
+        return None
+
+
 def main():
     client = None
     try:
         payload = json.loads(sys.stdin.buffer.read())
-        executable = shutil.which('codex')
+        try:
+            executable = shutil.which('codex')
+        except OSError:
+            executable = None
         if not executable and os.name == 'nt':
-            installed = Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData' / 'Local'))) / 'Programs' / 'OpenAI' / 'Codex' / 'bin' / 'codex.exe'
-            executable = str(installed) if installed.is_file() else None
+            executable = windows_executable(Path.home())
         if not executable:
             raise Refused('Codex is unavailable on this machine.')
         client = Proxy(executable)

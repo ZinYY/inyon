@@ -5,7 +5,8 @@ import queue
 import struct
 import tempfile
 import unittest
-from codex_input import Proxy, Refused, submit
+from unittest.mock import patch
+from codex_input import Proxy, Refused, submit, windows_executable
 
 
 class Client:
@@ -101,6 +102,22 @@ class LiteralInputTests(unittest.TestCase):
         body = bytes(b ^ mask[i % 4] for i, b in enumerate(data[14:]))
         self.assertEqual(len(body), size)
         self.assertEqual(json.loads(body), value)
+
+    def test_windows_uses_the_selected_package_without_executing_the_app_alias(self):
+        home = self.receipts / 'home'
+        package = home / '.codex' / 'packages' / 'app-server-daemon'
+        release = package / 'releases' / 'test-version'
+        binary = release / 'bin' / 'codex.exe'
+        binary.parent.mkdir(parents=True)
+        binary.touch()
+        for target in [release, Path('releases') / 'test-version']:
+            with patch.object(Path, 'readlink', return_value=target):
+                self.assertEqual(windows_executable(home), str(binary))
+
+    def test_unreadable_windows_alias_reports_unavailable_without_starting_any_process(self):
+        with patch.object(Path, 'readlink', side_effect=OSError('unreadable junction')):
+            with patch.object(Path, 'is_file', side_effect=OSError('unreadable alias')):
+                self.assertIsNone(windows_executable(self.receipts))
 
 
 if __name__ == '__main__':

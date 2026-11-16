@@ -493,11 +493,13 @@ async fn send_message_to_pane_id(host_id: &str, pane_id: &str, text: &str, from_
         let thread = agent.session_id.clone().or_else(|| info.as_ref().and_then(|i| i.session_id.clone()))
             .ok_or_else(|| http(409, "The Codex thread is not identified. Open the terminal to check before sending."))?;
         let lines = screen_lines(&host, pane_id).await?;
-        if crate::agents::codex::codex_footer_thread(&lines, std::slice::from_ref(&thread)).as_deref() != Some(&thread) {
+        if screen.draft_clipped.is_none()
+            && crate::agents::codex::codex_footer_thread(&lines, std::slice::from_ref(&thread)).as_deref() != Some(&thread) {
             return Err(http(409, "Codex's current thread differs from Chat. Refresh the conversation before sending."));
         }
         // A cached title, working directory or transcript is not enough to dispatch an RPC.
-        // Recheck the live footer after clearing any older mirrored prefix.
+        // A scrolled draft can hide the footer. Clearing it reveals the footer;
+        // always verify that live identity before dispatching any RPC.
         empty_input(host_id, pane_id, screen.draft.clone().unwrap_or_default()).await?;
         let lines = screen_lines(&host, pane_id).await?;
         if crate::agents::codex::codex_footer_thread(&lines, std::slice::from_ref(&thread)).as_deref() != Some(&thread) {
