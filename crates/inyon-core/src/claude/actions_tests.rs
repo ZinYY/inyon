@@ -1400,7 +1400,8 @@ fn windows_codex_pastes_keep_linefeeds_and_submit_only_with_a_separate_enter() {
             let rt = pane("paste-newlines", json!([{ "id":"%1.1", "width":120, "agent":{"kind":kind,"pid":7,"state":"idle"} }]));
             rt.borrow_mut().state.os = Some(os.into());
             let host = registry().host("paste-newlines").unwrap();
-            let text = "first line\nsecond line\n末行 customer's choice";
+            let text = if raw { "first line\nsecond line\nlast customer's choice" }
+                else { "first line\nsecond line\n末行 customer's choice" };
             type_into(&host, "%1.1", text, false).await.unwrap();
             let calls = fake.calls.borrow();
             assert_eq!(calls.len(), 1);
@@ -1418,13 +1419,20 @@ fn windows_codex_pastes_keep_linefeeds_and_submit_only_with_a_separate_enter() {
 }
 
 #[test]
-fn windows_codex_tabs_use_exact_direct_input_and_never_fall_back_to_keys() {
+fn windows_codex_literal_text_uses_exact_direct_input_and_never_falls_back_to_keys() {
     run(|| async {
         let id = "11111111-1111-4111-8111-111111111111";
         let other = "22222222-2222-4222-8222-222222222222";
+        for text in ["sample output\n\t\t中文 customer's note\n\nfinal question", "coffee—then a café ☕", "first line\n末行 customer's choice"] {
+        for clipped in [false, true] {
         for (footer, accepted) in [(id, true), (id, false), (other, true)] {
+            let cleared = Cell::new(false);
             let fake = Fake::install(move |_, cmd, _| {
+                if cmd.contains("C-u") { cleared.set(true); }
                 if cmd.contains("capture-pane") {
+                    if clipped && !cleared.get() {
+                        return ok(&format!("@@CAP %1.1\n\x1b[0;1m›\x1b[0m Bring a hat{}\x1b[0;2m↑\x1b[0m\n  Read a page\n  Enjoy the breeze\n", " ".repeat(106)));
+                    }
                     return ok(&format!("@@CAP %1.1\n› \n\n  {footer} · GPT-6-Astra high · ~\\work\n"));
                 }
                 if cmd.contains("codex-input-receipts") {
@@ -1434,7 +1442,6 @@ fn windows_codex_tabs_use_exact_direct_input_and_never_fall_back_to_keys() {
             });
             let rt = pane("tab-input", json!([{ "id":"%1.1", "width":120, "agent":{"kind":"codex","pid":7,"state":"idle","sessionId":id} }]));
             rt.borrow_mut().state.os = Some("Windows".into());
-            let text = "sample output\n\t\t中文 customer's note\n\nfinal question";
             let result = send_message_to_pane_id("tab-input", "%1.1", text, true, false, "test-send-id").await;
             assert_eq!(result.is_ok(), footer == id && accepted, "{result:?}");
             let calls = fake.calls.borrow();
@@ -1452,6 +1459,8 @@ fn windows_codex_tabs_use_exact_direct_input_and_never_fall_back_to_keys() {
             let before = fake.calls.borrow().len();
             assert!(type_into(&registry().host("tab-input").unwrap(), "%1.1", text, false).await.is_err());
             assert_eq!(fake.calls.borrow().len(), before, "unsafe lower-level calls refuse before writing");
+        }
+        }
         }
     });
 }
