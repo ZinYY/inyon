@@ -1204,9 +1204,10 @@ fn a_reconnected_codex_tui_refreshes_its_anchor_before_a_draft_hides_the_footer(
         registry().annotate_agents(&b.rt, &probe(901, reconnected)).await.unwrap();
         assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected);
         assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().owner_pids, vec![901]);
-        // Repeated observations with the same writer should not churn the persisted anchor.
+        // Native observations stay current without writing the cache on every poll.
         registry().annotate_agents(&b.rt, &probe(901, reconnected + 1.0)).await.unwrap();
-        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected);
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected + 1.0);
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().saved_at, reconnected);
         b.draw("› A long draft\n  Another line\n  The input fills the viewport\n");
         let replacement = Rc::new(RefCell::new(HostRuntime::new(b.rt.borrow().host.clone(), b.rt.borrow().state.clone())));
         for runtime in [&b.rt, &replacement] {

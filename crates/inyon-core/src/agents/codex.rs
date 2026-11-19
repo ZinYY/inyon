@@ -1203,6 +1203,10 @@ pub struct CodexAnchor {
     /// A footer observed under a new writer must establish a fresh time boundary.
     #[serde(default)]
     pub owner_pids: Vec<i64>,
+    #[serde(default)]
+    pub checked_at: f64,
+    #[serde(skip)]
+    pub saved_at: f64,
 }
 
 /// A native footer seen in this exact process can identify its daemon connection

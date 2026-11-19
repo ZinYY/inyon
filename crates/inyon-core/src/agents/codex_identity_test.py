@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
-from codex_identity import active_thread, bound_thread, shared_daemon_pid, mac_shared_daemon_pid, main
+from codex_identity import active_thread, bound_thread, observed_thread, shared_daemon_pid, mac_shared_daemon_pid, main
 
 
 class ForegroundThreadTest(unittest.TestCase):
@@ -156,6 +156,40 @@ codex 42 user 39u unix 0x333 0t0 ->0x222'''
         owners = {'43': ['parent']}
         self.assertIsNone(bound_thread(self.db, 800, {'id': 'parent', 'at': 1001}, owners))
         self.assertEqual(bound_thread(self.db, 800, {'id': 'parent', 'at': 1101}, owners), 'parent')
+
+    def observation(self):
+        for tid in ['parent', 'other']:
+            self.db.execute('INSERT INTO logs VALUES (?,?,?,?,?,?)',
+                (1000, 0, 'pid:42:current', 'turn progress', tid, 'codex_core::session::turn'))
+        return {'id': 'parent', 'at': 1100, 'owner_pids': [42]}, {'42': ['parent', 'other']}
+
+    def test_pruned_startup_trace_uses_only_a_continuous_native_observation(self):
+        anchor, owners = self.observation()
+        self.assertEqual(bound_thread(self.db, 800, anchor, owners), 'parent')
+        self.db.execute("DELETE FROM logs WHERE thread_id='parent'")
+        self.db.execute('INSERT INTO logs VALUES (?,?,?,?,?,?)',
+            (1200, 0, 'pid:42:current', 'turn progress', 'parent', 'codex_core::session::turn'))
+        # Losing the interval means a switch could have been pruned: no guessing.
+        self.assertIsNone(observed_thread(self.db, anchor, owners))
+        anchor['checked_at'] = 1300
+        self.assertEqual(observed_thread(self.db, anchor, owners), 'parent')
+
+    def test_any_unbound_tui_switch_invalidates_observation_even_for_another_thread(self):
+        anchor, owners = self.observation()
+        self.add('other', 12, ts=1200)
+        self.assertIsNone(bound_thread(self.db, 800, anchor, owners))
+        # A native footer seen after the switch proves which thread this TUI shows.
+        anchor['at'] = 1300
+        self.assertEqual(bound_thread(self.db, 800, anchor, owners), 'parent')
+
+    def test_observation_rejects_missing_locks_new_threads_and_reused_writer_pids(self):
+        anchor, owners = self.observation()
+        self.assertIsNone(observed_thread(self.db, anchor, {'43': ['parent']}))
+        self.assertIsNone(observed_thread(self.db, anchor, {'42': ['other']}))
+        self.assertIsNone(observed_thread(self.db, anchor, {'42': ['parent', 'new']}))
+        self.db.execute('INSERT INTO logs VALUES (?,?,?,?,?,?)',
+            (1001, 0, 'pid:42:replacement', 'turn progress', 'parent', 'codex_core::session::turn'))
+        self.assertIsNone(observed_thread(self.db, anchor, owners))
 
 
 if __name__ == '__main__':

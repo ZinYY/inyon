@@ -15,6 +15,42 @@ import sys
 import time
 
 
+def observed_thread(conn, anchor, owners):
+    """Carry a native observation only across a provably unchanged log interval.
+
+    Codex keeps a bounded number of diagnostic rows per thread. The initial
+    connection trace can disappear during a long conversation. Every live thread
+    of this writer must still retain rows older than our last verified checkpoint;
+    otherwise a pruned switch could be missed and we must fail closed.
+    """
+    pids = anchor.get('owner_pids', [])
+    if len(pids) != 1:
+        return None
+    owner = str(pids[0])
+    if anchor['id'] not in owners.get(owner, []):
+        return None
+    since = (anchor.get('checked_at') or anchor['at']) - 1
+    process = None
+    for tid in owners[owner]:
+        rows = list(conn.execute("""
+            SELECT process_uuid, min(ts) FROM logs
+            WHERE thread_id=? AND process_uuid LIKE ? GROUP BY process_uuid
+        """, (tid, f'pid:{owner}:%')))
+        if len(rows) != 1 or rows[0][1] >= since:
+            return None
+        if process is not None and process != rows[0][0]:
+            return None
+        process = rows[0][0]
+    rows = conn.execute("""
+        SELECT feedback_log_body FROM logs WHERE process_uuid=? AND ts>=?
+        AND target='codex_core::shell_snapshot'
+    """, (process, int(since)))
+    for (body,) in rows:
+        if body and 'app_server.client_name="codex-tui"' in body and re.search(r'rpc.method="thread/(start|resume|fork|revert)"', body):
+            return None
+    return anchor['id']
+
+
 def bound_thread(conn, started_at, anchor, owners):
     """Follow a connection previously identified by this TUI's native footer.
 
@@ -39,7 +75,7 @@ def bound_thread(conn, started_at, anchor, owners):
 
     bindings = {f for process, body in rows if (f := fields(process, body))}
     if len(bindings) != 1:
-        return None
+        return observed_thread(conn, anchor, owners) if not bindings else None
     process, connection, owner = next(iter(bindings))
     # Include unowned IDs in ordering: a newer thread absent from this probe must
     # not make us fall back to the previous thread's still-held writer lock.
@@ -60,7 +96,7 @@ def bound_thread(conn, started_at, anchor, owners):
         if order is not None:
             events.append((order, ts, nanos, tid))
     if not events:
-        return None
+        return observed_thread(conn, anchor, owners)
     selected = max(events)[3]
     return selected if selected in owners[owner] else None
 
@@ -213,6 +249,7 @@ def main():
             with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=0.1) as conn:
                 conn.execute('PRAGMA query_only=ON')
                 conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+                conn.execute('BEGIN')  # Retention checks and switch reads share one snapshot.
                 selected = bound_thread(conn, started_at, anchor, owners)
                 if selected:
                     print(selected)

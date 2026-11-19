@@ -1314,12 +1314,20 @@ impl Registry {
             // record, leaving a tall draft unidentified as soon as it hides the footer.
             let changed = r.codex_anchors.get(&pid).is_none_or(|a|
                 a.id != *id || (a.started_at - proc.started_at).abs() > 5.0 || a.owner_pids != owner_pids);
+            let now = pr.borrow().now;
             if changed {
-                r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: pr.borrow().now, owner_pids });
+                r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: now, owner_pids, checked_at: now, saved_at: 0.0 });
+            }
+            let a = r.codex_anchors.get_mut(&pid).unwrap();
+            a.at = now;
+            a.checked_at = now;
+            if changed || now - a.saved_at >= 30.0 {
+                a.saved_at = now;
                 let _ = kv::set(&format!("codex-identities/{}", key_part(&host_id)), &r.codex_anchors);
             }
         }
         let anchor = rt.borrow().codex_anchors.get(&pid).filter(|a| (a.started_at - proc.started_at).abs() <= 5.0).cloned();
+        let connection_checked = proc.kind == AgentKind::Codex && footer_thread.is_none();
         let codex_thread = match &home {
             _ if footer_thread.is_some() => footer_thread,
             Some(home) if proc.kind == AgentKind::Codex && anchor.is_some() => {
@@ -1331,6 +1339,18 @@ impl Registry {
             Some(home) if proc.kind == AgentKind::Codex => crate::agents::codex::resolve_codex_thread(host, home, pid, proc.started_at, codex_threads.as_deref().unwrap_or(&[])).await,
             _ => None,
         };
+        if connection_checked && anchor.as_ref().is_some_and(|a| codex_thread.as_ref() == Some(&a.id)) {
+            let mut r = rt.borrow_mut();
+            if let Some(a) = r.codex_anchors.get_mut(&pid) {
+                // A successful connection/log check extends the proven interval.
+                // Keep the native observation separate from this checkpoint.
+                a.checked_at = pr.borrow().now;
+                if a.checked_at - a.saved_at >= 30.0 {
+                    a.saved_at = a.checked_at;
+                    let _ = kv::set(&format!("codex-identities/{}", key_part(&host_id)), &r.codex_anchors);
+                }
+            }
+        }
         let empty_codex = proc.kind == AgentKind::Codex && codex_thread.is_none();
         {
             let mut r = rt.borrow_mut();
