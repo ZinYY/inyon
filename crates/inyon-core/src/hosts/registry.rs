@@ -1279,13 +1279,16 @@ impl Registry {
         };
         let pid = proc.pid as i64;
         live.borrow_mut().insert(pid);
+        let owners = pr.borrow().codex_threads.clone();
+        let owned: Vec<String> = owners.values().flatten().cloned().collect();
+        let native_thread = (proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host))
+            .then(|| screens.get(&p.id).and_then(|lines| crate::agents::codex::codex_footer_thread(lines, &owned))).flatten();
         // The native session-ID footer identifies one TUI even when several
         // windows share a daemon. Require the ID to have a live writer lock;
         // neither a folder nor a title can establish this identity.
         let footer_thread = if proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host) {
-            let owned: Vec<String> = pr.borrow().codex_threads.values().flatten().cloned().collect();
             screens.get(&p.id).and_then(|lines| {
-                crate::agents::codex::codex_side_thread(lines).or_else(|| crate::agents::codex::codex_footer_thread(lines, &owned)).or_else(|| {
+                crate::agents::codex::codex_side_thread(lines).or_else(|| native_thread.clone()).or_else(|| {
                     // A native picker temporarily replaces the footer, not the
                     // conversation. Carry only this process's previously proven
                     // ID while that ID is still live and the picker is visible.
@@ -1297,16 +1300,22 @@ impl Registry {
                 })
             })
         } else { None };
-        let owners = pr.borrow().codex_threads.clone();
-        // Side chats have no writer lock and cannot identify the main connection.
-        if let Some(id) = footer_thread.as_ref().filter(|id| owners.values().flatten().any(|owned| owned == *id)) {
+        // Only a real native footer can establish a new connection observation;
+        // picker continuity and side chats cannot refresh an old binding.
+        if let Some(id) = native_thread.as_ref() {
+            let mut owner_pids: Vec<_> = owners.iter().filter(|(_, ids)| ids.contains(id)).map(|(pid, _)| *pid).collect();
+            owner_pids.sort_unstable();
             let mut r = rt.borrow_mut();
             // The Windows probe derives start time from integer elapsed seconds,
             // which can move by one second between probes. Match the same tolerance
             // used for native-picker continuity instead of discarding a live binding.
-            let changed = r.codex_anchors.get(&pid).is_none_or(|a| a.id != *id || (a.started_at - proc.started_at).abs() > 5.0);
+            // Codex reconnects a surviving TUI after its shared daemon restarts.
+            // Keeping the old observation time excludes the new daemon's resume
+            // record, leaving a tall draft unidentified as soon as it hides the footer.
+            let changed = r.codex_anchors.get(&pid).is_none_or(|a|
+                a.id != *id || (a.started_at - proc.started_at).abs() > 5.0 || a.owner_pids != owner_pids);
             if changed {
-                r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: pr.borrow().now });
+                r.codex_anchors.insert(pid, crate::agents::codex::CodexAnchor { started_at: proc.started_at, id: id.clone(), at: pr.borrow().now, owner_pids });
                 let _ = kv::set(&format!("codex-identities/{}", key_part(&host_id)), &r.codex_anchors);
             }
         }

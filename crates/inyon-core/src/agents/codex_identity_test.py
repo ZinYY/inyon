@@ -149,6 +149,14 @@ codex 42 user 39u unix 0x333 0t0 ->0x222'''
         self.add('other', 99, ts=1300, client='other-client')
         self.assertEqual(self.binding(), 'new')
 
+    def test_daemon_restart_requires_a_native_observation_after_its_resume(self):
+        self.add('parent', 7)
+        self.add('parent', 5, ts=1100, process='pid:43:replacement')
+        self.db.execute("UPDATE logs SET feedback_log_body=replace(feedback_log_body, 'in-process', 'unix_socket')")
+        owners = {'43': ['parent']}
+        self.assertIsNone(bound_thread(self.db, 800, {'id': 'parent', 'at': 1001}, owners))
+        self.assertEqual(bound_thread(self.db, 800, {'id': 'parent', 'at': 1101}, owners), 'parent')
+
 
 if __name__ == '__main__':
     unittest.main()

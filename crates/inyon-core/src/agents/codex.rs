@@ -1199,6 +1199,10 @@ pub struct CodexAnchor {
     pub started_at: f64,
     pub id: String,
     pub at: f64,
+    /// The daemon can restart while its TUI and foreground thread stay the same.
+    /// A footer observed under a new writer must establish a fresh time boundary.
+    #[serde(default)]
+    pub owner_pids: Vec<i64>,
 }
 
 /// A native footer seen in this exact process can identify its daemon connection

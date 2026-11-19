@@ -1165,6 +1165,65 @@ fn a_hidden_codex_footer_uses_a_verified_connection_across_hub_restarts_but_not_
 }
 
 #[test]
+fn a_reconnected_codex_tui_refreshes_its_anchor_before_a_draft_hides_the_footer() {
+    run(|| async {
+        let b = ModeBox::new();
+        let screen = b.screen.clone();
+        let id = "00000000-0000-0000-0000-000000000001";
+        let started = now_ms() as f64 / 1000.0 - 300.0;
+        let observed = started + 100.0;
+        let reconnected = observed + 30.0;
+        let _fake = Fake::install(move |_, cmd, _| {
+            if cmd.contains("@@CAP") { ok(&format!("@@CAP %9\n{}\n", screen.borrow())) }
+            else if let Some((_, args)) = cmd.split_once(" --binding ") {
+                let args: Value = serde_json::from_str(args.strip_prefix('\'').unwrap().split_once('\'').unwrap().0).unwrap();
+                // The live daemon's resume record postdates the old observation.
+                if args[2]["at"].as_f64().unwrap() >= reconnected { ok(id) } else { ok("") }
+            }
+            else if cmd.starts_with("find ") { ok(&format!("/home/u/.codex/sessions/rollout-2026-01-01T00-00-00-{id}.jsonl\n")) }
+            else { ok("") }
+        });
+        let probe = |owner, now| {
+            let mut p = mode_probe(started);
+            p.home = "/home/u".into();
+            p.now = now;
+            p.agent_procs.get_mut("%9").unwrap().kind = AgentKind::Codex;
+            p.codex_threads.insert(owner, vec![id.into()]);
+            Rc::new(RefCell::new(p))
+        };
+        let footer = format!("› Ask Codex to do anything\n  {id} · GPT-6-Astra high · Full Access\n? for shortcuts\n");
+        b.draw(&footer);
+        registry().annotate_agents(&b.rt, &probe(900, observed)).await.unwrap();
+        // A new daemon alone is not proof: do not refresh an anchor from a hidden footer.
+        b.draw("› A long draft\n  Another line\n  The input fills the viewport\n");
+        let pr = probe(901, reconnected);
+        registry().annotate_agents(&b.rt, &pr).await.unwrap();
+        assert!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.is_none());
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, observed);
+        b.draw(&footer);
+        registry().annotate_agents(&b.rt, &probe(901, reconnected)).await.unwrap();
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected);
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().owner_pids, vec![901]);
+        // Repeated observations with the same writer should not churn the persisted anchor.
+        registry().annotate_agents(&b.rt, &probe(901, reconnected + 1.0)).await.unwrap();
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected);
+        b.draw("› A long draft\n  Another line\n  The input fills the viewport\n");
+        let replacement = Rc::new(RefCell::new(HostRuntime::new(b.rt.borrow().host.clone(), b.rt.borrow().state.clone())));
+        for runtime in [&b.rt, &replacement] {
+            let pr = probe(901, reconnected + 2.0);
+            registry().annotate_agents(runtime, &pr).await.unwrap();
+            assert_eq!(pr.borrow().sessions[0].windows[0].panes[0].agent.as_ref().unwrap().session_id.as_deref(), Some(id));
+        }
+        // An anchor written by an older Hub is upgraded by a real footer observation.
+        let legacy = json!({"started_at": started - 100.0, "id": id, "at": observed});
+        b.rt.borrow_mut().codex_anchors.insert(7, serde_json::from_value(legacy).unwrap());
+        b.draw(&footer);
+        registry().annotate_agents(&b.rt, &probe(901, reconnected)).await.unwrap();
+        assert_eq!(b.rt.borrow().codex_anchors.get(&7).unwrap().at, reconnected);
+    });
+}
+
+#[test]
 fn claude_hook_requires_an_id_matching_its_transcript() {
     assert_eq!(claude_hook_identity(&json!({"session_id":"current", "transcript_path":"C:\\sessions\\current.jsonl"})), Some(("current".into(), "C:\\sessions\\current.jsonl".into())));
     for data in [json!({"transcript_path":"/sessions/current.jsonl"}), json!({"session_id":"", "transcript_path":"/sessions/.jsonl"}), json!({"session_id":"current", "transcript_path":"/sessions/previous.jsonl"})] {
