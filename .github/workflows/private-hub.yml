@@ -171,4 +171,4 @@ jobs:
           sha256sum inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz version.txt > SHA256SUMS
           minisign -S -s "$key" -m SHA256SUMS
           version="$(cat version.txt)"
-          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Refresh verified Codex conversation bindings after a shared daemon reconnects, so long drafts keep their chat identity. Persist the refreshed binding across Hub restarts without changing existing terminal tasks.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt
+          gh release create "v$version" --target "$RELEASE_COMMIT" --title "Inyon $version" --notes 'Preserve verified Codex identity across daemon reconnects. Finish read-only chat recovery when a long native draft hides the composer, while keeping clear, rewind and other mutations locked until they finish.' --latest inyon-linux-x64 inyon-linux-x64.gz inyon-windows-x64.exe inyon-windows-x64.exe.gz SHA256SUMS SHA256SUMS.minisig version.txt

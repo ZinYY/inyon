@@ -32,7 +32,10 @@ pub struct RefreshedConversation {
 
 fn screen_ready(screen: &ScreenState, options: &RefreshOptions) -> bool {
     (options.allow_working || !screen.working)
-        && ((options.allow_prompt && (screen.prompt.is_some() || screen.dialog.is_some()))
+        // A reconnect only reads the authoritative conversation snapshot. A tall
+        // native draft can hide the composer while that reader remains valid.
+        // Mutations must still wait for the native operation to finish/redraw.
+        && (options.read_only || (options.allow_prompt && (screen.prompt.is_some() || screen.dialog.is_some()))
             || (screen.input_visible == Some(true) && screen.prompt.is_none() && screen.dialog.is_none()))
 }
 
@@ -143,5 +146,18 @@ mod tests {
         let s: ScreenState = serde_json::from_value(serde_json::json!({"working":false,"width":100,"dialog":"Rewind"})).unwrap();
         assert!(!screen_ready(&s, &RefreshOptions::default()));
         assert!(screen_ready(&s, &RefreshOptions { allow_prompt: true, ..Default::default() }));
+    }
+    #[test]
+    fn reconnect_can_read_a_conversation_whose_native_draft_hides_the_composer() {
+        let mut screen: ScreenState = serde_json::from_value(serde_json::json!({"working":false,"width":100})).unwrap();
+        let reconnect = RefreshOptions { read_only: true, allow_working: true, allow_prompt: true, ..Default::default() };
+        for visible in [None, Some(false)] {
+            screen.input_visible = visible;
+            assert!(screen_ready(&screen, &reconnect));
+            assert!(!screen_ready(&screen, &RefreshOptions::default()));
+        }
+        screen.working = true;
+        assert!(screen_ready(&screen, &reconnect));
+        assert!(!screen_ready(&screen, &RefreshOptions { allow_working: true, allow_prompt: true, ..Default::default() }));
     }
 }
