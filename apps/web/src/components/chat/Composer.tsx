@@ -133,7 +133,7 @@ export function Composer({
   const [text, setTextState] = useState(() => DRAFTS.get(key) ?? serverDraft?.text ?? '')
   const shellMode = !!agent && agentDef(agent).shell && text.trimStart().startsWith('!')
   const info = useStore((s) => s.chats[key]?.info)
-  const side = info?.transcriptPath?.startsWith('codex-side:') === true
+  const side = (info?.codexSide || info?.transcriptPath?.startsWith('codex-side:')) === true
   const [sendMode, setSendMode] = useState<'steer' | 'queue' | 'btw'>('steer')
   const canSteer = agent === 'codex' && working && !shellMode
   const canChooseMode = agent === 'codex' && !shellMode && !side

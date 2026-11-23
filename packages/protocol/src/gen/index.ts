@@ -229,7 +229,7 @@ export type AgentPaneInfo = { kind: AgentKind,
 /**
  * a custom agent's name (Settings › Agents); `kind` is the agent it works like
  */
-custom?: string, pid: number, sessionId?: string, transcriptPath?: string, 
+custom?: string, pid: number, sessionId?: string, transcriptPath?: string, codexSide?: boolean, 
 /**
  * where the pane → session mapping came from
  */
@@ -531,7 +531,7 @@ export type ChatInfo = {
 /**
  * Live metrics from transcript/API adapters.
  */
-status?: AgentStatus, hostId: string, paneId: string, agent?: AgentKind, title?: string, sessionId?: string, transcriptPath?: string, cwd?: string, model?: string, gitBranch?: string, version?: string, 
+status?: AgentStatus, hostId: string, paneId: string, agent?: AgentKind, title?: string, sessionId?: string, transcriptPath?: string, codexSide?: boolean, cwd?: string, model?: string, gitBranch?: string, version?: string, 
 /**
  * the agent process is (still) running in the pane
  */

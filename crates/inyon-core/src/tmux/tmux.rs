@@ -620,13 +620,21 @@ pub fn capture_command(pane_ids: &[String]) -> Option<String> {
 /// What `capturePanes` makes of that command's output: pane id → its rows.
 pub fn parse_captures(stdout: &str) -> IndexMap<String, Vec<String>> {
     let mut out: IndexMap<String, Vec<String>> = IndexMap::new();
+    let mut cursors = HashMap::new();
     let mut cur: Option<String> = None;
     for line in stdout.split('\n') {
         if let Some(p) = line.strip_prefix("@@CAP ") {
+            let (p, x) = p.split_once(" cursor=").map_or((p, None), |(id, x)| (id, x.parse::<usize>().ok()));
+            if let Some(x) = x { cursors.insert(p.to_owned(), x); }
             out.insert(p.to_owned(), vec![]);
             cur = Some(p.to_owned());
         } else if let Some(c) = &cur {
             out.get_mut(c).expect("pane").push(line.to_owned());
+        }
+    }
+    for (pane, x) in cursors {
+        if let Some(rows) = out.get_mut(&pane) {
+            crate::agents::codex::select_split_column(rows, x);
         }
     }
     out
@@ -968,7 +976,16 @@ pub async fn probe(host: &Host) -> Result<ProbeResult, String> {
 /// Captures the visible screen of several panes in one round trip, with styling.
 pub async fn capture_panes(host: &Host, pane_ids: &[String]) -> HubResult<IndexMap<String, Vec<String>>> {
     let Some(cmd) = capture_command(pane_ids) else { return Ok(IndexMap::new()) };
-    let cmd = if super::herdr::enabled(host) { super::herdr::command(serde_json::json!({"op":"capture", "panes":pane_ids})) } else { cmd };
+    let cmd = if super::herdr::enabled(host) {
+        super::herdr::command(serde_json::json!({"op":"capture", "panes":pane_ids}))
+    } else if matches!(host.config().kind, inyon_protocol::HostKind::Local | inyon_protocol::HostKind::Ssh) {
+        // Read cursor and frame on the same tmux command queue. Terminal mirrors
+        // have their own raw capture; only chat/agent probes select a column.
+        pane_ids.iter().map(|pane| format!(
+            "tmux display-message -p -t {p} {header} \\; capture-pane -p -e -t {p} 2>/dev/null",
+            p = shq(pane), header = shq(&format!("@@CAP {pane} cursor=#{{cursor_x}}"))
+        )).collect::<Vec<_>>().join("; ")
+    } else { cmd };
     let r = host.exec(&cmd, ExecOptions::timeout(10000)).await?;
     if super::herdr::enabled(host) && r.code != 0 {
         return Err(HubError::plain(nonempty_or(r.stderr.jtrim(), "Could not read the Herdr terminal")));

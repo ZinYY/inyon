@@ -1281,14 +1281,16 @@ impl Registry {
         live.borrow_mut().insert(pid);
         let owners = pr.borrow().codex_threads.clone();
         let owned: Vec<String> = owners.values().flatten().cloned().collect();
-        let native_thread = (proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host))
+        let side_thread = screens.get(&p.id).filter(|_| proc.kind == AgentKind::Codex)
+            .and_then(|lines| crate::agents::codex::codex_side_thread(lines));
+        let native_thread = (side_thread.is_none() && proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host))
             .then(|| screens.get(&p.id).and_then(|lines| crate::agents::codex::codex_footer_thread(lines, &owned))).flatten();
         // The native session-ID footer identifies one TUI even when several
         // windows share a daemon. Require the ID to have a live writer lock;
         // neither a folder nor a title can establish this identity.
         let footer_thread = if proc.kind == AgentKind::Codex && !crate::tmux::herdr::enabled(host) {
             screens.get(&p.id).and_then(|lines| {
-                crate::agents::codex::codex_side_thread(lines).or_else(|| native_thread.clone()).or_else(|| {
+                side_thread.clone().or_else(|| native_thread.clone()).or_else(|| {
                     // A native picker temporarily replaces the footer, not the
                     // conversation. Carry only this process's previously proven
                     // ID while that ID is still live and the picker is visible.
@@ -1368,6 +1370,7 @@ impl Registry {
             pid: proc.pid as u32,
             session_id: codex_thread.clone(),
             transcript_path: None,
+            codex_side: side_thread.is_some().then_some(true),
             mapped_by: codex_thread.as_ref().map(|_| MappedBy::Process),
             state: AgentState::Unknown,
             mode: None,
@@ -1399,7 +1402,7 @@ impl Registry {
                     .await.ok().and_then(|found| found.0)
             } else { None }
         } else { None };
-        if let Some(id) = screens.get(&p.id).filter(|_| proc.kind == AgentKind::Codex).and_then(|lines| crate::agents::codex::codex_side_thread(lines)) {
+        if let Some(id) = side_thread.filter(|id| !owned.contains(id)) {
             info.transcript_path = Some(format!("codex-side:{id}"));
             info.session_id = Some(id);
             info.mapped_by = Some(MappedBy::Process);

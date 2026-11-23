@@ -107,7 +107,7 @@ export function ChatView({ host, pane, agent, onTerminal, controls, ultracode }:
     return () => clearTimeout(timer)
   }, [host, pane, switching, clearing, paneAgent?.sessionId])
   const running = !shell && (chatCapable ? (chat?.info?.running ?? true) : !machine || !!paneAgent)
-  const sideConversation = chat?.info?.transcriptPath?.startsWith('codex-side:') === true
+  const sideConversation = (chat?.info?.codexSide || chat?.info?.transcriptPath?.startsWith('codex-side:')) === true
   const working = !!screen?.working
   const prompt = screen?.prompt
   // a question asked before the connection dropped (opened from its alert, say) keeps its buttons,

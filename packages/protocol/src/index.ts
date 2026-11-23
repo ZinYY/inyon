@@ -99,6 +99,7 @@ export interface AgentPaneInfo {
   pid: number
   sessionId?: string
   transcriptPath?: string
+  codexSide?: boolean
   /** where the pane → session mapping came from */
   mappedBy?: 'hook' | 'cwd' | 'resume' | 'process'
   state: AgentState
@@ -392,6 +393,7 @@ export interface ChatInfo {
   title?: string
   sessionId?: string
   transcriptPath?: string
+  codexSide?: boolean
   cwd?: string
   model?: string
   gitBranch?: string

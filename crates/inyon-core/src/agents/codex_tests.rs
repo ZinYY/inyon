@@ -1163,3 +1163,30 @@ fn long_codex_user_input_remains_complete_for_copy_and_receipts() {
     let rows = normalize_codex(&rec("response_item", json!({"type":"message","role":"user","content":[{"type":"input_text","text":text}]})), &mut meta);
     assert!(matches!(&rows[0], inyon_protocol::ChatItem::User { text: saved, .. } if saved == &text));
 }
+
+#[test]
+fn split_side_focus_selects_one_composer_and_never_replays_parent_context() {
+    use unicode_width::UnicodeWidthStr;
+    let main = "00000000-0000-0000-0000-000000000001".to_owned();
+    let side = "00000000-0000-0000-0000-000000000002".to_owned();
+    let frame = |focused: bool| {
+        let row = |l: &str, r: &str| format!("{l}{}│{r}", " ".repeat(72 - l.width()));
+        vec![
+            row("  表 │ table", "  seaside │ park"), row("› Main draft", "› Ask a follow-up question"),
+            row(&format!("  {main} · GPT-6"), &format!("  {side} · GPT-6")),
+            if focused { row("", "  Side from main thread · ^/ to switch · ^c to archive") }
+            else { row("  ? for shortcuts · ^/ for side", "") }
+        ]
+    };
+    let mut right = frame(true);
+    select_split_column(&mut right, 75);
+    assert_eq!(codex_side_thread(&right), Some(side.clone()));
+    assert_eq!(right[0], "  seaside │ park");
+    let mut left = frame(false);
+    select_split_column(&mut left, 2);
+    assert_eq!(codex_side_thread(&left), None);
+    assert_eq!(codex_footer_thread(&left, &[main.clone(), side.clone()]), Some(main.clone()));
+    let header = json!({"payload":{"thread_source":"tui_side_chat","id":side,"session_id":side,
+        "history_base":{"thread_id":main,"end_byte_offset":123456}}});
+    assert_eq!(codex_history_base(&header.to_string()), None);
+}

@@ -154,6 +154,11 @@ pub fn codex_rollouts(stdout: &str) -> (Vec<CodexRollout>, HashMap<String, Strin
 /// `codexHistory` follows bases of bases with the commands below.
 pub fn codex_history_base(first_line: &str) -> Option<(String, u64)> {
     let line: Value = serde_json::from_str(first_line.lines().next()?).ok()?;
+    // An attached thread inherits its parent's context for inference. Its chat
+    // starts at the first side turn in this rollout, not in the parent segment.
+    let meta = line.get("payload").unwrap_or(&line);
+    if meta.get("thread_source").and_then(Value::as_str) == Some("tui_side_chat")
+        && meta.get("id") == meta.get("session_id") { return None; }
     let base = line.get("payload").and_then(|p| p.get("history_base")).or_else(|| line.get("history_base"))?;
     let id = base.get("thread_id")?.as_str()?;
     if !re!(r"^[0-9a-f-]{36}$").is_match(id) {
@@ -573,13 +578,39 @@ pub fn codex_footer_thread(lines: &[String], owned: &[String]) -> Option<String>
     owned.iter().find(|id| id.as_str() == &m[1]).cloned()
 }
 
-/// /btw (/side) has a native footer but deliberately has no rollout or writer lock.
-/// This ID is only used for a screen-backed temporary conversation, never a file lookup.
+/// A wide Codex TUI displays the parent and its attached side thread together.
+/// Use the native divider, focus and footer, keeping SGR styles for the parser.
+pub(crate) fn select_split_column(rows: &mut [String], cursor_x: usize) {
+    use unicode_width::UnicodeWidthStr;
+    let Some(last) = rows.iter().rev().find(|r| !r.trim().is_empty()) else { return };
+    let Some((left, hint)) = last.rsplit_once('│') else { return };
+    let hint = crate::claude::screen::unstyle(hint).text;
+    let main_footer = crate::claude::screen::unstyle(left).text;
+    if !side_hint(&hint) && !main_footer.trim_end().ends_with(" for side") { return; }
+    let divider = UnicodeWidthStr::width(main_footer.as_str());
+    let mut column = Vec::with_capacity(rows.len());
+    for row in rows.iter() {
+        if row.is_empty() { column.push(String::new()); continue; }
+        let mut borders = row.match_indices('│');
+        let Some((first, _)) = borders.next() else { return };
+        let pos = if borders.next().is_none() { first } else if let Some((pos, _)) = row.match_indices('│').find(|(i, _)| {
+            UnicodeWidthStr::width(crate::claude::screen::unstyle(&row[..*i]).text.as_str()) == divider
+        }) { pos } else { return };
+        column.push(if cursor_x > divider { row[pos + '│'.len_utf8()..].to_owned() } else { row[..pos].to_owned() });
+    }
+    rows.swap_with_slice(&mut column);
+}
+
+fn side_hint(line: &str) -> bool {
+    line.contains("Side from ") && line.contains("to switch") && (line.contains("to close") || line.contains("to archive"))
+}
+
+/// Attached and ephemeral side conversations both identify themselves below the composer.
 pub fn codex_side_thread(lines: &[String]) -> Option<String> {
     let clean: Vec<_> = lines.iter().map(|l| crate::claude::screen::unstyle(l).text).collect();
     let (_, footer) = crate::claude::screen::codex_composer_footer(&clean)?;
     let hint = clean[footer + 1..].join(" ");
-    if !hint.contains("Side from ") || !(hint.contains("to switch") && hint.contains("to close")) { return None; }
+    if !side_hint(&hint) { return None; }
     let m = re!(r"^ {2}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?: · |$)").captures(&clean[footer])?;
     Some(m[1].to_owned())
 }
@@ -988,7 +1019,8 @@ pub fn normalize_codex(e: &Value, meta: &mut TranscriptMeta) -> Vec<ChatItem> {
             match p.at("role").str() {
                 Some("user") => {
                     // Codex injects environment and instruction blocks as user messages
-                    if re!(r"^\s*<(environment_context|user_instructions|user_shell_command|codex_internal_context)[\s>]").is_match(&text) {
+                    if text.starts_with("Side conversation boundary.\n\nEverything before this boundary is inherited history from the parent thread. It is reference context only.")
+                        || re!(r"^\s*<(environment_context|user_instructions|user_shell_command|codex_internal_context)[\s>]").is_match(&text) {
                         return vec![];
                     }
                     if let Some(reply) = question_reply(&text, &base) {

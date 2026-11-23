@@ -1584,6 +1584,7 @@ impl ChatWatcher {
                 pane_id: self.pane_id.clone(),
                 agent: agent.map(|a| a.kind).or(st.agent),
                 running: agent.is_some(),
+                codex_side: agent.and_then(|a| a.codex_side),
                 transcript_path: agent.and_then(|a| a.transcript_path.clone()).or_else(|| if strict { None } else { st.transcript.clone() }),
                 session_id: agent.and_then(|a| a.session_id.clone()).or_else(|| if strict { None } else { st.info.session_id.clone() }),
                 mapped_by: agent.and_then(|a| a.mapped_by).or(st.info.mapped_by),

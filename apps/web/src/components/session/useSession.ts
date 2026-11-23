@@ -131,7 +131,7 @@ export function useSession(host: string, pane: string) {
       })
     },
     /** Claude Code, Codex and OpenCode can carry on a copy of the conversation in a new window */
-    canFork: !info?.transcriptPath?.startsWith('codex-side:') && (agent === 'claude' || agent === 'codex' || agent === 'opencode') && !!(info?.sessionId ?? ref?.pane.agent?.sessionId),
+    canFork: !(info?.codexSide || info?.transcriptPath?.startsWith('codex-side:')) && (agent === 'claude' || agent === 'codex' || agent === 'opencode') && !!(info?.sessionId ?? ref?.pane.agent?.sessionId),
     fork: (go: (pane: string) => void) =>
       run('Could not fork', async () => {
         await changeConversation(host, pane, 'Forking conversation', () => api.fork(host, pane),

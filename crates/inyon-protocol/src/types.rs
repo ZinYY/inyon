@@ -185,6 +185,7 @@ pub struct AgentPaneInfo {
     pub pid: u32,
     pub session_id: Option<String>,
     pub transcript_path: Option<String>,
+    pub codex_side: Option<bool>,
     /// where the pane → session mapping came from
     pub mapped_by: Option<MappedBy>,
     pub state: AgentState,
@@ -693,6 +694,7 @@ pub struct ChatInfo {
     pub title: Option<String>,
     pub session_id: Option<String>,
     pub transcript_path: Option<String>,
+    pub codex_side: Option<bool>,
     pub cwd: Option<String>,
     pub model: Option<String>,
     pub git_branch: Option<String>,

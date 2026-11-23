@@ -145,7 +145,7 @@ export function sendTransition(host: string, pane: string, agent: AgentKind | un
   const stopped = /^\/(exit|quit)$/.test(text.trim())
   const side = agent === 'codex' && /^\/(btw|side)(?:\s|$)/.test(text.trim())
   const info = useStore.getState().chats[chatKey(host, pane)]?.info
-  const differentFrom = side && !info?.transcriptPath?.startsWith('codex-side:') ? info?.sessionId : undefined
+  const differentFrom = side && !(info?.codexSide || info?.transcriptPath?.startsWith('codex-side:')) ? info?.sessionId : undefined
   return changeConversation(host, pane, transitionCommand(agent, text) ?? 'Updating conversation',
     () => api.send(host, pane, text, `change-${crypto.randomUUID()}`, true),
     { agent, stopped, allowPrompt: !stopped, allowWorking: side, ...(differentFrom && { differentFrom }) }, { rewind })
