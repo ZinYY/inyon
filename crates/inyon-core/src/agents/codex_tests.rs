@@ -1175,7 +1175,7 @@ fn split_side_focus_selects_one_composer_and_never_replays_parent_context() {
             row("  表 │ table", "  seaside │ park"), row("› Main draft", "› Ask a follow-up question"),
             row(&format!("  {main} · GPT-6"), &format!("  {side} · GPT-6")),
             if focused { row("", "  Side from main thread · ^/ to switch · ^c to archive") }
-            else { row("  ? for shortcuts · ^/ for side", "") }
+            else { row("  ? for shortcuts · ^/ for side     Goal paused", "") }
         ]
     };
     let mut right = frame(true);

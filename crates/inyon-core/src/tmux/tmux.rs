@@ -982,8 +982,8 @@ pub async fn capture_panes(host: &Host, pane_ids: &[String]) -> HubResult<IndexM
         // Read cursor and frame on the same tmux command queue. Terminal mirrors
         // have their own raw capture; only chat/agent probes select a column.
         pane_ids.iter().map(|pane| format!(
-            "tmux display-message -p -t {p} {header} \\; capture-pane -p -e -t {p} 2>/dev/null",
-            p = shq(pane), header = shq(&format!("@@CAP {pane} cursor=#{{cursor_x}}"))
+            "tmux display-message -p -t {p} '@@CAP #{{pane_id}} cursor=#{{cursor_x}}' \\; capture-pane -p -e -t {p} 2>/dev/null",
+            p = shq(pane)
         )).collect::<Vec<_>>().join("; ")
     } else { cmd };
     let r = host.exec(&cmd, ExecOptions::timeout(10000)).await?;

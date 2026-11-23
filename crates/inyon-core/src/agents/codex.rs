@@ -586,7 +586,7 @@ pub(crate) fn select_split_column(rows: &mut [String], cursor_x: usize) {
     let Some((left, hint)) = last.rsplit_once('│') else { return };
     let hint = crate::claude::screen::unstyle(hint).text;
     let main_footer = crate::claude::screen::unstyle(left).text;
-    if !side_hint(&hint) && !main_footer.trim_end().ends_with(" for side") { return; }
+    if !side_hint(&hint) && !main_footer.contains("^/ for side") && !main_footer.contains("⌃/ for side") { return; }
     let divider = UnicodeWidthStr::width(main_footer.as_str());
     let mut column = Vec::with_capacity(rows.len());
     for row in rows.iter() {
